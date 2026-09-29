@@ -613,9 +613,55 @@ function waitForMessage(sessionId) {
     notifyPages()
   })
 }
+/* Files attached on the page: kept in .runtime/uploads only until the agent has had time to read them —
+   removed after a day, and all of them whenever the server starts. The message carries their paths. */
+const UPLOADS = path.join(RUNTIME, 'uploads')
+const UPLOAD_MAX = 20 * 1024 * 1024, UPLOAD_KEEP_MS = 24 * 60 * 60 * 1000, FILES_PER_MESSAGE = 5
+function cleanUploads(all) {
+  let dirs = []
+  try { dirs = fs.readdirSync(UPLOADS) } catch { return }
+  for (const d of dirs) {
+    const dir = path.join(UPLOADS, d)
+    let files = []
+    try { files = fs.readdirSync(dir) } catch { continue }
+    for (const file of files) {
+      const p = path.join(dir, file)
+      try { if (all || Date.now() - fs.statSync(p).mtimeMs > UPLOAD_KEEP_MS) fs.unlinkSync(p) } catch {}
+    }
+    try { if (!fs.readdirSync(dir).length) fs.rmdirSync(dir) } catch {}
+  }
+}
+const safeName = (n) => String(n || 'file').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').replace(/^\.+/, '').slice(-120) || 'file'
+async function saveUpload(req, url) {
+  const name = String(url.searchParams.get('session') || '')
+  const target = (await readRegistry()).find((x) => x.name === name)
+  if (!target) return [404, {}]
+  const chunks = []
+  let size = 0
+  for await (const c of req) {
+    size += c.length
+    if (size > UPLOAD_MAX) return [413, {}]
+    chunks.push(c)
+  }
+  if (!size) return [400, {}]
+  const dir = path.join(UPLOADS, target.sessionId.slice(0, 8))
+  fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, Date.now().toString(36) + '-' + safeName(url.searchParams.get('name')))
+  await fsp.writeFile(file, Buffer.concat(chunks))
+  return [200, { path: file.replace(/\\/g, '/'), size }]
+}
+// only files this server saved can be named in a message
+function attachedPaths(list) {
+  const root = path.resolve(UPLOADS) + path.sep
+  return (Array.isArray(list) ? list : []).slice(0, FILES_PER_MESSAGE).map((p) => path.resolve(String(p)))
+    .filter((p) => p.startsWith(root) && fs.existsSync(p)).map((p) => p.replace(/\\/g, '/'))
+}
+
 async function sendMessage(body) {
   const name = String(body.session || '')
-  const text = clip(body.text, 2000)
+  const files = attachedPaths(body.files)
+  let text = clip(body.text, 2000)
+  if (files.length) text = (text ? text + '\n' : '') + 'Attached files (open them with the Read tool):\n' + files.map((p) => '  ' + p).join('\n')
   if (!name || !text) return 400
   const target = (await readRegistry()).find((x) => x.name === name)
   if (!target) return 404
@@ -693,6 +739,7 @@ const server = http.createServer(async (req, res) => {
       // Every write needs the token in a custom header. Another web page cannot read the token, and a
       // cross-origin request with a custom header needs a CORS preflight this server never answers.
       if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
+      if (url.pathname === '/api/upload') { const [code, o] = await saveUpload(req, url); json(code, o); return }
       const body = await readBody(req)
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
@@ -733,5 +780,7 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
+cleanUploads(true)
+setInterval(() => cleanUploads(false), 60 * 60 * 1000).unref()
 server.listen(PORT, HOST, () => { writeRuntime(); console.log(`claude-agent-monitor → http://${HOST}:${PORT}`) })
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { removeRuntime(); process.exit(0) })
