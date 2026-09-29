@@ -310,6 +310,17 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .live{position:relative}
 .detail .live .lstate{position:absolute;top:18px;right:28px;z-index:1;font-size:11px;font-weight:700;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
 .detail .live .lstate:empty{display:none}
+.detail .lasks{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.detail .lasks:empty{display:none}
+.detail .lasks .approval{box-shadow:none}
+.detail .lbar{margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:6px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);min-height:32px}
+.detail .lbar.busy{color:var(--run);border-color:var(--run);background:var(--run-soft)}
+.detail .lbar.ask{color:var(--wait);border-color:var(--wait);background:var(--wait-soft);font-weight:700}
+.detail .lbar .dots{display:inline-flex;gap:3px}
+.detail .lbar .dots::before,.detail .lbar .dots::after,.detail .lbar .dots{content:""}
+.detail .lbar .dots{width:22px;height:6px;background:radial-gradient(circle,currentColor 2.5px,transparent 3px) 0 50%/7.3px 6px repeat-x;animation:dots 1.2s steps(4) infinite;clip-path:inset(0 100% 0 0)}
+@keyframes dots{to{clip-path:inset(0 0 0 0)}}
+@media (prefers-reduced-motion:reduce){ .detail .lbar .dots{animation:none;clip-path:none} }
 .detail .lpane{height:min(52vh,560px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .detail .m .ts{font-size:10.5px;color:var(--faint);margin-top:3px}
 .detail .m.user{align-self:flex-end;max-width:80%;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 11px}
@@ -401,7 +412,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send)', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', sec: '{n}s', barThink: 'Thinking… {t}', barTool: '{x} — running for {t}', barAsk: 'Waiting for your answer below', barVs: 'Waiting for an answer in VS Code', barWaiting: 'Done — waiting for input', barResting: 'Resting', barGone: 'This session has ended', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send)', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -422,7 +433,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기)', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', sec: '{n}초', barThink: '생각 중… {t}', barTool: '{x} — {t}째 실행 중', barAsk: '아래에서 답을 기다리는 중', barVs: 'VS Code에서 답을 기다리는 중', barWaiting: '끝남 — 입력을 기다리는 중', barResting: '쉬는 중', barGone: '이 세션은 종료됐습니다', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기)', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -542,8 +553,8 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
   /* ── Cards ── */
   // everything the page knows about one agent, in full
   /* ── Live conversation (like the VS Code panel), masked by the server ── */
-  let liveES = null;
-  function stopLive() { if (liveES) { liveES.close(); liveES = null; } }
+  let liveES = null, liveCtl = null, liveTick = null;
+  function stopLive() { if (liveES) { liveES.close(); liveES = null; } liveCtl = null; clearInterval(liveTick); liveTick = null; }
   function livePane(s) {
     stopLive();
     const wrap = el('section', 'live');
@@ -552,7 +563,37 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const pane = el('div', 'lpane');
     pane.setAttribute('role', 'log');
     pane.setAttribute('aria-live', 'off');
-    wrap.append(state, pane);
+    const asks = el('div', 'lasks');
+    const bar = el('div', 'lbar');
+    bar.setAttribute('aria-live', 'polite');
+    wrap.append(state, pane, asks, bar);
+    const open = new Map();   // tool calls still waiting for their result: id → entry
+    let lastAt = 0;
+    const secs = (ms) => { const n = Math.max(0, Math.round((Date.now() - ms) / 1000)); return n < 60 ? t('sec', { n }) : dur(ms); };
+    liveCtl = {
+      name: str(s.name),
+      visible: () => !wrap.closest('.dpanel')?.hidden && $('detail').open,
+      update(data) {
+        const cur = (data?.projects || []).flatMap((p) => p.sessions).find((x) => x.name === s.name);
+        approvalsInto(asks, (data?.approvals || []).filter((a) => a.session === s.name));
+        const asking = asks.children.length > 0;
+        const vs = (data?.inEditor || []).find((w) => w.session === s.name);
+        bar.replaceChildren();
+        let cls = 'lbar';
+        if (!cur) { bar.textContent = t('barGone'); }
+        else if (asking) { bar.append(el('span', 'k', '✋'), document.createTextNode(t('barAsk'))); cls += ' ask'; }
+        else if (vs) { bar.append(el('span', 'k', '🖥'), document.createTextNode(t('barVs'))); cls += ' ask'; }
+        else if (cur.state === 'working') {
+          const tool = [...open.values()].pop();
+          if (tool) bar.append(el('span', 'k', ACT_ICON[tool.action?.kind] || '•'), document.createTextNode(t('barTool', { x: actText(tool.action) || str(tool.name), t: secs(tool.at || Date.now()) })));
+          else bar.append(el('span', 'dots', ''), document.createTextNode(t('barThink', { t: secs(lastAt || cur.statusSince || Date.now()) })));
+          cls += ' busy';
+        } else if (cur.state === 'waiting') bar.textContent = t('barWaiting');
+        else bar.textContent = t('barResting');
+        bar.className = cls;
+      },
+    };
+    liveTick = setInterval(() => liveCtl && liveCtl.update(last), 1000);
     const tools = new Map();   // tool_use id → its <details>, so a result lands under its call
     const time = (at) => { if (!at) return ''; const d = new Date(at), p2 = (x) => String(x).padStart(2, '0'); return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
     const put = (entries) => {
@@ -560,6 +601,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       for (const e of entries) {
         if (e.role === 'note') { pane.append(el('div', 'm note', str(e.text) + (e.at ? '  · ' + time(e.at) : ''))); continue; }
         if (e.role === 'user' || e.role === 'assistant' || e.role === 'monitor') {
+          open.clear();   // a new reply or message means the calls before it are over, even if a result never landed
           const m = el('div', 'm ' + (e.role === 'monitor' ? 'user monitor' : e.role));
           if (e.role === 'monitor') m.append(el('div', 'from', t('fromPage')));
           m.append(el('div', 'mt', str(e.text)), el('div', 'ts', time(e.at)));
@@ -570,20 +612,24 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
           sum.append(el('span', 'k', ACT_ICON[e.action?.kind] || '•'), el('span', 'tn', actText(e.action) || str(e.name)), el('span', 'ts', time(e.at)));
           d.append(sum, el('pre', 'in', str(e.input)));
           tools.set(e.id, d);
+          open.set(e.id, e);
           pane.append(d);
         } else if (e.role === 'result') {
           const out = el('pre', 'out' + (e.error ? ' err' : ''), str(e.text));
+          open.delete(e.id);
           const host = tools.get(e.id);
           if (host) { host.append(out); if (e.error) host.classList.add('failed'); }
           else pane.append(out);
         }
       }
+      for (const e of entries) if (e.at > lastAt) lastAt = e.at;
       while (pane.children.length > 400) pane.firstChild.remove();
+      if (liveCtl) liveCtl.update(last);
       if (atBottom) pane.scrollTop = pane.scrollHeight;
     };
     try {
       liveES = new EventSource('/api/live?session=' + encodeURIComponent(str(s.name)) + '&token=' + encodeURIComponent(token));
-      liveES.addEventListener('init', (ev) => { pane.replaceChildren(); tools.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
+      liveES.addEventListener('init', (ev) => { pane.replaceChildren(); tools.clear(); open.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
       liveES.addEventListener('add', (ev) => put(JSON.parse(ev.data)));
       liveES.onerror = () => { state.textContent = t('liveOff'); state.className = 'lstate'; };
     } catch (e) { state.textContent = t('liveOff'); }
@@ -651,6 +697,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       for (const [key, b] of Object.entries(buttons)) b.setAttribute('aria-selected', String(key === k));
       for (const [key, p] of Object.entries(panels)) p.hidden = key !== k;
       if (k === 'conv') { const lp = conv.querySelector('.lpane'); if (lp) lp.scrollTop = lp.scrollHeight; }
+      if (last) approvalsNode(last);
     };
     for (const [k, label] of [['info', t('tabInfo')], ['conv', t('tabConv')]]) {
       const b = el('button', 'dtab', label);
@@ -666,7 +713,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     (focusMessage ? ta : close).focus();
   }
   $('detail').addEventListener('click', (e) => { if (e.target === $('detail')) $('detail').close(); });   // click outside closes
-  $('detail').addEventListener('close', stopLive);
+  $('detail').addEventListener('close', () => { stopLive(); if (last) approvalsNode(last); });
 
   function botCard(s) {
     const st = STATE[s.state] ? s.state : 'resting';
@@ -937,8 +984,12 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 
   const secsLeft = (a) => Math.max(0, Math.round((a.expiresAt - Date.now()) / 1000));
   function approvalsNode(data) {
-    const box = $('approvals');
-    const list = data.approvals || [];
+    // a session whose conversation is open shows its requests there, not in the floating stack
+    const inline = liveCtl && liveCtl.visible() ? liveCtl.name : null;
+    approvalsInto($('approvals'), (data.approvals || []).filter((a) => a.session !== inline));
+    if (liveCtl) liveCtl.update(data);
+  }
+  function approvalsInto(box, list) {
     // rebuild only when the set of requests changes, so a click in progress is not thrown away
     const ids = list.map((a) => a.id).join(',');
     if (box.dataset.ids === ids) {
