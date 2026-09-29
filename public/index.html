@@ -378,7 +378,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     row.append(nm, badge(st));
     info.append(row);
-    if (s.role) info.append(el('div', 'title', str(s.role)));
+    // the leader's role for this session, or else the session's own title
+    if (s.role || s.title) info.append(el('div', 'title', str(s.role || s.title)));
     const bubble = el('div', 'bubble');
     if (s.activity && st === 'working') {
       bubble.append(el('span', 'k', ACT_ICON[s.activity.kind] || '•'), el('span', null, actText(s.activity)));
@@ -451,7 +452,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       group('✓ ' + t('done'), tasks.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 5),
     );
     const dec = (Array.isArray(b.decisions) ? b.decisions : []).filter((d) => d.status !== 'closed');
-    if (dec.length) box.append(group('? ' + t('decisions'), dec.map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort((a, c) => a.order - c.order), true, 8));
+    if (dec.length) box.append(group('? ' + t('decisions'), dec.map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort((a, c) => (Number(a.order) || 999) - (Number(c.order) || 999)), true, 8));
     panel.append(box);
     return panel;
   }
@@ -502,12 +503,16 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 
     if (!data.projects.some((p) => p.key === selected)) selected = data.projects[0]?.key || '';
     const tabs = $('tabs');
+    // the tabs are rebuilt on every poll — keep keyboard focus on the same tab
+    const focusedTab = tabs.contains(document.activeElement) ? document.activeElement.dataset.key : null;
     tabs.replaceChildren();
     for (const p of data.projects) {
       const tab = el('button', 'tab');
       tab.type = 'button';
+      tab.dataset.key = p.key;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(p.key === selected));
+      tab.tabIndex = p.key === selected ? 0 : -1;
       const lead = p.sessions.find((s) => s.isLeader) || p.sessions[0];
       const mood = p.counts.working ? 'working' : p.counts.waiting ? 'waiting' : 'resting';
       tab.append(robotNode(lead ? str(lead.name) : p.key, mood, !!(lead && lead.isLeader), true), el('span', 'tname', p.key));
@@ -519,6 +524,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       tab.addEventListener('click', () => select(p.key));
       tabs.append(tab);
     }
+    if (focusedTab != null) [...tabs.children].find((b) => b.dataset.key === focusedTab)?.focus();
 
     // re-rendering every few seconds must not throw away the chat scroll position
     const feedTop = box0Key === selected ? (document.querySelector('.feed')?.scrollTop || 0) : 0;
@@ -537,6 +543,17 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   function notice(msg) { const n = $('notice'); n.textContent = msg; n.hidden = !msg; }
 
   for (const b of document.querySelectorAll('#lang button')) b.addEventListener('click', () => setLang(b.dataset.lang));
+  // ← → Home End move between project tabs
+  $('tabs').addEventListener('keydown', (e) => {
+    const list = [...$('tabs').children], i = list.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = { ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: list.length - 1 }[e.key];
+    if (j == null) return;
+    e.preventDefault();
+    const next = list[(j + list.length) % list.length];
+    select(next.dataset.key);
+    [...$('tabs').children].find((b) => b.dataset.key === next.dataset.key)?.focus();
+  });
   $('logo').append(robotNode('leader', 'working', true, false));
   applyStatic();
 

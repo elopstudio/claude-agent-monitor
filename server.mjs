@@ -242,9 +242,17 @@ async function buildState() {
 /* ── HTTP ─────────────────────────────────────── */
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
+// Listening on 127.0.0.1 is not enough: a web page can rebind its own domain to 127.0.0.1 (DNS rebinding)
+// and read the API. Only answer requests addressed to this machine by a loopback name.
+const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
+function localHost(host) {
+  const h = String(host || '').toLowerCase().replace(/:\d+$/, '')
+  return LOCAL_HOSTS.has(h)
+}
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost')
   try {
+    if (!localHost(req.headers.host)) { res.writeHead(421).end(); return }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }
     if (url.pathname === '/api/state') {
       const body = JSON.stringify(await buildState())

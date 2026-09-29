@@ -39,6 +39,8 @@ named in `config.json`; without one, it is the session that sent the most messag
 - User prompts, conversation text, tool results, message bodies and socket addresses never reach the API.
 - A tool action is reduced to its kind plus a short label (a file name or the command's own description).
   Web lookups show neither the URL nor the query.
+- Requests whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` are refused (421), so a web page cannot
+  reach the API by pointing its own domain at this machine (DNS rebinding).
 
 ## States
 
