@@ -26,6 +26,8 @@ const PORT = Number(process.env.PORT) || 4777
 const HOST = '127.0.0.1'
 const TAIL_BYTES = 768 * 1024          // transcripts grow to tens of MB — read only the end
 const WAITING_MS = 30 * 60 * 1000      // idle for less than this = "waiting", longer = "resting"
+const STALL_MS = 10 * 60 * 1000        // "working" with no sign of life for this long = probably stuck
+const RECENT_RESULTS = 20              // tool errors are counted over the last this many tool results
 const MESSAGE_FEED = 14
 
 function loadConfig() {
@@ -141,7 +143,7 @@ async function transcriptInfo(sessionId) {
   const prev = tailCache.get(sessionId)
   if (prev && prev.size === st.size && prev.mtimeMs === st.mtimeMs) return prev.info
   const { lines, size, mtimeMs } = await tailLines(file)
-  const info = { title: prev?.info?.title || '', activity: null, activityAt: 0, lastEventAt: 0, sent: [] }
+  const info = { title: prev?.info?.title || '', activity: null, activityAt: 0, lastEventAt: 0, sent: [], context: 0, results: 0, errors: 0, lastErrorAt: 0 }
   let titleSeen = false
   for (let i = lines.length - 1; i >= 0; i--) {
     let o
@@ -149,6 +151,17 @@ async function transcriptInfo(sessionId) {
     const ts = o.timestamp ? Date.parse(o.timestamp) : 0
     if (!info.lastEventAt && ts) info.lastEventAt = ts
     if (!titleSeen && o.type === 'ai-title' && o.aiTitle) { info.title = clip(o.aiTitle, 200); titleSeen = true }
+    // tool results: only whether each one failed, never what it said
+    if (o.type === 'user' && !o.isSidechain && Array.isArray(o.message?.content) && info.results < RECENT_RESULTS) {
+      for (const c of o.message.content) {
+        if (c?.type !== 'tool_result' || info.results >= RECENT_RESULTS) continue
+        info.results++
+        if (c.is_error) { info.errors++; if (!info.lastErrorAt) info.lastErrorAt = ts }
+      }
+    }
+    // how full the context is: the newest reply's input side (fresh + cache written + cache read)
+    const u = o.type === 'assistant' && !o.isSidechain ? o.message?.usage : null
+    if (u && !info.context) info.context = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
     if (o.type !== 'assistant' || o.isSidechain || !Array.isArray(o.message?.content)) continue
     for (let j = o.message.content.length - 1; j >= 0; j--) {
       const c = o.message.content[j]
@@ -235,7 +248,11 @@ async function buildState() {
       role: '', title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
       mode: modes.get(s.sessionId)?.mode || '',
+      context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
+      // a hook call is a sign of life too, and arrives even while the transcript is quiet
+      lastSignAt: Math.max(info?.lastEventAt || 0, modes.get(s.sessionId)?.at || 0),
     }
+    sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     const p = projects.get(key)
     p.sessions.push(sess)
     bySession.set(s.sessionId, { sess, project: key })

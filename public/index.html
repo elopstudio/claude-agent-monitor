@@ -237,6 +237,10 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .approval .about{margin:4px 0 0;font-size:12px;color:var(--muted)}
 .bot-card.asking{border:2px solid var(--wait);box-shadow:0 0 0 4px var(--wait-soft)}
 .bot-card.asking .bubble{border-color:var(--wait);border-width:2px}
+.bot-card.stalled{border:2px solid var(--block)}
+.bot-card .stall-tag{font-size:10.5px;font-weight:900;color:var(--block);background:var(--block-soft);border:1px solid var(--block);border-radius:4px;padding:0 6px;white-space:nowrap}
+.info .when .ctx{font-variant-numeric:tabular-nums}
+.info .when .errs{color:var(--block);font-weight:700}
 .bot-card .ask-tag{font-size:10.5px;font-weight:900;letter-spacing:.04em;color:var(--surface);background:var(--wait);border-radius:4px;padding:1px 6px;white-space:nowrap}
 @media (prefers-reduced-motion:no-preference){ .bot-card.asking{animation:asking 1.6s ease-in-out infinite} }
 @keyframes asking{50%{box-shadow:0 0 0 7px var(--wait-soft)}}
@@ -342,7 +346,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -363,7 +367,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -448,6 +452,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     if (h < 24) return m % 60 ? t('hm', { h, m: m % 60 }) : t('h', { n: h });
     return t('d', { n: Math.floor(h / 24) });
   }
+  const tokens = (n) => (n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(n || 0));
+  const recentErrors = (s) => (s.errors && s.lastErrorAt && Date.now() - s.lastErrorAt < 30 * 60000 ? s.errors : 0);
   const ago = (ms) => (Date.now() - ms < 60000 ? t('justNow') : t('ago', { t: dur(ms) }));
   function badge(st) { const s = STATE[st] || STATE.resting; const b = el('span', 'badge ' + s.cls); b.append(el('span', 'g', s.glyph), document.createTextNode(t(s.key))); return b; }
 
@@ -502,6 +508,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     row(t('dState'), t(st) + (s.statusSince ? ' · ' + dur(s.statusSince) : ''));
     if (s.mode) row(t('dMode'), (I18N[lang].modes || I18N.en.modes)[s.mode] || str(s.mode));
     if (s.startedAt) row(t('dUp'), dur(s.startedAt));
+    if (s.context) row(t('dCtx'), s.context.toLocaleString() + ' ' + t('tok'));
+    if (s.results) row(t('dErr'), t('errOf', { e: s.errors, n: s.results }) + (s.lastErrorAt ? ' · ' + t('lastErr', { t: ago(s.lastErrorAt) }) : ''));
+    if (s.stalledFor) row(t('dStall'), t('stallLong', { t: dur(Date.now() - s.stalledFor) }));
     d.replaceChildren(head, dl);
     if (!d.open) d.showModal();
     close.focus();
@@ -512,7 +521,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     const st = STATE[s.state] ? s.state : 'resting';
     const asked = (last?.approvals || []).find((a) => a.session === s.name);
     const inVs = !asked && (last?.inEditor || []).find((w) => w.session === s.name);
-    const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : '') + (asked || inVs ? ' asking' : ''));
+    const stalled = !asked && !inVs && s.stalledFor > 0;
+    const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : '') + (asked || inVs ? ' asking' : '') + (stalled ? ' stalled' : ''));
     const stage = el('div', 'stage');
     stage.setAttribute('role', 'img');
     stage.setAttribute('aria-label', (nickFor(s) || str(s.name)) + ' ' + t(st));
@@ -526,6 +536,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     if (asked) nm.append(el('span', 'ask-tag', t('asking')));
     else if (inVs) nm.append(el('span', 'ask-tag', t('vsTag')));
+    else if (stalled) nm.append(el('span', 'stall-tag', t('stallTag', { t: dur(Date.now() - s.stalledFor) })));
     const right = el('span', 'marks');
     if (s.mode) {
       const m = el('span', 'mode m-' + str(s.mode), (I18N[lang].modes || I18N.en.modes)[s.mode] || str(s.mode));
@@ -556,6 +567,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     const since = dur(s.statusSince);
     when.append(el('span', null, st === 'working' ? t('forWorking', { t: since }) : st === 'waiting' ? t('sinceWaiting', { t: since }) : t('sinceResting', { t: since })));
     if (s.startedAt) when.append(el('span', null, t('up', { t: dur(s.startedAt) })));
+    if (s.context) { const c = el('span', 'ctx', '🧠 ' + tokens(s.context)); c.title = t('dCtx'); when.append(c); }
+    const errs = recentErrors(s);
+    if (errs) { const e = el('span', 'errs', '⚠ ' + errs); e.title = t('dErr'); when.append(e); }
     info.append(when);
     card.append(stage, info);
     return card;
