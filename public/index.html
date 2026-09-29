@@ -60,19 +60,6 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .wrap{--gut:24px;margin:0 auto;padding:0 var(--gut) 60px}
 @media (max-width:640px){ .wrap{--gut:16px;padding-bottom:48px} }
 /* header, approvals and tabs stay on screen; approvals scroll inside when there are many */
-/* the desktop app: a 36 px title strip on the window buttons' line — drag it to move the window */
-.titlestrip{position:fixed;top:0;left:0;right:0;height:36px;z-index:50;display:flex;align-items:center;gap:10px;padding:0 150px 0 10px;
-  background:var(--surface);border-bottom:1px solid var(--line);-webkit-app-region:drag;user-select:none}
-.titlestrip .tname{display:flex;align-items:center;gap:6px;font:700 12px var(--sans);color:var(--muted)}
-.titlestrip .tname svg{width:20px;height:20px}
-.in-app body{padding-top:var(--strip,36px)}
-.in-app .sticky{top:var(--strip,36px)}
-.appbar{display:flex;align-items:center;gap:1px;-webkit-app-region:no-drag}
-.appbar .ab{appearance:none;border:0;background:transparent;color:var(--muted);font:700 14px var(--sans);width:28px;height:26px;border-radius:8px;cursor:pointer;display:grid;place-items:center}
-.appbar .ab:hover:not(:disabled){background:var(--surface-2);color:var(--text)}
-.appbar .ab:disabled{opacity:.3;cursor:default}
-.appbar .ab.pct{width:auto;padding:0 6px;font:700 11.5px var(--mono)}
-.appbar .sep{width:1px;height:18px;background:var(--line-strong);margin:0 6px}
 .top .brand-wrap{display:flex;align-items:center;gap:8px}
 .sticky{position:sticky;top:0;z-index:20;margin:0 calc(-1 * var(--gut));padding:16px var(--gut) 0;background:var(--bg)}
 
@@ -678,36 +665,6 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     if (last) render(last);
   }
   window.addEventListener('popstate', () => { selected = decodeURIComponent(location.hash.slice(1)) || ALL; if (last) render(last); });
-
-  /* ── inside the desktop app: the header is the window's title bar, with back / forward / reload / zoom ── */
-  if (window.monitorApp) {
-    document.documentElement.classList.add('in-app');
-    const strip = el('div', 'titlestrip');   // the window's title bar: on the same line as minimise / maximise / close
-    const name = el('span', 'tname');
-    name.append(robotNode('leader', 'working', true, true), document.createTextNode('Agent Monitor'));
-    const bar = el('div', 'appbar');
-    const b = (label, title, fn) => { const x = el('button', 'ab', label); x.type = 'button'; x.title = title; x.setAttribute('aria-label', title); x.addEventListener('click', fn); bar.append(x); return x; };
-    const back = b('←', 'Back (Alt+←)', () => window.monitorApp.back());
-    const fwd = b('→', 'Forward (Alt+→)', () => window.monitorApp.forward());
-    b('⟳', 'Reload (F5)', () => window.monitorApp.reload());
-    bar.append(el('span', 'sep'));
-    b('−', 'Zoom out (Ctrl+-)', () => window.monitorApp.zoomOut());
-    const pct = b('100%', 'Reset zoom (Ctrl+0)', () => window.monitorApp.zoomReset());
-    pct.classList.add('pct');
-    b('+', 'Zoom in (Ctrl+=)', () => window.monitorApp.zoomIn());
-    const show = (st) => {
-      if (!st) return;
-      pct.textContent = Math.round(st.zoom * 100) + '%'; back.disabled = !st.canBack; fwd.disabled = !st.canForward;
-      // zoom scales the page, strip included; undo it for the strip, so it keeps the window buttons' height
-      const z = st.zoom || 1;
-      strip.style.zoom = String(1 / z);
-      document.documentElement.style.setProperty('--strip', (36 / z) + 'px');
-    };
-    window.monitorApp.onChange(show);
-    window.monitorApp.state().then(show);
-    strip.append(name, bar);
-    document.body.prepend(strip);
-  }
 
   function setLang(next) {
     if (!I18N[next]) return;

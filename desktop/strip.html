@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Monitor</title>
+<style>
+/* The window's title strip: its own view above the page, so zooming the page never touches it. */
+:root{--bg:#ffffff;--line:#e0e3ea;--muted:#5b6372;--text:#171a21;--hover:#f2f3f7}
+@media (prefers-color-scheme: dark){:root{--bg:#171b22;--line:#2a303b;--muted:#a3abb8;--text:#e8eaef;--hover:#232830}}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden}
+body{display:flex;align-items:center;gap:10px;padding:0 150px 0 10px;border-bottom:1px solid var(--line);box-sizing:border-box;
+  font:700 12px system-ui,"Segoe UI",sans-serif;color:var(--muted);-webkit-app-region:drag;user-select:none}
+.name{display:flex;align-items:center;gap:6px}
+.name img{width:20px;height:20px}
+.bar{display:flex;align-items:center;gap:1px;-webkit-app-region:no-drag}
+button{appearance:none;border:0;background:transparent;color:var(--muted);font:700 14px system-ui,"Segoe UI",sans-serif;width:28px;height:26px;border-radius:8px;cursor:pointer;display:grid;place-items:center}
+button:hover:not(:disabled){background:var(--hover);color:var(--text)}
+button:disabled{opacity:.3;cursor:default}
+button.pct{width:auto;padding:0 6px;font:700 11.5px ui-monospace,Consolas,monospace}
+.sep{width:1px;height:18px;background:var(--line);margin:0 6px}
+</style>
+</head>
+<body>
+<span class="name"><img src="icon.png" alt=""> Agent Monitor</span>
+<div class="bar">
+  <button id="back" title="Back (Alt+←)" aria-label="Back">←</button>
+  <button id="forward" title="Forward (Alt+→)" aria-label="Forward">→</button>
+  <button id="reload" title="Reload (F5)" aria-label="Reload">⟳</button>
+  <span class="sep"></span>
+  <button id="out" title="Zoom out (Ctrl+-)" aria-label="Zoom out">−</button>
+  <button id="pct" class="pct" title="Reset zoom (Ctrl+0)" aria-label="Reset zoom">100%</button>
+  <button id="in" title="Zoom in (Ctrl+=)" aria-label="Zoom in">+</button>
+</div>
+<script>
+const app = window.monitorApp
+const $ = (id) => document.getElementById(id)
+const wire = { back: 'back', forward: 'forward', reload: 'reload', out: 'zoomOut', pct: 'zoomReset', in: 'zoomIn' }
+for (const [id, fn] of Object.entries(wire)) $(id).addEventListener('click', () => app[fn]())
+const show = (s) => { if (!s) return; $('pct').textContent = Math.round(s.zoom * 100) + '%'; $('back').disabled = !s.canBack; $('forward').disabled = !s.canForward }
+app.onChange(show)
+app.state().then(show)
+</script>
+</body>
+</html>

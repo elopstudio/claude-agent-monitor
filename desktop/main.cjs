@@ -1,6 +1,6 @@
 // Agent Monitor as a desktop app: runs the monitor server inside the app, shows it in its own window,
 // and lives in the tray — so it no longer depends on a terminal or on VS Code staying open.
-const { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain } = require('electron')
+const { app, BaseWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -69,17 +69,23 @@ async function startServer() {
 }
 
 /* ── window and tray ── */
-const DARK = { color: '#171b22', symbolColor: '#e8eaef', height: 36 }, LIGHT = { color: '#ffffff', symbolColor: '#171a21', height: 36 }
+// The window is two views: a 36 px title strip (strip.html) on the window buttons' line, and the monitor page
+// under it. Zoom, reload and history apply to the page only, so the strip keeps its size like the buttons do.
+const STRIP = 36
+const DARK = { color: '#171b22', symbolColor: '#e8eaef', height: STRIP }, LIGHT = { color: '#ffffff', symbolColor: '#171a21', height: STRIP }
 const overlay = () => (nativeTheme.shouldUseDarkColors ? DARK : LIGHT)
 nativeTheme.on('updated', () => { if (win) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
 const zoom = () => { const z = Number(readSettings().zoom); return z >= 0.5 && z <= 2 ? z : 1 }
-function report() {
-  if (!win) return
-  const wc = win.webContents, h = wc.navigationHistory
-  wc.send('monitor-app-state', { zoom: wc.getZoomFactor(), canBack: h.canGoBack(), canForward: h.canGoForward() })
+let win = null, page = null, strip = null
+function pageState() {
+  if (!page) return { zoom: 1, canBack: false, canForward: false }
+  const wc = page.webContents, h = wc.navigationHistory
+  return { zoom: wc.getZoomFactor(), canBack: h.canGoBack(), canForward: h.canGoForward() }
 }
-function appAction(wc, action) {
-  const h = wc.navigationHistory
+function report() { if (strip) strip.webContents.send('monitor-app-state', pageState()) }
+function appAction(action) {
+  if (!page) return
+  const wc = page.webContents, h = wc.navigationHistory
   if (action === 'back' && h.canGoBack()) h.goBack()
   else if (action === 'forward' && h.canGoForward()) h.goForward()
   else if (action === 'reload') wc.reloadIgnoringCache()
@@ -87,49 +93,65 @@ function appAction(wc, action) {
     const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
     const cur = wc.getZoomFactor()
     let next = 1
-    if (action === 'zoom-in') next = steps.find((s) => s > cur + 0.001) || 2
-    if (action === 'zoom-out') next = [...steps].reverse().find((s) => s < cur - 0.001) || 0.5
+    if (action === 'zoom-in') next = steps.find((x) => x > cur + 0.001) || 2
+    if (action === 'zoom-out') next = [...steps].reverse().find((x) => x < cur - 0.001) || 0.5
     wc.setZoomFactor(next)
     writeSettings({ ...readSettings(), zoom: next })
   }
   setTimeout(report, 50)
 }
-ipcMain.handle('monitor-app', (e, action) => {
-  if (action !== 'state') appAction(e.sender, String(action))
-  const h = e.sender.navigationHistory
-  return { zoom: e.sender.getZoomFactor(), canBack: h.canGoBack(), canForward: h.canGoForward() }
-})
-let win = null, tray = null, quitting = false
-function showWindow() {
-  if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); return }
-  win = new BrowserWindow({
-    width: 1440, height: 920, minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
-    // no Windows title bar: the page's own header is the title bar; Windows still draws minimise /
-    // maximise / close in its corner, in the page's colours (snap layouts keep working)
-    titleBarStyle: 'hidden', titleBarOverlay: overlay(),
-    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
-  })
-  win.loadURL(URL)
-  const wc = win.webContents
-  wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report() })
-  wc.on('did-navigate-in-page', report)
-  // Ctrl + mouse wheel: the same steps as the buttons, and remembered
-  wc.on('zoom-changed', (_e, direction) => appAction(wc, direction === 'in' ? 'zoom-in' : 'zoom-out'))
-  // the usual shortcuts: zoom, reload, back / forward
+ipcMain.handle('monitor-app', (_e, action) => { if (action !== 'state') appAction(String(action)); return pageState() })
+function layout() {
+  if (!win) return
+  const { width, height } = win.getContentBounds()
+  strip.setBounds({ x: 0, y: 0, width, height: STRIP })
+  page.setBounds({ x: 0, y: STRIP, width, height: Math.max(0, height - STRIP) })
+}
+// the usual shortcuts, in either view: zoom, reload, back / forward
+function shortcuts(wc) {
   wc.on('before-input-event', (e, i) => {
     if (i.type !== 'keyDown') return
     const k = i.key, mod = i.control || i.meta
     const act = mod && (k === '=' || k === '+') ? 'zoom-in' : mod && k === '-' ? 'zoom-out' : mod && k === '0' ? 'zoom-reset'
       : k === 'F5' || (mod && k.toLowerCase() === 'r') ? 'reload' : i.alt && k === 'ArrowLeft' ? 'back' : i.alt && k === 'ArrowRight' ? 'forward' : null
-    if (act) { e.preventDefault(); appAction(wc, act) }
+    if (act) { e.preventDefault(); appAction(act) }
   })
+}
+let tray = null, quitting = false
+function showWindow() {
+  if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); return }
+  const dark = nativeTheme.shouldUseDarkColors
+  win = new BaseWindow({
+    width: 1440, height: 920, minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
+    backgroundColor: dark ? '#0f1116' : '#f2f3f7',
+    // no Windows title bar: Windows draws minimise / maximise / close over the strip, in its colours
+    titleBarStyle: 'hidden', titleBarOverlay: overlay(),
+  })
+  const safe = { contextIsolation: true, sandbox: true }
+  strip = new WebContentsView({ webPreferences: { ...safe, preload: path.join(__dirname, 'preload.cjs') } })
+  page = new WebContentsView({ webPreferences: safe })
+  page.setBackgroundColor(dark ? '#0f1116' : '#f2f3f7')
+  win.contentView.addChildView(page)
+  win.contentView.addChildView(strip)
+  strip.webContents.loadFile(path.join(__dirname, 'strip.html'))
+  page.webContents.loadURL(URL)
+  layout()
+  win.on('resize', layout)
+  win.on('maximize', layout)
+  win.on('unmaximize', layout)
+  const wc = page.webContents
+  wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report() })
+  wc.on('did-navigate-in-page', report)
+  // Ctrl + mouse wheel: the same steps as the buttons, and remembered
+  wc.on('zoom-changed', (_e, direction) => appAction(direction === 'in' ? 'zoom-in' : 'zoom-out'))
+  shortcuts(wc)
+  shortcuts(strip.webContents)
   // links in replies open in the real browser, not inside the app
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url) } })
+  wc.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
+  wc.on('will-navigate', (e, url) => { if (!url.startsWith(URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url) } })
   // closing the window keeps the monitor running in the tray
   win.on('close', (e) => { if (!quitting) { e.preventDefault(); win.hide() } })
-  win.on('closed', () => { win = null })
+  win.on('closed', () => { win = page = strip = null })
 }
 function trayMenu() {
   const login = app.getLoginItemSettings().openAtLogin

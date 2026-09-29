@@ -17,6 +17,7 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "strip.html",
       "hooks-setup.cjs",
       "icon.png",
       "package.json"
