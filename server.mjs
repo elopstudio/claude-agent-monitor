@@ -323,7 +323,8 @@ async function buildState() {
     const hit = bySession.get(id)
     return { project: hit.project, session: hit.sess.name, short: hit.sess.short, nick: hit.sess.nick, nickKo: hit.sess.nickKo, isLeader: !!hit.sess.isLeader, type: w.type, message: w.message, at: w.at }
   }).sort((a, b) => a.at - b.at)
-  return { now, projects: out, approvals, inEditor, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
+  const recent = outcomes.map((o) => { const hit = bySession.get(o.sessionId); return { at: o.at, agent: hit ? (hit.sess.nickKo || hit.sess.name) : '(other)', tool: o.tool, how: o.how, ms: o.ms } })
+  return { now, projects: out, approvals, inEditor, recent, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
 }
 
 /* ── Hooks: approvals and permission mode ─────── */
@@ -378,7 +379,14 @@ function approvalDetail(tool, input = {}) {
 // counts only — how many hook calls arrived and what became of permission requests, never their content
 const hookStats = { events: {}, permission: { shown: 0, skippedNoViewer: 0, tools: {} }, notifications: {}, lastAt: 0 }
 
-function hookEvent(input) {
+// how each permission request ended — tool name, agent, outcome and time only; the last 20, in memory
+const outcomes = []
+function recordOutcome(p, how) {
+  outcomes.unshift({ at: Date.now(), sessionId: p.sessionId, tool: p.tool, how, ms: Date.now() - p.at })
+  outcomes.length = Math.min(outcomes.length, 20)
+}
+
+function hookEvent(input, res) {
   const sessionId = String(input.session_id || '')
   const event = String(input.hook_event_name || 'unknown')
   hookStats.events[event] = (hookStats.events[event] || 0) + 1
@@ -403,8 +411,14 @@ function hookEvent(input) {
   hookStats.permission.tools[toolName] = (hookStats.permission.tools[toolName] || 0) + 1
   return new Promise((resolve) => {
     const id = crypto.randomBytes(8).toString('hex')
-    const done = (decision) => { clearTimeout(timer); pending.delete(id); notifyPages(); resolve(decision) }
-    const timer = setTimeout(() => { handBack(sessionId); done({}) }, APPROVAL_WAIT_MS)
+    const done = (decision, how) => {
+      const p = pending.get(id)
+      if (!p) return
+      clearTimeout(timer); pending.delete(id); recordOutcome(p, how); notifyPages(); resolve(decision)
+    }
+    const timer = setTimeout(() => { handBack(sessionId); done({}, 'timeout') }, APPROVAL_WAIT_MS)
+    // Claude Code dropped the hook (the request was settled some other way): drop the card too
+    res?.on('close', () => { if (!res.writableEnded) done({}, 'dropped by Claude Code') })
     // "Yes, and don't ask again for …" — kept exactly as Claude Code sent them, and handed back unchanged when picked
     const suggestions = Array.isArray(input.permission_suggestions) ? input.permission_suggestions.slice(0, 4) : []
     pending.set(id, {
@@ -430,8 +444,8 @@ const decision = (d) => ({ hookSpecificOutput: { hookEventName: 'PermissionReque
 function decide(id, answer, pick, extra) {
   const p = pending.get(id)
   if (!p) return false
-  if (answer === 'allow') p.done(decision({ behavior: 'allow' }))
-  else if (answer === 'always' && p.suggestions[pick]) p.done(decision({ behavior: 'allow', updatedPermissions: [p.suggestions[pick]] }))
+  if (answer === 'allow') p.done(decision({ behavior: 'allow' }), 'allowed on the page')
+  else if (answer === 'always' && p.suggestions[pick]) p.done(decision({ behavior: 'allow', updatedPermissions: [p.suggestions[pick]] }), 'always-allowed on the page')
   else if (answer === 'answers' && p.input && Array.isArray(p.input.questions)) {
     const answers = {}
     for (const a of Array.isArray(extra) ? extra : []) {
@@ -440,11 +454,11 @@ function decide(id, answer, pick, extra) {
       if (q && q.question && v) answers[q.question] = v
     }
     if (!Object.keys(answers).length) return false
-    p.done(decision({ behavior: 'allow', updatedInput: { ...p.input, answers } }))
+    p.done(decision({ behavior: 'allow', updatedInput: { ...p.input, answers } }), 'answered on the page')
   }
-  else if (answer === 'deny') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor' }))
-  else if (answer === 'stop') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor — stopped to wait for the user', interrupt: true }))
-  else { handBack(p.sessionId); p.done({}) }   // "answer in VS Code" — the normal prompt appears right away
+  else if (answer === 'deny') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor' }), 'denied on the page')
+  else if (answer === 'stop') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor — stopped to wait for the user', interrupt: true }), 'denied and stopped on the page')
+  else { handBack(p.sessionId); p.done({}, 'sent back to VS Code') }   // "answer in VS Code" — the normal prompt appears right away
   return true
 }
 
@@ -680,7 +694,7 @@ const server = http.createServer(async (req, res) => {
       // cross-origin request with a custom header needs a CORS preflight this server never answers.
       if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
       const body = await readBody(req)
-      if (url.pathname === '/hook') { json(200, await hookEvent(body)); return }
+      if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
       if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }

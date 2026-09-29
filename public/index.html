@@ -508,6 +508,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 
   /* ── Helpers ── */
   const $ = (id) => document.getElementById(id);
+  const approvalsBox = document.getElementById('approvals');   // moves into the agent dialog while that is open
   function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
   const nickFor = (s) => str(lang === 'ko' && s.nickKo || s.nick);
@@ -538,7 +539,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     lang = next;
     try { localStorage.setItem('am.lang', next); } catch (e) {}
     applyStatic();
-    $('approvals').dataset.ids = '';
+    approvalsBox.dataset.ids = '';
     if (last) render(last);
   }
   function applyStatic() {
@@ -580,7 +581,10 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       visible: () => !wrap.closest('.dpanel')?.hidden && $('detail').open,
       update(data) {
         const cur = (data?.projects || []).flatMap((p) => p.sessions).find((x) => x.name === s.name);
+        const before = asks.dataset.ids || '';
         approvalsInto(asks, (data?.approvals || []).filter((a) => a.session === s.name));
+        // a new request always comes into view, wherever the conversation was scrolled to
+        const arrived = (asks.dataset.ids || '') !== before && asks.children.length > 0;
         const asking = asks.children.length > 0;
         const vs = (data?.inEditor || []).find((w) => w.session === s.name);
         bar.replaceChildren();
@@ -597,7 +601,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
         else bar.textContent = t('barResting');
         const stick = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 60;
         bar.className = cls;
-        if (stick) pane.scrollTop = pane.scrollHeight;
+        if (stick || arrived) pane.scrollTop = pane.scrollHeight;
       },
     };
     liveTick = setInterval(() => liveCtl && liveCtl.update(last), 1000);
@@ -715,12 +719,13 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       tabs.append(b);
     }
     show(pick);
-    d.replaceChildren(head, tabs, info, conv, form);
+    d.replaceChildren(head, tabs, info, conv, form);   // the floating stack is re-attached right after
     if (!d.open) d.showModal();
+    if (approvalsBox.parentNode !== d) d.append(approvalsBox);
     (focusMessage ? ta : close).focus();
   }
   $('detail').addEventListener('click', (e) => { if (e.target === $('detail')) $('detail').close(); });   // click outside closes
-  $('detail').addEventListener('close', () => { stopLive(); if (last) approvalsNode(last); });
+  $('detail').addEventListener('close', () => { $('projects').after(approvalsBox); stopLive(); if (last) approvalsNode(last); });
 
   function botCard(s) {
     const st = STATE[s.state] ? s.state : 'resting';
@@ -993,7 +998,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
   function approvalsNode(data) {
     // a session whose conversation is open shows its requests there, not in the floating stack
     const inline = liveCtl && liveCtl.visible() ? liveCtl.name : null;
-    approvalsInto($('approvals'), (data.approvals || []).filter((a) => a.session !== inline));
+    approvalsInto(approvalsBox, (data.approvals || []).filter((a) => a.session !== inline));
     if (liveCtl) liveCtl.update(data);
   }
   function approvalsInto(box, list) {
