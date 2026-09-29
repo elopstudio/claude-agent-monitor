@@ -336,10 +336,10 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail form.msg textarea{width:100%;resize:vertical;font:13.5px/1.5 var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
 .detail form.msg .hint{font-size:12px;color:var(--muted)}
 .detail form.msg .status{font-size:12.5px;font-weight:700}
-.detail form.msg .status.ok{color:var(--run)}
+.detail form.msg .status.good{color:var(--run)}
 .detail form.msg .status.bad{color:var(--block)}
 .detail form.msg .status:empty{display:none}
-.detail form.msg .ok{justify-self:end;appearance:none;border:1px solid var(--run);background:var(--run);color:var(--surface);border-radius:8px;padding:7px 16px;font:700 13px var(--sans);cursor:pointer}
+.detail form.msg .send{justify-self:end;appearance:none;border:1px solid var(--run);background:var(--run);color:var(--surface);border-radius:8px;padding:7px 16px;font:700 13px var(--sans);cursor:pointer}
 .info .when{align-items:center}
 .tab .tc .a{color:var(--surface);background:var(--wait)}
 .info .marks{display:flex;align-items:center;gap:5px;flex:none}
@@ -622,7 +622,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     ta.setAttribute('aria-label', ta.placeholder);
     const hint = el('div', 'hint', s.listening ? t('msgNow') : st === 'working' ? t('msgAfterTurn') : t('msgNotListening'));
     const status = el('div', 'status');
-    const send = el('button', 'ok', t('send'));
+    const send = el('button', 'send', t('send'));
     send.type = 'submit';
     form.append(ta, hint, status, send);
     form.addEventListener('submit', async (e) => {
@@ -634,7 +634,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       let r;
       try { r = await post(); if (r.status === 403) { await refreshToken(); r = await post(); } } catch (e2) { r = null; }
       send.disabled = false;
-      if (r && r.ok) { ta.value = ''; status.textContent = t('msgSent'); status.className = 'status ok'; clearTimeout(timer); tick(); }
+      if (r && r.ok) { ta.value = ''; status.textContent = t('msgSent'); status.className = 'status good'; clearTimeout(timer); tick(); }
       else { status.textContent = t('failed'); status.className = 'status bad'; }
     });
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) form.requestSubmit(); });
