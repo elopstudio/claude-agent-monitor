@@ -125,6 +125,26 @@ their conversation read back from the transcript, and the next message resumes t
 stopped agent is opened — by the time the first message is written it is ready. **Quick start** leaves out your MCP
 servers and connectors, which starts faster still. Set `"claudePath"` in `config.json` if the program is not found.
 
+## Desktop app
+
+`desktop/` packages the monitor as a Windows app, so it runs without a terminal and without VS Code staying open.
+The server runs inside the app, the page opens in its own window, and closing the window leaves it in the tray
+(monitor agents keep running). The tray menu opens it, opens it in the browser, turns **start at login** on or off,
+opens or changes the data folder, and quits (which also stops the monitor agents).
+
+```bash
+cd desktop
+npm install          # Electron and electron-builder, only for the app — the monitor itself stays dependency-free
+npm start            # run it from source
+npm run dist         # build dist/Agent Monitor Setup <version>.exe
+```
+
+- If a monitor is already answering on the port (`npm start` in a terminal), the app shows that one instead of starting another.
+- The data folder (`config.json`, `boards/`, `.runtime/`) defaults to `~/.claude-agent-monitor`; point it at the folder
+  your leaders write their boards to. `MONITOR_HOME` does the same for `npm start`.
+- The hooks find the running monitor through `~/.claude-agent-monitor/bridge.json`, wherever the monitor runs from.
+  They still run with the `node` on your PATH, from the folder registered in `~/.claude/settings.json`.
+
 ## Board format
 
 See `boards/example.json`.

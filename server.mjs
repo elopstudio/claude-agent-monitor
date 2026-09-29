@@ -23,7 +23,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url))   // the code: public/
 // (the desktop app points it at a writable folder; an installed app's own folder is read-only)
 const DATA = process.env.MONITOR_HOME ? path.resolve(process.env.MONITOR_HOME) : ROOT
 // where the hooks find the running monitor, wherever the monitor is installed
-const LINK = path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json')
+const LINK = process.env.MONITOR_LINK || path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json')
 const CLAUDE = process.env.CLAUDE_HOME || path.join(os.homedir(), '.claude')
 const SESSIONS_DIR = path.join(CLAUDE, 'sessions')
 const PROJECTS_DIR = path.join(CLAUDE, 'projects')
@@ -958,3 +958,5 @@ cleanUploads(true)
 setInterval(() => cleanUploads(false), 60 * 60 * 1000).unref()
 server.listen(PORT, HOST, () => { writeRuntime(); console.log(`claude-agent-monitor → http://${HOST}:${PORT}`) })
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { agents.shutdown(); removeRuntime(); process.exit(0) })
+// a host that runs the server in its own process (the desktop app) stops it this way before quitting
+globalThis.agentMonitorShutdown = () => { agents.shutdown(); removeRuntime(); try { server.close() } catch {} }

@@ -1,0 +1,53 @@
+{
+  "name": "agent-monitor-desktop",
+  "productName": "Agent Monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Monitor as a desktop app: the monitor server in its own window and the tray",
+  "license": "MIT",
+  "author": "elopstudio",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "studio.elop.agent-monitor",
+    "productName": "Agent Monitor",
+    "files": [
+      "main.cjs",
+      "icon.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "..",
+        "to": "monitor",
+        "filter": [
+          "server.mjs",
+          "agents.mjs",
+          "package.json",
+          "LICENSE",
+          "public/**/*",
+          "hooks/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Agent Monitor"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.0",
+    "electron-builder": "^26.15.3"
+  }
+}
