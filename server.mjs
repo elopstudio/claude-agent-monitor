@@ -792,6 +792,27 @@ async function editBoard(body) {
   return 200
 }
 
+const slash = (p) => p.replace(/\\/g, '/')
+async function listDirs(p) {
+  if (!p) {
+    // the starting point: the drives on Windows, the home folder elsewhere
+    if (process.platform === 'win32') {
+      const drives = []
+      for (const c of 'CDEFGHIJKLMNOPQRSTUVWXYZ') if (fs.existsSync(c + ':\\')) drives.push(c + ':/')
+      return { path: '', parent: null, dirs: drives.map((d) => ({ name: d, path: d })) }
+    }
+    p = os.homedir()
+  }
+  const dir = path.resolve(p)
+  let entries = []
+  try { entries = await fsp.readdir(dir, { withFileTypes: true }) } catch { return { path: slash(dir), parent: null, dirs: [], error: 'cannot open' } }
+  const dirs = entries.filter((e) => e.isDirectory() && !/^[.$]/.test(e.name) && !/^(node_modules|System Volume Information)$/i.test(e.name))
+    .map((e) => e.name).sort((a, b) => a.localeCompare(b)).slice(0, 500)
+    .map((name) => ({ name, path: slash(path.join(dir, name)) }))
+  const up = path.dirname(dir)
+  return { path: slash(dir), parent: up === dir ? '' : slash(up), dirs }
+}
+
 const agents = createAgents({
   root: ROOT, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, attachedPaths,
   askPage: (input, opts) => hookEvent(input, null, opts),
@@ -829,6 +850,12 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404).end(); return
     }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }
+    if (url.pathname === '/api/dirs') {
+      // folder picker for a new agent: sub-folders only, never files; needs the token like every other private read
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      json(200, await listDirs(url.searchParams.get('path') || ''))
+      return
+    }
     if (url.pathname === '/api/agent-stream') {
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       agents.stream(req, res, url.searchParams.get('id') || '')
