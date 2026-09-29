@@ -305,6 +305,8 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .live{padding:10px 16px 12px}
 .detail .m.note{align-self:center;font-size:11.5px;color:var(--faint);background:var(--surface-2);border-radius:999px;padding:2px 10px;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .detail .m.monitor{background:var(--wait-soft)}
+.detail .m .mfiles{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.detail .m .mfile{font-size:12px;background:var(--surface);border:1px solid var(--line-strong);border-radius:999px;padding:1px 9px}
 .detail .m .from{font-size:10.5px;font-weight:900;color:var(--wait);margin-bottom:2px}
 .detail .live h4{margin:0 0 8px;font-size:12.5px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .detail .live{position:relative}
@@ -625,7 +627,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
           open.clear();   // a new reply or message means the calls before it are over, even if a result never landed
           const m = el('div', 'm ' + (e.role === 'monitor' ? 'user monitor' : e.role));
           if (e.role === 'monitor') m.append(el('div', 'from', t('fromPage')));
-          m.append(el('div', 'mt', str(e.text)), el('div', 'ts', time(e.at)));
+          if (e.text) m.append(el('div', 'mt', str(e.text)));
+          if (Array.isArray(e.files) && e.files.length) { const fl = el('div', 'mfiles'); for (const n of e.files) fl.append(el('span', 'mfile', '📎 ' + str(n))); m.append(fl); }
+          m.append(el('div', 'ts', time(e.at)));
           add(m);
         } else if (e.role === 'tool') {
           const d = el('details', 'm tool');

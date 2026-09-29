@@ -523,8 +523,11 @@ function userEntry(raw, at) {
   // a message sent from this page, delivered by hooks/inbox.mjs
   const fromPage = text.match(/Message\(s\) the user typed on the agent monitor page[^\n]*\n([\s\S]*?)(?:<\/system-reminder>|$)/)
   if (fromPage) {
-    const lines = fromPage[1].split('\n').map((l) => l.replace(/^- /, '').trim()).filter(Boolean)
-    return lines.length ? { role: 'monitor', text: lines.join('\n'), at } : null
+    // the paths of attached files become their names; the view shows them as chips
+    const [body, list = ''] = fromPage[1].split(/Attached files \(open them with the Read tool\):\n/)
+    const files = list.split('\n').map((l) => l.trim()).filter(Boolean).map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, ''))
+    const lines = body.split('\n').map((l) => l.replace(/^- /, '').trim()).filter(Boolean)
+    return lines.length || files.length ? { role: 'monitor', text: lines.join('\n'), files, at } : null
   }
   if (text.includes('<task-notification>')) {
     const summary = tagText(text, 'summary') || tagText(text, 'status')
