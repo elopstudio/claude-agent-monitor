@@ -114,6 +114,8 @@ function showWindow() {
   const wc = win.webContents
   wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report() })
   wc.on('did-navigate-in-page', report)
+  // Ctrl + mouse wheel: the same steps as the buttons, and remembered
+  wc.on('zoom-changed', (_e, direction) => appAction(wc, direction === 'in' ? 'zoom-in' : 'zoom-out'))
   // the usual shortcuts: zoom, reload, back / forward
   wc.on('before-input-event', (e, i) => {
     if (i.type !== 'keyDown') return

@@ -64,7 +64,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .in-app .sticky{-webkit-app-region:drag;padding-top:6px}
 .in-app .top{padding-right:150px;min-height:44px}
 .in-app .sticky button,.in-app .sticky a,.in-app .sticky input,.in-app .sticky select,.in-app .tabs,.in-app .totals,.in-app .lang,.in-app .approvals{-webkit-app-region:no-drag}
-.appbar{display:flex;align-items:center;gap:2px;-webkit-app-region:no-drag;margin-right:6px}
+.appbar{display:flex;align-items:center;gap:1px;-webkit-app-region:no-drag;padding-left:8px;border-left:1px solid var(--line)}
 .appbar .ab{appearance:none;border:0;background:transparent;color:var(--muted);font:700 15px var(--sans);width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center}
 .appbar .ab:hover:not(:disabled){background:var(--surface-2);color:var(--text)}
 .appbar .ab:disabled{opacity:.3;cursor:default}
@@ -692,7 +692,8 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const show = (st) => { if (!st) return; pct.textContent = Math.round(st.zoom * 100) + '%'; back.disabled = !st.canBack; fwd.disabled = !st.canForward; };
     window.monitorApp.onChange(show);
     window.monitorApp.state().then(show);
-    document.querySelector('.top .brand').before(bar);
+    // at the right end of the header, next to the window's own buttons; the left keeps just the logo and title
+    document.querySelector('.top .right').append(bar);
   }
 
   function setLang(next) {
