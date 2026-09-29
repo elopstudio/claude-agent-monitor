@@ -28,7 +28,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
   // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
   // session) — never what was said. After a restart they come back stopped; the next message resumes the session.
   const FILE = path.join(root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'sessionId', 'newSessionId', 'startedAt']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt']
   function save() {
     try {
       fs.mkdirSync(path.dirname(FILE), { recursive: true })
@@ -145,6 +145,8 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--include-partial-messages', '--verbose',
       '--permission-mode', a.mode, '--mcp-config', mcp, '--permission-prompt-tool', 'mcp__monitor__approve']
     if (a.model) args.push('--model', a.model)
+    // quick start: only the monitor's own tool, none of the user's MCP servers and connectors
+    if (a.fast) args.push('--strict-mcp-config')
     if (a.sessionId) args.push('--resume', a.sessionId)
     else args.push('--session-id', a.newSessionId)
     const child = spawn(claudeExecutable(), args, { cwd: a.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env })
@@ -211,7 +213,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
     const id = crypto.randomBytes(4).toString('hex')
     const a = {
       // a look and a name picked in the new-agent dialog (both optional)
-      avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
+      fast: !!body.fast, avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode, model: String(body.model || '').replace(/[^\w.:[\]-]/g, '') || '',
       newSessionId: crypto.randomUUID(), sessionId: '', proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
@@ -220,7 +222,9 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
     save()
     const text = clip(body.text, 8000)
     const files = attachedPaths(body.files)
+    // claude takes a while to start; start it now, so it is ready by the time the first message is typed
     if (text || files.length) send(a, text, files)
+    else spawnAgent(a)
     notifyPages()
     return [200, { id, name: a.name }]
   }
@@ -235,6 +239,8 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
       return send(a, text, files) ? [200, {}] : [500, {}]
     }
     if (url.pathname === '/api/agents/stop') { stop(a); return [200, {}] }
+    // the dialog of a stopped agent was opened: get claude ready in the background
+    if (url.pathname === '/api/agents/warm') { if (!a.proc) { spawnAgent(a); setState(a, 'idle') } return [200, {}] }
     if (url.pathname === '/api/agents/settings') {
       // takes effect from the next message: the process is restarted on the same session
       if (MODES.includes(body.mode)) a.mode = body.mode

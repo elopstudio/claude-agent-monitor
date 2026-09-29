@@ -121,7 +121,9 @@ permission mode, model, session id) and never what was said. When the server sta
 their conversation read back from the transcript, and the next message resumes the same session.
 **End agent** also removes it from that list.
 
-The first reply takes a little longer while `claude` starts. Set `"claudePath"` in `config.json` if the program is not found.
+`claude` takes a while to start, so the monitor starts it as soon as an agent is created, and when the dialog of a
+stopped agent is opened — by the time the first message is written it is ready. **Quick start** leaves out your MCP
+servers and connectors, which starts faster still. Set `"claudePath"` in `config.json` if the program is not found.
 
 ## Board format
 
