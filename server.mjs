@@ -287,11 +287,14 @@ async function buildState() {
   const approvals = [...pending.values()].sort((a, b) => a.at - b.at).map((q) => {
     const hit = bySession.get(q.sessionId)
     return {
-      id: q.id, project: hit?.project || '', session: hit?.sess.name || '', nick: hit?.sess.nick || '', nickKo: hit?.sess.nickKo || '',
-      tool: q.tool, what: q.what, code: q.code, at: q.at, expiresAt: q.expiresAt,
+      id: q.id, project: hit?.project || '', session: hit?.sess.name || '', short: hit?.sess.short || '',
+      nick: hit?.sess.nick || '', nickKo: hit?.sess.nickKo || '', isLeader: !!hit?.sess.isLeader, about: hit ? (hit.sess.role || hit.sess.title) : '',
+      tool: q.tool, what: q.what, code: q.code, options: q.options, at: q.at, expiresAt: q.expiresAt,
     }
   })
-  return { now, projects: out, approvals, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null } }
+  // the token rides along so an open page keeps working across server restarts; like the inline copy,
+  // only a same-origin page can read it (no CORS headers, and the Host check stops DNS rebinding)
+  return { now, projects: out, approvals, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null } }
 }
 
 /* ── Hooks: approvals and permission mode ─────── */
@@ -341,20 +344,34 @@ function hookEvent(input) {
     const id = crypto.randomBytes(8).toString('hex')
     const done = (decision) => { clearTimeout(timer); pending.delete(id); resolve(decision) }
     const timer = setTimeout(() => done({}), APPROVAL_WAIT_MS)
-    pending.set(id, { id, sessionId, tool: String(input.tool_name || ''), ...approvalDetail(input.tool_name, input.tool_input), at: Date.now(), expiresAt: Date.now() + APPROVAL_WAIT_MS, done })
+    // "Yes, and don't ask again for …" — kept exactly as Claude Code sent them, and handed back unchanged when picked
+    const suggestions = Array.isArray(input.permission_suggestions) ? input.permission_suggestions.slice(0, 4) : []
+    pending.set(id, {
+      id, sessionId, tool: String(input.tool_name || ''), ...approvalDetail(input.tool_name, input.tool_input),
+      suggestions, options: suggestions.map(suggestionLabel), at: Date.now(), expiresAt: Date.now() + APPROVAL_WAIT_MS, done,
+    })
   })
 }
 
-function decide(id, answer) {
+// A short label for a suggestion, whatever its shape: its own description, else the rules it would add.
+function suggestionLabel(s = {}) {
+  if (s.description) return clip(s.description, 120)
+  const rules = Array.isArray(s.rules) ? s.rules : s.rule ? [s.rule] : []
+  const text = rules.map((r) => typeof r === 'string' ? r : (r.toolName || '') + (r.ruleContent ? `(${r.ruleContent})` : '')).filter(Boolean)
+  if (text.length) return clip(text.join(', '), 120)
+  if (Array.isArray(s.directories)) return clip(s.directories.join(', '), 120)
+  return clip(s.mode || s.type || 'this kind of request', 60)
+}
+
+const decision = (d) => ({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: d } })
+function decide(id, answer, pick) {
   const p = pending.get(id)
   if (!p) return false
-  if (answer === 'allow' || answer === 'deny') {
-    p.done({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: answer === 'allow'
-      ? { behavior: 'allow' }
-      : { behavior: 'deny', message: 'Denied from the agent monitor' } } })
-  } else {
-    p.done({})   // "answer in VS Code" — the normal prompt appears right away
-  }
+  if (answer === 'allow') p.done(decision({ behavior: 'allow' }))
+  else if (answer === 'always' && p.suggestions[pick]) p.done(decision({ behavior: 'allow', updatedPermissions: [p.suggestions[pick]] }))
+  else if (answer === 'deny') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor' }))
+  else if (answer === 'stop') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor — stopped to wait for the user', interrupt: true }))
+  else p.done({})   // "answer in VS Code" — the normal prompt appears right away
   return true
 }
 
@@ -389,7 +406,7 @@ const server = http.createServer(async (req, res) => {
       if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
       const body = await readBody(req)
       if (url.pathname === '/hook') { json(200, await hookEvent(body)); return }
-      if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || '')) ? 200 : 404, {}); return }
+      if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || ''), Number(body.pick)) ? 200 : 404, {}); return }
       res.writeHead(404).end(); return
     }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }

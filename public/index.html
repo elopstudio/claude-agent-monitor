@@ -208,6 +208,16 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .approval .who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
 .approval .who svg{width:24px;height:24px}
 .approval .who b{font-weight:900}
+.approval .who .agent{appearance:none;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);border-radius:999px;padding:2px 10px 2px 4px;display:inline-flex;align-items:center;gap:6px;font:inherit;cursor:pointer}
+.approval .who .agent:hover{border-color:var(--wait)}
+.approval .who .agent svg{width:28px;height:28px}
+.approval .who .agent .sh{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.approval .about{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.bot-card.asking{border:2px solid var(--wait);box-shadow:0 0 0 4px var(--wait-soft)}
+.bot-card.asking .bubble{border-color:var(--wait);border-width:2px}
+.bot-card .ask-tag{font-size:10.5px;font-weight:900;letter-spacing:.04em;color:var(--surface);background:var(--wait);border-radius:4px;padding:1px 6px;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){ .bot-card.asking{animation:asking 1.6s ease-in-out infinite} }
+@keyframes asking{50%{box-shadow:0 0 0 7px var(--wait-soft)}}
 .approval .who .proj{font-family:var(--mono);color:var(--muted);font-size:12px}
 .approval .ask{font-size:11px;font-weight:900;letter-spacing:.04em;color:var(--wait);background:var(--wait-soft);border-radius:4px;padding:1px 7px}
 .approval .left{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
@@ -217,7 +227,12 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .approval button{appearance:none;font:700 13px var(--sans);border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--line-strong);background:var(--surface);color:var(--text)}
 .approval button.allow{background:var(--run);border-color:var(--run);color:var(--surface)}
 .approval button.deny{color:var(--block);border-color:var(--block)}
+.approval button.always{color:var(--run);border-color:var(--run);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.approval .acts{max-width:560px}
 .approval button:disabled{opacity:.5;cursor:default}
+.approval .done{font-weight:900;font-size:13px;padding:8px 4px}
+.approval .done.ok{color:var(--run)}
+.approval .done.bad{color:var(--block)}
 @media (max-width:640px){ .approval{grid-template-columns:1fr} .approval .acts{justify-content:stretch} .approval button{flex:1} }
 .tab .tc .a{color:var(--surface);background:var(--wait)}
 .info .marks{display:flex;align-items:center;gap:5px;flex:none}
@@ -258,7 +273,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 <script>
 (() => {
   const POLL_MS = 3000, FAST_MS = 1000;
-  const TOKEN = '__MONITOR_TOKEN__';   // filled in by the server; needed for every answer sent back
+  let token = '__MONITOR_TOKEN__';   // filled in by the server and refreshed by every poll; needed for every answer sent back
 
   /* ── Wording ── English is the default; Korean is an option. */
   const I18N = {
@@ -270,8 +285,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
       board: 'Board', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
-      askTitle: 'NEEDS APPROVAL', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
-      failed: 'Could not send the answer — it may have timed out.',
+      askTitle: 'NEEDS APPROVAL', asksFor: 'Asking to run {x}', asking: 'WAITING FOR YOU', unknownAgent: 'an agent outside the list', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
+      failed: 'Could not send the answer.', gone: 'Already answered or timed out', didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
       noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
@@ -290,8 +305,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
       board: '작업판', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
-      askTitle: '승인 필요', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
-      failed: '답을 보내지 못했습니다 — 시간이 지났을 수 있습니다.',
+      askTitle: '승인 필요', asksFor: '{x} 실행 허락을 기다리는 중', asking: '승인 대기', unknownAgent: '목록에 없는 에이전트', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
+      failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
       noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
@@ -409,7 +424,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   /* ── Cards ── */
   function botCard(s) {
     const st = STATE[s.state] ? s.state : 'resting';
-    const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : ''));
+    const asked = (last?.approvals || []).find((a) => a.session === s.name);
+    const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : '') + (asked ? ' asking' : ''));
     const stage = el('div', 'stage');
     stage.setAttribute('role', 'img');
     stage.setAttribute('aria-label', (nickFor(s) || str(s.name)) + ' ' + t(st));
@@ -421,6 +437,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     if (s.nick) nm.append(el('span', 'nick', nickFor(s)), el('span', 'full', str(s.short) || str(s.name)));
     else nm.append(el('span', 'short', str(s.short) || str(s.name)));
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
+    if (asked) nm.append(el('span', 'ask-tag', t('asking')));
     const right = el('span', 'marks');
     if (s.mode) {
       const m = el('span', 'mode m-' + str(s.mode), (I18N[lang].modes || I18N.en.modes)[s.mode] || str(s.mode));
@@ -433,7 +450,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     // the leader's role for this session, or else the session's own title
     if (s.role || s.title) info.append(el('div', 'title', str(s.role || s.title)));
     const bubble = el('div', 'bubble');
-    if (s.activity && st === 'working') {
+    if (asked) {
+      bubble.append(el('span', 'k', '✋'), el('span', null, t('asksFor', { x: str(asked.tool) })));
+    } else if (s.activity && st === 'working') {
       bubble.append(el('span', 'k', ACT_ICON[s.activity.kind] || '•'), el('span', null, actText(s.activity)));
     } else if (s.activity) {
       bubble.append(el('span', 'k', '⏸'), el('span', null, t('last', { x: actText(s.activity) })));
@@ -567,28 +586,53 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       const main = el('div');
       const who = el('div', 'who');
       const name = str(lang === 'ko' && a.nickKo || a.nick) || str(a.session) || '?';
-      who.append(el('span', 'ask', t('askTitle')), robotNode(str(a.session) || name, 'working', false, true), el('b', null, name));
-      if (a.project) who.append(el('span', 'proj', str(a.project)));
+      who.append(el('span', 'ask', t('askTitle')));
+      if (a.session) {
+        // the same robot as on the agent's card, so it can be matched at a glance
+        const agent = el('button', 'agent');
+        agent.type = 'button';
+        agent.append(robotNode(str(a.session), 'working', !!a.isLeader, true), el('b', null, name));
+        if (a.short) agent.append(el('span', 'sh', str(a.short)));
+        if (a.project) agent.addEventListener('click', () => select(str(a.project)));
+        who.append(agent);
+        if (a.project) who.append(el('span', 'proj', str(a.project)));
+      } else {
+        who.append(el('b', null, t('unknownAgent')));
+      }
       who.append(el('span', 'proj', str(a.tool)), el('span', 'left', t('left', { n: secsLeft(a) })));
       main.append(who);
+      if (a.about) main.append(el('div', 'about', str(a.about)));
       if (a.what) main.append(el('div', 'what', str(a.what)));
       if (a.code) main.append(el('pre', null, str(a.code)));
       const acts = el('div', 'acts');
-      const btn = (cls, label, answer) => {
+      const btn = (cls, label, answer, pick) => {
         const b = el('button', cls, label);
         b.type = 'button';
         b.addEventListener('click', async () => {
           for (const x of acts.querySelectorAll('button')) x.disabled = true;
+          const send = () => fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ id: a.id, answer, pick }) });
+          let status = 0;
           try {
-            const r = await fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': TOKEN }, body: JSON.stringify({ id: a.id, answer }) });
-            if (!r.ok) throw new Error(String(r.status));
-            card.remove();
-          } catch (e) { notice(t('failed')); for (const x of acts.querySelectorAll('button')) x.disabled = false; }
-          clearTimeout(timer); tick();
+            let r = await send();
+            if (r.status === 403) { await refreshToken(); r = await send(); }   // the server restarted since this page loaded
+            status = r.status;
+          } catch (e) { status = 0; }
+          // say what happened right on the card, then let the next poll clear it
+          const done = el('div', 'done ' + (status === 200 ? 'ok' : 'bad'),
+            status === 200 ? t({ allow: 'didAllow', always: 'didAlways', deny: 'didDeny', stop: 'didStop' }[answer] || 'didEditor') : status === 404 ? t('gone') : t('failed'));
+          acts.replaceChildren(done);
+          clearTimeout(timer); timer = setTimeout(tick, 1200);
         });
         return b;
       };
-      acts.append(btn('allow', t('allow'), 'allow'), btn('deny', t('deny'), 'deny'), btn('', t('inEditor'), 'editor'));
+      acts.append(btn('allow', t('allow'), 'allow'));
+      // the same "yes, and don't ask again for …" choices VS Code would offer
+      (Array.isArray(a.options) ? a.options : []).forEach((label, i) => {
+        const b = btn('always', t('always', { x: str(label) }), 'always', i);
+        b.title = str(label);
+        acts.append(b);
+      });
+      acts.append(btn('deny', t('deny'), 'deny'), btn('deny', t('stop'), 'stop'), btn('', t('inEditor'), 'editor'));
       card.append(main, acts);
       box.append(card);
     }
@@ -663,11 +707,16 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   applyStatic();
 
   let timer = null;
+  async function refreshToken() {
+    try { const d = await (await fetch('/api/state?visible=1', { cache: 'no-store' })).json(); if (d.token) token = d.token; } catch (e) {}
+  }
   async function tick() {
     try {
       const r = await fetch('/api/state?visible=' + (document.hidden ? 0 : 1), { cache: 'no-store' });
       if (!r.ok) throw new Error(String(r.status));
-      render(await r.json());
+      const data = await r.json();
+      if (data.token) token = data.token;
+      render(data);
       setLive(true); notice('');
     } catch (e) {
       setLive(false); notice(t('noServer'));
