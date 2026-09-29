@@ -138,7 +138,10 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 @keyframes shadow{50%{transform:scaleX(.82);opacity:.7}}
 .info{min-width:0;display:flex;flex-direction:column;gap:5px}
 .info .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.info .nm{display:flex;align-items:baseline;gap:6px;min-width:0}
+.info .nm{display:flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap}
+.who-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.botname{text-align:center;font-weight:900;font-size:14px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leader .botname{font-size:15px}
 .info .short{font-family:var(--mono);font-weight:700;font-size:15px}
 .info .nick{font-weight:900;font-size:15px;white-space:nowrap}
 .info .full{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;flex:none}
@@ -1063,9 +1066,11 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const row = el('div', 'row');
     const nm = el('div', 'nm');
     nm.title = str(s.name);
-    // the short id (-7b) stays out of the narrow header; hovering shows the full session name, the detail shows both
-    if (s.nick) nm.append(el('span', 'nick', nickFor(s)));
-    else nm.append(el('span', 'short', str(s.short) || str(s.name)));
+    // the name sits under the robot, so the header row has room for its tags and badges
+    const left = el('div', 'who-col');
+    const name = el('div', 'botname', s.nick ? nickFor(s) : (str(s.short) || str(s.name)));
+    name.title = str(s.name);
+    left.append(stage, name);
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     if (s.managed) nm.append(el('span', 'mon-tag', t('monTag')));
     if (asked) nm.append(el('span', 'ask-tag', t('asking')));
@@ -1107,7 +1112,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const errs = recentErrors(s);
     if (errs) { const e = el('span', 'errs', '⚠ ' + errs); e.title = t('dErr'); when.append(e); }
     info.append(when);
-    card.append(stage, info);
+    card.append(left, info);
     return card;
   }
 
