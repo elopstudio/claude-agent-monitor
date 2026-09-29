@@ -97,3 +97,7 @@ See `boards/example.json`.
 - `roles` maps a session to a short role, e.g. `{ "-0f": "auth · simulation" }`.
 - `session` and the keys of `roles` may be a short name (`-0f`), a full session name or a nickname (`Tom`, `민준`).
 - `boards/*.json` and `config.json` are local state and are not committed.
+
+## License
+
+[MIT](LICENSE)

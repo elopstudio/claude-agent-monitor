@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Local dashboard for Claude Code sessions, grouped as project → leader → agents (read-only)",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "start": "node server.mjs"
