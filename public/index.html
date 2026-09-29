@@ -65,8 +65,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   background:var(--surface);border-bottom:1px solid var(--line);-webkit-app-region:drag;user-select:none}
 .titlestrip .tname{display:flex;align-items:center;gap:6px;font:700 12px var(--sans);color:var(--muted)}
 .titlestrip .tname svg{width:20px;height:20px}
-.in-app body{padding-top:36px}
-.in-app .sticky{top:36px}
+.in-app body{padding-top:var(--strip,36px)}
+.in-app .sticky{top:var(--strip,36px)}
 .appbar{display:flex;align-items:center;gap:1px;-webkit-app-region:no-drag}
 .appbar .ab{appearance:none;border:0;background:transparent;color:var(--muted);font:700 14px var(--sans);width:28px;height:26px;border-radius:8px;cursor:pointer;display:grid;place-items:center}
 .appbar .ab:hover:not(:disabled){background:var(--surface-2);color:var(--text)}
@@ -695,7 +695,14 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const pct = b('100%', 'Reset zoom (Ctrl+0)', () => window.monitorApp.zoomReset());
     pct.classList.add('pct');
     b('+', 'Zoom in (Ctrl+=)', () => window.monitorApp.zoomIn());
-    const show = (st) => { if (!st) return; pct.textContent = Math.round(st.zoom * 100) + '%'; back.disabled = !st.canBack; fwd.disabled = !st.canForward; };
+    const show = (st) => {
+      if (!st) return;
+      pct.textContent = Math.round(st.zoom * 100) + '%'; back.disabled = !st.canBack; fwd.disabled = !st.canForward;
+      // zoom scales the page, strip included; undo it for the strip, so it keeps the window buttons' height
+      const z = st.zoom || 1;
+      strip.style.zoom = String(1 / z);
+      document.documentElement.style.setProperty('--strip', (36 / z) + 'px');
+    };
     window.monitorApp.onChange(show);
     window.monitorApp.state().then(show);
     strip.append(name, bar);
