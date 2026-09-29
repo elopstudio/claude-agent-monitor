@@ -317,7 +317,7 @@ async function buildState() {
     if (!boards.has(m.key)) boards.set(m.key, await readBoard(m.key))
     const info = await transcriptInfo(m.sessionId).catch(() => null)
     const sess = {
-      id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', state: m.state,
+      id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', pinNick: m.nick || '', avatar: m.avatar || null, state: m.state,
       statusSince: m.statusSince, startedAt: m.startedAt, kind: 'monitor', managed: true, agentId: m.agentId, running: m.running,
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model,
@@ -329,7 +329,7 @@ async function buildState() {
   }
 
   const allSessions = [...projects.values()].flatMap((p) => p.sessions.map((s) => ({ s, names: config.projects?.[p.key]?.names || {} })))
-  const pinned = new Map(allSessions.map(({ s, names }) => [s, names[s.name] || names[s.short] || '']))
+  const pinned = new Map(allSessions.map(({ s, names }) => [s, names[s.name] || names[s.short] || s.pinNick || '']))
   assignNicks(allSessions.map((x) => x.s), (s) => pinned.get(s))
 
   const out = []
@@ -817,6 +817,26 @@ const agents = createAgents({
   root: ROOT, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, attachedPaths,
   askPage: (input, opts) => hookEvent(input, null, opts),
   configPath: loadConfig().claudePath || '',
+  // an agent brought back after a restart shows its conversation from the transcript, in the agent view's own shapes
+  historyOf: async (sessionId) => {
+    const file = await findTranscript(sessionId)
+    if (!file) return []
+    const { lines } = await tailLines(file)
+    const out = []
+    let n = 0
+    for (const l of lines) {
+      let o
+      try { o = JSON.parse(l) } catch { continue }
+      for (const e of liveEntries(o)) {
+        if (e.role === 'assistant') out.push({ kind: 'block', msg: 'h' + n++, index: 0, type: 'text', text: e.text, done: true, at: e.at })
+        else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], at: e.at })
+        else if (e.role === 'tool') out.push({ kind: 'tool', id: e.id, name: e.name, action: e.action, input: e.input, at: e.at })
+        else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, at: e.at })
+        else if (e.role === 'note') out.push({ kind: 'note', text: e.text, at: e.at })
+      }
+    }
+    return out.slice(-300)
+  },
 })
 
 /* ── HTTP ─────────────────────────────────────── */

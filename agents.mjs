@@ -17,9 +17,43 @@ import { spawn, execFileSync } from 'node:child_process'
 const HISTORY = 600                 // normalised events kept per agent for a dialog opened later
 const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
 const MODES = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions']
+// the crown is not on offer: it marks the leader
+const ACCS = ["ball","twin","phones","sprout","bolt"]
+// { c: palette index 0-7, acc: headgear } — anything else means "the usual look from the name"
+const avatarOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && ACCS.includes(v.acc) ? { c: v.c, acc: v.acc } : null)
 
-export function createAgents({ root, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath }) {
+export function createAgents({ root, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
   const agents = new Map()          // id → agent
+
+  // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
+  // session) — never what was said. After a restart they come back stopped; the next message resumes the session.
+  const FILE = path.join(root, '.runtime', 'agents.json')
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'sessionId', 'newSessionId', 'startedAt']
+  function save() {
+    try {
+      fs.mkdirSync(path.dirname(FILE), { recursive: true })
+      fs.writeFileSync(FILE, JSON.stringify([...agents.values()].map((a) => Object.fromEntries(KEEP.map((k) => [k, a[k]]))), null, 1))
+    } catch {}
+  }
+  async function load() {
+    let list = []
+    try { list = JSON.parse(fs.readFileSync(FILE, 'utf8')) } catch { return }
+    for (const saved of Array.isArray(list) ? list : []) {
+      if (!saved?.id || agents.has(saved.id) || !fs.existsSync(String(saved.cwd || ''))) continue
+      const a = {
+        ...saved, avatar: avatarOf(saved.avatar),
+        // a list saved before the session id was recorded: the id it was started with is the one to resume
+        sessionId: saved.sessionId || (saved.newSessionId && historyOf ? saved.newSessionId : ''), mode: MODES.includes(saved.mode) ? saved.mode : 'default',
+        proc: null, state: 'stopped', stateSince: Date.now(), lastAt: 0, events: [], streams: new Set(), msg: null,
+        activity: null, activityAt: 0, turns: 0, stopping: false,
+      }
+      agents.set(a.id, a)
+      // the conversation so far, from its transcript, so the dialog is not empty after a restart
+      if (a.sessionId && historyOf) { try { a.events = await historyOf(a.sessionId) } catch {} }
+      a.events.push({ kind: 'note', text: 'monitor restarted — send a message to continue', at: Date.now() })
+    }
+    notifyPages()
+  }
 
   function claudeExecutable() {
     if (configPath) return configPath
@@ -53,7 +87,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
     try { o = JSON.parse(line) } catch { return }
     a.lastAt = Date.now()
     if (o.type === 'system' && o.subtype === 'init') {
-      if (o.session_id) a.sessionId = o.session_id
+      if (o.session_id && o.session_id !== a.sessionId) { a.sessionId = o.session_id; save() }
       if (o.model) a.model = o.model
       if (o.permissionMode) a.mode = o.permissionMode
       notifyPages()
@@ -115,7 +149,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
     else args.push('--session-id', a.newSessionId)
     const child = spawn(claudeExecutable(), args, { cwd: a.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env })
     a.proc = child
-    a.sessionId = a.sessionId || a.newSessionId
+    if (!a.sessionId) { a.sessionId = a.newSessionId; save() }   // from now on this session is resumed, never created again
     let rest = ''
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', (chunk) => {
@@ -176,11 +210,14 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
     const mode = MODES.includes(body.mode) ? body.mode : 'default'
     const id = crypto.randomBytes(4).toString('hex')
     const a = {
+      // a look and a name picked in the new-agent dialog (both optional)
+      avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode, model: String(body.model || '').replace(/[^\w.:[\]-]/g, '') || '',
       newSessionId: crypto.randomUUID(), sessionId: '', proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
     }
     agents.set(id, a)
+    save()
     const text = clip(body.text, 8000)
     const files = attachedPaths(body.files)
     if (text || files.length) send(a, text, files)
@@ -203,11 +240,12 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
       if (MODES.includes(body.mode)) a.mode = body.mode
       if (typeof body.model === 'string') a.model = body.model.replace(/[^\w.:[\]-]/g, '')
       if (a.proc && a.state !== 'working') stop(a)
+      save()
       emit(a, { kind: 'note', text: 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '') + ' — from the next message' })
       notifyPages()
       return [200, {}]
     }
-    if (url.pathname === '/api/agents/close') { stop(a); agents.delete(a.id); notifyPages(); return [200, {}] }
+    if (url.pathname === '/api/agents/close') { stop(a); agents.delete(a.id); save(); notifyPages(); return [200, {}] }
     return [404, {}]
   }
 
@@ -236,7 +274,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
   // agents for the state API, shaped like registry sessions
   function sessions(now) {
     return [...agents.values()].map((a) => ({
-      managed: true, agentId: a.id, sessionId: a.sessionId || a.newSessionId, name: a.name, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
+      managed: true, agentId: a.id, sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
       statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))
@@ -245,5 +283,6 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
 
   function shutdown() { for (const a of agents.values()) stop(a) }
 
+  load()
   return { handle, stream, prompt, sessions, byAgentSession, shutdown }
 }
