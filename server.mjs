@@ -299,7 +299,13 @@ async function buildState() {
   })
   // the token rides along so an open page keeps working across server restarts; like the inline copy,
   // only a same-origin page can read it (no CORS headers, and the Host check stops DNS rebinding)
-  return { now, projects: out, approvals, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
+  // a prompt the page shows as its own approval is not repeated here
+  const asking = new Set([...pending.values()].map((q) => q.sessionId))
+  const inEditor = [...waiting.entries()].filter(([id]) => !asking.has(id) && bySession.has(id)).map(([id, w]) => {
+    const hit = bySession.get(id)
+    return { project: hit.project, session: hit.sess.name, short: hit.sess.short, nick: hit.sess.nick, nickKo: hit.sess.nickKo, isLeader: !!hit.sess.isLeader, type: w.type, message: w.message, at: w.at }
+  }).sort((a, b) => a.at - b.at)
+  return { now, projects: out, approvals, inEditor, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
 }
 
 /* ── Hooks: approvals and permission mode ─────── */
@@ -319,6 +325,9 @@ const pageOpen = () => streams.size > 0 || Date.now() - lastViewAt < VIEWER_MS
 let lastViewAt = 0
 const modes = new Map()                // sessionId → { mode, at }
 const pending = new Map()              // id → { id, sessionId, tool, what, code, at, expiresAt, done }
+// Prompts that only VS Code can answer (held messages between sessions, one-time auto-mode checks, MCP forms…):
+// Claude Code announces them with a Notification hook. The page can't answer these, but it can say who is waiting.
+const waiting = new Map()              // sessionId → { type, message, at }
 
 function writeRuntime() {
   fs.mkdirSync(RUNTIME, { recursive: true })
@@ -346,7 +355,7 @@ function approvalDetail(tool, input = {}) {
 }
 
 // counts only — how many hook calls arrived and what became of permission requests, never their content
-const hookStats = { events: {}, permission: { shown: 0, skippedNoViewer: 0, tools: {} }, lastAt: 0 }
+const hookStats = { events: {}, permission: { shown: 0, skippedNoViewer: 0, tools: {} }, notifications: {}, lastAt: 0 }
 
 function hookEvent(input) {
   const sessionId = String(input.session_id || '')
@@ -354,6 +363,16 @@ function hookEvent(input) {
   hookStats.events[event] = (hookStats.events[event] || 0) + 1
   hookStats.lastAt = Date.now()
   if (sessionId && input.permission_mode) modes.set(sessionId, { mode: String(input.permission_mode), at: Date.now() })
+  if (event === 'Notification') {
+    const type = String(input.notification_type || 'other')
+    hookStats.notifications[type] = (hookStats.notifications[type] || 0) + 1
+    // "idle_prompt" is just "done, your turn" — the card already shows that as waiting
+    if (sessionId && type !== 'idle_prompt') waiting.set(sessionId, { type, message: clip(input.message || '', 240), at: Date.now() })
+    notifyPages()
+    return Promise.resolve({})
+  }
+  // any other activity from the session means the prompt was answered
+  if (sessionId && waiting.delete(sessionId)) notifyPages()
   if (event !== 'PermissionRequest') return Promise.resolve({})
   // nobody is watching the page — hand the request straight back to the normal prompt
   if (!pageOpen()) { hookStats.permission.skippedNoViewer++; return Promise.resolve({}) }

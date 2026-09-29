@@ -133,7 +133,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .info .nm{display:flex;align-items:baseline;gap:6px;min-width:0}
 .info .short{font-family:var(--mono);font-weight:700;font-size:15px}
 .info .nick{font-weight:900;font-size:15px;white-space:nowrap}
-.info .full{font-family:var(--mono);font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info .full{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;flex:none}
 .info .title{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bubble{position:relative;background:var(--bubble);border:1px solid var(--line-strong);border-radius:10px;padding:7px 10px;font-size:13px;overflow-wrap:anywhere;margin-left:4px;display:flex;gap:7px;align-items:flex-start;
   height:calc(2 * 1.55em + 16px);width:calc(100% - 4px);appearance:none;text-align:left;font-family:inherit;color:inherit;line-height:1.55;cursor:pointer}
@@ -252,6 +252,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .approval button.always{color:var(--run);border-color:var(--run);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .approval .acts{max-width:560px}
 .approval button:disabled{opacity:.5;cursor:default}
+.approval.editor{border-style:dashed}
+.approval.editor .ask{color:var(--muted);background:var(--surface-2)}
 .approval .done{font-weight:900;font-size:13px;padding:8px 4px}
 .approval .qs{display:flex;flex-direction:column;gap:12px;margin:10px 0 0}
 .approval .q .qh{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 6px}
@@ -340,7 +342,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -361,7 +363,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -509,7 +511,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   function botCard(s) {
     const st = STATE[s.state] ? s.state : 'resting';
     const asked = (last?.approvals || []).find((a) => a.session === s.name);
-    const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : '') + (asked ? ' asking' : ''));
+    const inVs = !asked && (last?.inEditor || []).find((w) => w.session === s.name);
+    const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : '') + (asked || inVs ? ' asking' : ''));
     const stage = el('div', 'stage');
     stage.setAttribute('role', 'img');
     stage.setAttribute('aria-label', (nickFor(s) || str(s.name)) + ' ' + t(st));
@@ -522,6 +525,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     else nm.append(el('span', 'short', str(s.short) || str(s.name)));
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     if (asked) nm.append(el('span', 'ask-tag', t('asking')));
+    else if (inVs) nm.append(el('span', 'ask-tag', t('vsTag')));
     const right = el('span', 'marks');
     if (s.mode) {
       const m = el('span', 'mode m-' + str(s.mode), (I18N[lang].modes || I18N.en.modes)[s.mode] || str(s.mode));
@@ -536,7 +540,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     const bubble = el('button', 'bubble');
     bubble.type = 'button';
     bubble.addEventListener('click', () => showDetail(s));
-    if (asked) {
+    if (inVs) {
+      bubble.append(el('span', 'k', '🖥'), el('span', 'bt', str(inVs.message) || t('vsHint')));
+    } else if (asked) {
       bubble.append(el('span', 'k', '✋'), el('span', 'bt', t('asksFor', { x: str(asked.tool) })));
     } else if (s.activity && st === 'working') {
       bubble.append(el('span', 'k', ACT_ICON[s.activity.kind] || '•'), el('span', 'bt', actText(s.activity)));
@@ -695,7 +701,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     const box = $('approvals');
     const list = data.approvals || [];
     // rebuild only when the set of requests changes, so a click in progress is not thrown away
-    const ids = list.map((a) => a.id).join(',');
+    const others = data.inEditor || [];
+    const ids = list.map((a) => a.id).concat(others.map((w) => 'vs:' + w.session + ':' + w.at)).join(',');
     if (box.dataset.ids === ids) {
       for (const a of list) { const n = box.querySelector('[data-id="' + a.id + '"] .left'); if (n) n.textContent = t('left', { n: secsLeft(a) }); }
       return;
@@ -813,6 +820,22 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       card.append(main, acts);
       box.append(card);
     }
+    // prompts only VS Code can answer: say who is waiting and what the prompt says
+    for (const w of others) {
+      const card = el('div', 'approval editor');
+      const who = el('div', 'who');
+      who.append(el('span', 'ask', t('vsTitle')));
+      const agent = el('button', 'agent');
+      agent.type = 'button';
+      agent.append(robotNode(str(w.session), 'working', !!w.isLeader, true), el('b', null, str(lang === 'ko' && w.nickKo || w.nick) || str(w.session)));
+      if (w.short) agent.append(el('span', 'sh', str(w.short)));
+      agent.addEventListener('click', () => select(str(w.project)));
+      who.append(agent, el('span', 'proj', str(w.project)), el('span', 'left', ago(w.at)));
+      card.append(who);
+      if (w.message) card.append(el('div', 'what', str(w.message)));
+      card.append(el('div', 'about', t('vsHint')));
+      box.append(card);
+    }
   }
 
   function render(data) {
@@ -843,7 +866,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       if (n('working')) tc.append(el('span', 'r', '▶ ' + n('working')));
       if (n('waiting')) tc.append(el('span', 'w', '○ ' + n('waiting')));
       if (!n('working') && !n('waiting')) tc.append(el('span', 'z', '– ' + n('resting')));
-      if ((data.approvals || []).length) tc.prepend(el('span', 'a', '! ' + data.approvals.length));
+      const allAsks = (data.approvals || []).length + (data.inEditor || []).length;
+      if (allAsks) tc.prepend(el('span', 'a', '! ' + allAsks));
       tab.append(tc);
       tab.addEventListener('click', () => select(ALL));
       tabs.append(tab);
@@ -862,7 +886,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       if (p.counts.working) tc.append(el('span', 'r', '▶ ' + p.counts.working));
       if (p.counts.waiting) tc.append(el('span', 'w', '○ ' + p.counts.waiting));
       if (!p.counts.working && !p.counts.waiting) tc.append(el('span', 'z', '– ' + p.counts.resting));
-      const asks = (data.approvals || []).filter((a) => a.project === p.key).length;
+      const asks = (data.approvals || []).filter((a) => a.project === p.key).length + (data.inEditor || []).filter((w) => w.project === p.key).length;
       if (asks) tc.prepend(el('span', 'a', '! ' + asks));
       tab.append(tc);
       tab.addEventListener('click', () => select(p.key));
@@ -937,7 +961,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   let seenAsks = new Set();
   function alertAsks(data) {
     const list = data.approvals || [];
-    document.title = (list.length ? '(!' + list.length + ') ' : '') + t('title');
+    const count = list.length + (data.inEditor || []).length;
+    document.title = (count ? '(!' + count + ') ' : '') + t('title');
     const fresh = list.filter((a) => !seenAsks.has(a.id));
     seenAsks = new Set(list.map((a) => a.id));
     if (!fresh.length || !document.hidden) return;
