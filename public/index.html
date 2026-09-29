@@ -310,10 +310,11 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .live{position:relative}
 .detail .live .lstate{position:absolute;top:18px;right:28px;z-index:1;font-size:11px;font-weight:700;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
 .detail .live .lstate:empty{display:none}
-.detail .lasks{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.detail .lasks{display:flex;flex-direction:column;gap:8px}
 .detail .lasks:empty{display:none}
 .detail .lasks .approval{box-shadow:none}
-.detail .lbar{margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:6px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);min-height:32px}
+.detail .ltail{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.detail .lbar{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:5px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line)}
 .detail .lbar.busy{color:var(--run);border-color:var(--run);background:var(--run-soft)}
 .detail .lbar.ask{color:var(--wait);border-color:var(--wait);background:var(--wait-soft);font-weight:700}
 .detail .lbar .dots{display:inline-flex;gap:3px}
@@ -566,7 +567,11 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const asks = el('div', 'lasks');
     const bar = el('div', 'lbar');
     bar.setAttribute('aria-live', 'polite');
-    wrap.append(state, pane, asks, bar);
+    const tail = el('div', 'ltail');   // always the last thing in the conversation, like VS Code's own prompt and spinner
+    tail.append(asks, bar);
+    pane.append(tail);
+    wrap.append(state, pane);
+    const add = (node) => pane.insertBefore(node, tail);
     const open = new Map();   // tool calls still waiting for their result: id → entry
     let lastAt = 0;
     const secs = (ms) => { const n = Math.max(0, Math.round((Date.now() - ms) / 1000)); return n < 60 ? t('sec', { n }) : dur(ms); };
@@ -590,7 +595,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
           cls += ' busy';
         } else if (cur.state === 'waiting') bar.textContent = t('barWaiting');
         else bar.textContent = t('barResting');
+        const stick = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 60;
         bar.className = cls;
+        if (stick) pane.scrollTop = pane.scrollHeight;
       },
     };
     liveTick = setInterval(() => liveCtl && liveCtl.update(last), 1000);
@@ -599,13 +606,13 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const put = (entries) => {
       const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
       for (const e of entries) {
-        if (e.role === 'note') { pane.append(el('div', 'm note', str(e.text) + (e.at ? '  · ' + time(e.at) : ''))); continue; }
+        if (e.role === 'note') { add(el('div', 'm note', str(e.text) + (e.at ? '  · ' + time(e.at) : ''))); continue; }
         if (e.role === 'user' || e.role === 'assistant' || e.role === 'monitor') {
           open.clear();   // a new reply or message means the calls before it are over, even if a result never landed
           const m = el('div', 'm ' + (e.role === 'monitor' ? 'user monitor' : e.role));
           if (e.role === 'monitor') m.append(el('div', 'from', t('fromPage')));
           m.append(el('div', 'mt', str(e.text)), el('div', 'ts', time(e.at)));
-          pane.append(m);
+          add(m);
         } else if (e.role === 'tool') {
           const d = el('details', 'm tool');
           const sum = el('summary');
@@ -613,23 +620,23 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
           d.append(sum, el('pre', 'in', str(e.input)));
           tools.set(e.id, d);
           open.set(e.id, e);
-          pane.append(d);
+          add(d);
         } else if (e.role === 'result') {
           const out = el('pre', 'out' + (e.error ? ' err' : ''), str(e.text));
           open.delete(e.id);
           const host = tools.get(e.id);
           if (host) { host.append(out); if (e.error) host.classList.add('failed'); }
-          else pane.append(out);
+          else add(out);
         }
       }
       for (const e of entries) if (e.at > lastAt) lastAt = e.at;
-      while (pane.children.length > 400) pane.firstChild.remove();
+      while (pane.children.length > 401 && pane.firstChild !== tail) pane.firstChild.remove();
       if (liveCtl) liveCtl.update(last);
       if (atBottom) pane.scrollTop = pane.scrollHeight;
     };
     try {
       liveES = new EventSource('/api/live?session=' + encodeURIComponent(str(s.name)) + '&token=' + encodeURIComponent(token));
-      liveES.addEventListener('init', (ev) => { pane.replaceChildren(); tools.clear(); open.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
+      liveES.addEventListener('init', (ev) => { pane.replaceChildren(tail); tools.clear(); open.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
       liveES.addEventListener('add', (ev) => put(JSON.parse(ev.data)));
       liveES.onerror = () => { state.textContent = t('liveOff'); state.className = 'lstate'; };
     } catch (e) { state.textContent = t('liveOff'); }
