@@ -215,6 +215,49 @@ function assignNicks(sessions, fixedFor) {
   }
 }
 
+/* ── Subagents ─────────────────────────────────── */
+
+// A session's subagents (the Agent tool): what kind, what for, whether still running, what they last did.
+// Kept to the recent ones; each file is re-read only when it changed.
+const SUB_RUNNING_MS = 45 * 1000, SUB_RECENT_MS = 3 * 60 * 60 * 1000, SUB_MAX = 12
+const subCache = new Map()   // file → { mtimeMs, size, info }
+async function subagentsOf(sessionId) {
+  const file = await findTranscript(sessionId)
+  if (!file) return []
+  const dir = path.join(file.replace(/\.jsonl$/, ''), 'subagents')
+  let names = []
+  try { names = await fsp.readdir(dir) } catch { return [] }
+  const now = Date.now(), out = []
+  for (const n of names) {
+    const m = n.match(/^agent-([a-z0-9]+)\.jsonl$/)
+    if (!m) continue
+    const p = path.join(dir, n)
+    let st
+    try { st = await fsp.stat(p) } catch { continue }
+    if (now - st.mtimeMs > SUB_RECENT_MS) continue
+    let hit = subCache.get(p)
+    if (!hit || hit.mtimeMs !== st.mtimeMs || hit.size !== st.size) {
+      let meta = {}
+      try { meta = JSON.parse(await fsp.readFile(path.join(dir, 'agent-' + m[1] + '.meta.json'), 'utf8')) } catch {}
+      const info = { tools: 0, activity: null, startedAt: 0 }
+      try {
+        const { lines } = await tailLines(p)
+        for (const l of lines) {
+          let o
+          try { o = JSON.parse(l) } catch { continue }
+          if (!info.startedAt && o.timestamp) info.startedAt = Date.parse(o.timestamp)
+          if (o.type !== 'assistant' || !Array.isArray(o.message?.content)) continue
+          for (const c of o.message.content) if (c?.type === 'tool_use') { info.tools++; info.activity = describe(c.name, c.input) }
+        }
+      } catch {}
+      hit = { mtimeMs: st.mtimeMs, size: st.size, info: { ...info, type: clip(meta.agentType || 'subagent', 40), description: clip(meta.description || '', 120) } }
+      subCache.set(p, hit)
+    }
+    out.push({ id: m[1], ...hit.info, lastAt: st.mtimeMs, running: now - st.mtimeMs < SUB_RUNNING_MS })
+  }
+  return out.sort((a, b) => (b.running - a.running) || b.lastAt - a.lastAt).slice(0, SUB_MAX)
+}
+
 /* ── State ────────────────────────────────────── */
 
 function displayState(s, now) {
@@ -254,6 +297,7 @@ async function buildState() {
       context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
       // a hook call is a sign of life too, and arrives even while the transcript is quiet
       lastSignAt: Math.max(info?.lastEventAt || 0, modes.get(s.sessionId)?.at || 0),
+      subagents: await subagentsOf(s.sessionId).catch(() => []),
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     const p = projects.get(key)
@@ -278,7 +322,7 @@ async function buildState() {
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model,
       listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
-      lastSignAt: m.lastEventAt || 0, stalledFor: 0,
+      lastSignAt: m.lastEventAt || 0, stalledFor: 0, subagents: await subagentsOf(m.sessionId).catch(() => []),
     }
     projects.get(m.key).sessions.push(sess)
     bySession.set(m.sessionId, { sess, project: m.key })
@@ -514,8 +558,8 @@ const mask = (text) => MASKS.reduce((t, [re, to]) => t.replace(re, to), String(t
 const LIVE_TEXT = 4000, LIVE_RESULT = 3000, LIVE_INPUT = 1500, LIVE_FIRST = 80
 
 // One transcript line → zero or more view entries (the main conversation only; subagents' own chains are skipped).
-function liveEntries(o) {
-  if (!o || o.isSidechain || o.isMeta) return []
+function liveEntries(o, sidechain = false) {
+  if (!o || o.isMeta || (!sidechain && o.isSidechain)) return []
   const at = o.timestamp ? Date.parse(o.timestamp) : 0
   const out = []
   const content = o.message?.content
@@ -572,15 +616,18 @@ function userEntry(raw, at) {
 // like clip() but keeps line breaks
 const clip2 = (v, n) => { const t = String(v ?? ''); return t.length > n ? t.slice(0, n) + '\n… (' + (t.length - n) + ' more characters)' : t }
 
-async function streamSession(req, res, name) {
-  const target = (await readRegistry()).find((x) => x.name === name)
-  const file = target && await findTranscript(target.sessionId)
+async function streamSession(req, res, name, sub) {
+  const target = (await readRegistry()).find((x) => x.name === name) || agents?.sessions().find((x) => x.name === name)
+  let file = target && await findTranscript(target.sessionId)
+  if (file && sub) file = /^[a-z0-9]+$/.test(sub) ? path.join(file.replace(/\.jsonl$/, ''), 'subagents', 'agent-' + sub + '.jsonl') : null
+  if (file && !fs.existsSync(file)) file = null
+  const side = !!sub
   if (!file) { res.writeHead(404).end(); return }
   res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' })
   const send = (event, data) => { try { res.write('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n') } catch {} }
   const { lines, size } = await tailLines(file)
   const first = []
-  for (const l of lines) { try { first.push(...liveEntries(JSON.parse(l))) } catch {} }
+  for (const l of lines) { try { first.push(...liveEntries(JSON.parse(l), side)) } catch {} }
   send('init', first.slice(-LIVE_FIRST))
   let pos = size, rest = ''
   let busy = false
@@ -600,7 +647,7 @@ async function streamSession(req, res, name) {
           const parts = (rest + buf.toString('utf8')).split('\n')
           rest = parts.pop()
           const add = []
-          for (const l of parts) { if (l) try { add.push(...liveEntries(JSON.parse(l))) } catch {} }
+          for (const l of parts) { if (l) try { add.push(...liveEntries(JSON.parse(l), side)) } catch {} }
           if (add.length) send('add', add)
         } finally { await fh.close() }
       }
@@ -789,7 +836,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/live') {
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
-      await streamSession(req, res, url.searchParams.get('session') || '')
+      await streamSession(req, res, url.searchParams.get('session') || '', url.searchParams.get('sub') || '')
       return
     }
     if (url.pathname === '/api/events') {

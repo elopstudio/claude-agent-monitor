@@ -25,6 +25,9 @@ The page is in English by default. Switch to Korean with the **EN / 한국어** 
   browser and on every poll, and no two agents in one project share one. Pin a name with `names` in `config.json`.
 - **Board** (optional). The project's tasks in progress, queued (numbered), done, and decisions waiting on a human.
 - **Team chat.** Who messaged whom, as one-line summaries.
+- **Subagents.** A card shows `🤖 2` while that many of its subagents (the Agent tool) are running; the agent's dialog has a
+  **Subagents** tab listing the recent ones — kind, purpose, last action, tool calls — and opens any of them as its own
+  live conversation (masked like the main one).
 
 The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 
