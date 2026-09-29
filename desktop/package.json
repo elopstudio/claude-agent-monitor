@@ -18,6 +18,8 @@
       "main.cjs",
       "preload.cjs",
       "strip.html",
+      "settings.html",
+      "settings-preload.cjs",
       "hooks-setup.cjs",
       "icon.png",
       "package.json"

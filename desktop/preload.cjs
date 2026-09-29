@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('monitorApp', {
   zoomOut: () => call('zoom-out'),
   zoomReset: () => call('zoom-reset'),
   state: () => call('state'),
+  settings: () => call('settings'),
   // the app reports zoom and history changes (keyboard shortcuts included)
   onChange: (fn) => ipcRenderer.on('monitor-app-state', (_e, s) => fn(s)),
 })

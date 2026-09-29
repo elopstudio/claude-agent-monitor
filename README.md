@@ -13,6 +13,8 @@ A local dashboard for every Claude Code session running on this machine, grouped
 npm start            # http://127.0.0.1:4777  (override with PORT=…)
 ```
 
+Or install the [desktop app](#desktop-app): a window of its own and the tray, no terminal needed.
+
 The page is in English by default. Switch to Korean with the **EN / 한국어** toggle in the header
 (remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
 
@@ -127,23 +129,41 @@ servers and connectors, which starts faster still. Set `"claudePath"` in `config
 
 ## Desktop app
 
-`desktop/` packages the monitor as a Windows app, so it runs without a terminal and without VS Code staying open.
-The server runs inside the app, the page opens in its own window, and closing the window leaves it in the tray
-(monitor agents keep running). The tray menu opens it, opens it in the browser, turns **start at login** on or off,
-opens or changes the data folder, and quits (which also stops the monitor agents).
+`desktop/` packages the monitor as a Windows app: no terminal, and nothing depends on VS Code staying open.
+
+**Install.** Run `Agent Monitor Setup <version>.exe` (build it with `npm run dist`, below). It installs for the current
+user — no admin rights — and starts. The installer is not code-signed, so Windows SmartScreen may warn: *More info → Run anyway*.
+
+**First run.** If Claude Code's settings do not have the monitor's hooks yet, the app offers to add them
+(`~/.claude/settings.json`; only the monitor's entries are added or replaced, a backup is kept as
+`settings.json.before-agent-monitor`). With Node.js on the PATH the hooks run on it; without, they run on the app
+itself. So a new PC needs only **Claude Code**, installed and signed in.
+
+**The window.**
+- No Windows title bar. A thin title strip on the window buttons' line holds **← → ⟳**, **− 100% +** and **⚙ settings**;
+  drag it to move the window. Zooming (buttons, **Ctrl + wheel**, **Ctrl + − / 0 / =**) scales the page only — the strip
+  stays put — and is remembered. **Alt + ← / →** and **F5** work too; project tabs are history entries.
+- Closing the window keeps the monitor in the tray, with its agents running (or quits, if you turn that off).
+
+**Settings** (⚙ in the strip, or the tray): start at login · close to the tray · the data folder (open or change it) ·
+the Claude Code hooks (state, install / update) · version, and open the page in the browser.
+
+**Tray:** open · settings · quit (quitting also stops the monitor agents).
+
+- The server runs inside the app. If a monitor is already answering on the port (`npm start` in a terminal), the app
+  shows that one instead of starting another.
+- The data folder (`config.json`, `boards/`, `.runtime/`) defaults to `~/.claude-agent-monitor`; point it at the folder
+  your leaders write their boards to. `MONITOR_HOME` does the same for `npm start`.
+- The hooks find the running monitor through `~/.claude-agent-monitor/bridge.json`, wherever it runs from.
+
+Build it yourself:
 
 ```bash
 cd desktop
 npm install          # Electron and electron-builder, only for the app — the monitor itself stays dependency-free
 npm start            # run it from source
-npm run dist         # build dist/Agent Monitor Setup <version>.exe
+npm run dist         # dist/Agent Monitor Setup <version>.exe
 ```
-
-- If a monitor is already answering on the port (`npm start` in a terminal), the app shows that one instead of starting another.
-- The data folder (`config.json`, `boards/`, `.runtime/`) defaults to `~/.claude-agent-monitor`; point it at the folder
-  your leaders write their boards to. `MONITOR_HOME` does the same for `npm start`.
-- The hooks find the running monitor through `~/.claude-agent-monitor/bridge.json`, wherever the monitor runs from.
-  They still run with the `node` on your PATH, from the folder registered in `~/.claude/settings.json`.
 
 ## Board format
 

@@ -1,6 +1,6 @@
 // Agent Monitor as a desktop app: runs the monitor server inside the app, shows it in its own window,
 // and lives in the tray — so it no longer depends on a terminal or on VS Code staying open.
-const { app, BaseWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain } = require('electron')
+const { app, BaseWindow, BrowserWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -100,7 +100,7 @@ function appAction(action) {
   }
   setTimeout(report, 50)
 }
-ipcMain.handle('monitor-app', (_e, action) => { if (action !== 'state') appAction(String(action)); return pageState() })
+ipcMain.handle('monitor-app', (_e, action) => { if (action === 'settings') { showSettings(); return pageState() } if (action !== 'state') appAction(String(action)); return pageState() })
 function layout() {
   if (!win) return
   const { width, height } = win.getContentBounds()
@@ -150,31 +150,54 @@ function showWindow() {
   wc.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
   wc.on('will-navigate', (e, url) => { if (!url.startsWith(URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url) } })
   // closing the window keeps the monitor running in the tray
-  win.on('close', (e) => { if (!quitting) { e.preventDefault(); win.hide() } })
+  win.on('close', (e) => { if (quitting) return; if (readSettings().closeToTray === false) { quit(); return } e.preventDefault(); win.hide() })
   win.on('closed', () => { win = page = strip = null })
 }
 function trayMenu() {
-  const login = app.getLoginItemSettings().openAtLogin
   return Menu.buildFromTemplate([
     { label: 'Agent Monitor 열기', click: showWindow },
-    { label: '브라우저에서 열기', click: () => shell.openExternal(URL) },
-    { type: 'separator' },
-    { label: '로그인할 때 자동 시작', type: 'checkbox', checked: login, click: (item) => { app.setLoginItemSettings({ openAtLogin: item.checked, args: ['--hidden'] }); tray.setContextMenu(trayMenu()) } },
-    { label: 'Claude Code hook 설치/갱신…', click: () => offerHooks(true) },
-    { label: '데이터 폴더 열기', click: () => shell.openPath(dataDir()) },
-    {
-      label: '데이터 폴더 바꾸기…', enabled: ownServer, click: async () => {
-        const r = await dialog.showOpenDialog({ title: '데이터 폴더 (config.json, boards/)', defaultPath: dataDir(), properties: ['openDirectory', 'createDirectory'] })
-        if (r.canceled || !r.filePaths[0]) return
-        writeSettings({ ...readSettings(), dataDir: r.filePaths[0] })
-        const ok = await dialog.showMessageBox({ type: 'info', buttons: ['다시 시작', '나중에'], message: '데이터 폴더를 바꿨습니다.', detail: '앱을 다시 시작하면 새 폴더를 씁니다.' })
-        if (ok.response === 0) { app.relaunch(); quit() }
-      },
-    },
+    { label: '설정…', click: showSettings },
     { type: 'separator' },
     { label: ownServer ? '종료 (모니터 에이전트도 멈춤)' : '종료', click: quit },
   ])
 }
+
+/* ── settings window: start at login, close to tray, data folder, hooks, about ── */
+let settingsWin = null
+function showSettings() {
+  if (settingsWin) { settingsWin.show(); settingsWin.focus(); return }
+  settingsWin = new BrowserWindow({
+    width: 620, height: 640, resizable: false, minimizable: false, maximizable: false, title: 'Agent Monitor 설정', icon: ICON,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
+    titleBarStyle: 'hidden', titleBarOverlay: overlay(),
+    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'settings-preload.cjs') },
+  })
+  settingsWin.loadFile(path.join(__dirname, 'settings.html'))
+  settingsWin.on('closed', () => { settingsWin = null })
+}
+ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
+  const cur = readSettings()
+  if (action === 'set' && key === 'openAtLogin') app.setLoginItemSettings({ openAtLogin: !!value, args: ['--hidden'] })
+  if (action === 'set' && key === 'closeToTray') writeSettings({ ...cur, closeToTray: !!value })
+  if (action === 'openData') shell.openPath(dataDir())
+  if (action === 'openBrowser') shell.openExternal(URL)
+  if (action === 'installHooks') {
+    try { installHooks() } catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
+  }
+  if (action === 'pickData') {
+    const r = await dialog.showOpenDialog(settingsWin, { title: '데이터 폴더 (config.json, boards/)', defaultPath: dataDir(), properties: ['openDirectory', 'createDirectory'] })
+    if (!r.canceled && r.filePaths[0]) {
+      writeSettings({ ...readSettings(), dataDir: r.filePaths[0] })
+      const ok = await dialog.showMessageBox(settingsWin, { type: 'info', buttons: ['다시 시작', '나중에'], message: '데이터 폴더를 바꿨습니다.', detail: '앱을 다시 시작하면 새 폴더를 씁니다.' })
+      if (ok.response === 0) { app.relaunch(); quit() }
+    }
+  }
+  const s2 = readSettings()
+  return {
+    openAtLogin: app.getLoginItemSettings().openAtLogin, closeToTray: s2.closeToTray !== false,
+    dataDir: dataDir(), ownServer, hooks: hookState(), node: !!findNode(), version: app.getVersion(), url: URL,
+  }
+})
 function quit() {
   quitting = true
   if (ownServer && typeof globalThis.agentMonitorShutdown === 'function') globalThis.agentMonitorShutdown()
