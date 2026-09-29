@@ -248,6 +248,7 @@ async function buildState() {
       role: '', title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
       mode: modes.get(s.sessionId)?.mode || '',
+      listening: waiters.has(s.sessionId), queued: (inbox.get(s.sessionId) || []).length,
       context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
       // a hook call is a sign of life too, and arrives even while the transcript is quiet
       lastSignAt: Math.max(info?.lastEventAt || 0, modes.get(s.sessionId)?.at || 0),
@@ -453,6 +454,47 @@ function readBody(req, limit = 256 * 1024) {
 }
 const sameToken = (v) => typeof v === 'string' && v.length === TOKEN.length && crypto.timingSafeEqual(Buffer.from(v), Buffer.from(TOKEN))
 
+/* ── Messages from the page to an agent ───────── */
+
+// hooks/inbox.mjs runs in the background after each turn (Stop hook with asyncRewake) and waits here.
+// A message typed on the page is handed to that waiter, which prints it and exits 2 — Claude Code then wakes
+// the session with the text. Messages live in memory only; one waiter per session (a newer one replaces it).
+const INBOX_WAIT_MS = 25 * 60 * 1000
+const inbox = new Map()                // sessionId → [{ text, at }]
+const waiters = new Map()              // sessionId → (reply) => void
+
+function deliver(sessionId) {
+  const w = waiters.get(sessionId), q = inbox.get(sessionId)
+  if (!w || !q || !q.length) return
+  waiters.delete(sessionId)
+  inbox.delete(sessionId)
+  w({ messages: q })
+}
+function waitForMessage(sessionId) {
+  return new Promise((resolve) => {
+    const old = waiters.get(sessionId)
+    if (old) old({ superseded: true })
+    const timer = setTimeout(() => { if (waiters.get(sessionId) === reply) waiters.delete(sessionId); resolve({}) }, INBOX_WAIT_MS)
+    const reply = (r) => { clearTimeout(timer); resolve(r) }
+    waiters.set(sessionId, reply)
+    deliver(sessionId)
+    notifyPages()
+  })
+}
+async function sendMessage(body) {
+  const name = String(body.session || '')
+  const text = clip(body.text, 2000)
+  if (!name || !text) return 400
+  const target = (await readRegistry()).find((x) => x.name === name)
+  if (!target) return 404
+  const q = inbox.get(target.sessionId) || []
+  q.push({ text, at: Date.now() })
+  inbox.set(target.sessionId, q.slice(-10))
+  deliver(target.sessionId)
+  notifyPages()
+  return 200
+}
+
 /* ── Board edits from the page ────────────────── */
 
 // The leader writes the same file, so every edit re-reads it, checks that the item the page meant is still
@@ -521,6 +563,8 @@ const server = http.createServer(async (req, res) => {
       if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
       const body = await readBody(req)
       if (url.pathname === '/hook') { json(200, await hookEvent(body)); return }
+      if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
+      if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }
       if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || ''), Number(body.pick), body.answers) ? 200 : 404, {}); return }
       res.writeHead(404).end(); return

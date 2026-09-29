@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+// Claude Code Stop hook (async + asyncRewake) → waits for a message typed on the agent monitor's page.
+//
+// After each turn Claude Code starts this in the background. It asks the monitor on 127.0.0.1 for messages
+// addressed to this session and waits. When one arrives it prints the text to stderr and exits 2, which makes
+// Claude Code wake the session with that text. On anything else — no monitor, timeout, a newer waiter for the
+// same session — it exits 0 quietly and nothing happens.
+import fs from 'node:fs'
+import path from 'node:path'
+import http from 'node:http'
+import { fileURLToPath } from 'node:url'
+
+const RUNTIME = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')
+const WAIT_MS = 26 * 60 * 1000   // a little longer than the monitor's own wait
+
+function readStdin() {
+  return new Promise((resolve) => {
+    const chunks = []
+    process.stdin.on('data', (c) => chunks.push(c))
+    process.stdin.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    process.stdin.on('error', () => resolve(''))
+  })
+}
+
+function post(port, token, body) {
+  return new Promise((resolve) => {
+    const req = http.request({
+      host: '127.0.0.1', port, path: '/hook/wait', method: 'POST', timeout: WAIT_MS,
+      headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'x-monitor-token': token },
+    }, (res) => {
+      const chunks = []
+      res.on('data', (c) => chunks.push(c))
+      res.on('end', () => resolve(res.statusCode === 200 ? Buffer.concat(chunks).toString('utf8') : ''))
+    })
+    req.on('timeout', () => { req.destroy(); resolve('') })
+    req.on('error', () => resolve(''))
+    req.end(body)
+  })
+}
+
+async function main() {
+  let conf
+  try { conf = JSON.parse(fs.readFileSync(RUNTIME, 'utf8')) } catch { return 0 }
+  let input
+  try { input = JSON.parse(await readStdin()) } catch { return 0 }
+  if (!input.session_id) return 0
+  let reply
+  try { reply = JSON.parse(await post(conf.port, conf.token, JSON.stringify({ session_id: input.session_id }))) } catch { return 0 }
+  const messages = Array.isArray(reply?.messages) ? reply.messages : []
+  if (!messages.length) return 0
+  const lines = messages.map((m) => '- ' + String(m.text))
+  process.stderr.write('Message(s) the user typed on the agent monitor page for this session:\n' + lines.join('\n') + '\n')
+  return 2
+}
+
+main().then((code) => process.exit(code), () => process.exit(0))
