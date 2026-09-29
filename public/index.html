@@ -43,6 +43,14 @@
   --bubble:#1f252f; --floor:#1a1f28; --shadow:rgba(0,0,0,.35); --bot-shadow:rgba(0,0,0,.5);
 }
 *{box-sizing:border-box}
+/* thin scrollbars in the page's own colours (Firefox, and Chromium 121+) */
+*{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+/* older Chromium / Safari */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background-color:var(--line-strong);border-radius:999px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background-color:var(--faint)}
+::-webkit-scrollbar-corner{background:transparent}
 html,body{margin:0}
 body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transparent 70%),var(--bg);color:var(--text);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
 .wrap{--gut:24px;margin:0 auto;padding:0 var(--gut) 60px}
@@ -299,10 +307,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .m.monitor{background:var(--wait-soft)}
 .detail .m .from{font-size:10.5px;font-weight:900;color:var(--wait);margin-bottom:2px}
 .detail .live h4{margin:0 0 8px;font-size:12.5px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.detail .live .lstate{font-size:11px;font-weight:700;color:var(--faint)}
-.detail .live .lstate.on{color:var(--run)}
-.detail .live .lstate.on::before{content:"● "}
-.detail .live .lnote{margin-left:auto;font-size:11px;font-weight:500;color:var(--faint)}
+.detail .live{position:relative}
+.detail .live .lstate{position:absolute;top:18px;right:28px;z-index:1;font-size:11px;font-weight:700;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
+.detail .live .lstate:empty{display:none}
 .detail .lpane{height:min(52vh,560px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .detail .m .ts{font-size:10.5px;color:var(--faint);margin-top:3px}
 .detail .m.user{align-self:flex-end;max-width:80%;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 11px}
@@ -540,13 +547,12 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
   function livePane(s) {
     stopLive();
     const wrap = el('section', 'live');
-    const h = el('h4', null, t('liveTitle'));
+    // no header: the tab already says what this is; the state shows up only when the stream is not live
     const state = el('span', 'lstate', t('liveConnecting'));
-    h.append(state, el('span', 'lnote', t('liveMasked')));
     const pane = el('div', 'lpane');
     pane.setAttribute('role', 'log');
     pane.setAttribute('aria-live', 'off');
-    wrap.append(h, pane);
+    wrap.append(state, pane);
     const tools = new Map();   // tool_use id → its <details>, so a result lands under its call
     const time = (at) => { if (!at) return ''; const d = new Date(at), p2 = (x) => String(x).padStart(2, '0'); return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
     const put = (entries) => {
@@ -577,7 +583,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     };
     try {
       liveES = new EventSource('/api/live?session=' + encodeURIComponent(str(s.name)) + '&token=' + encodeURIComponent(token));
-      liveES.addEventListener('init', (ev) => { pane.replaceChildren(); tools.clear(); put(JSON.parse(ev.data)); state.textContent = t('liveOn'); state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
+      liveES.addEventListener('init', (ev) => { pane.replaceChildren(); tools.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
       liveES.addEventListener('add', (ev) => put(JSON.parse(ev.data)));
       liveES.onerror = () => { state.textContent = t('liveOff'); state.className = 'lstate'; };
     } catch (e) { state.textContent = t('liveOff'); }
