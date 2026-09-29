@@ -3,7 +3,7 @@
 A local dashboard for every Claude Code session running on this machine, grouped as
 **project → leader → agents**. No dependencies (Node 18+), read-only, listens on `127.0.0.1` only.
 
-![The dashboard: a leader robot with four agents below it, team chat on the right and the task board at the bottom](docs/screenshot.png)
+![The dashboard: a leader robot with four agents below it (one run by the monitor, one with subagents at work), team chat on the right and the task board at the bottom](docs/screenshot.png)
 
 <sub>Demo data: the project, names and tasks are made up.</sub>
 
