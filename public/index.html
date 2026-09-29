@@ -143,7 +143,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .bubble .k{flex:none;font-size:12px;line-height:1.55}
 .st-resting .bubble{color:var(--faint);border-style:dashed}
 .st-resting .bubble::before{border-left-style:dashed;border-bottom-style:dashed}
-.info .when{color:var(--faint);font-size:11px;margin-left:4px;display:flex;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.info .when{color:var(--faint);font-size:11px;margin-left:4px;display:flex;gap:8px;white-space:nowrap;min-width:0}
+/* the texts shrink with an ellipsis; the ✉ button at the end never does */
+.info .when>span{overflow:hidden;text-overflow:ellipsis;min-width:0}
 
 .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
 .badge .g{font-size:9px;line-height:1}
@@ -287,7 +289,32 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .approval .done.ok{color:var(--run)}
 .approval .done.bad{color:var(--block)}
 @media (max-width:640px){ .approval{grid-template-columns:1fr} .approval .acts{justify-content:stretch} .approval button{flex:1} }
-.detail{border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);color:var(--text);padding:0;width:min(560px,calc(100vw - 32px));box-shadow:0 20px 60px var(--bot-shadow)}
+.detail{border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);color:var(--text);padding:0;width:min(980px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:0 20px 60px var(--bot-shadow)}
+.detail .dtabs{display:flex;gap:4px;padding:8px 16px 0;border-bottom:1px solid var(--line)}
+.detail .dtab{appearance:none;border:1px solid transparent;border-bottom:0;background:none;color:var(--muted);font:700 13px var(--sans);padding:7px 14px;border-radius:8px 8px 0 0;cursor:pointer;margin-bottom:-1px}
+.detail .dtab[aria-selected="true"]{background:var(--surface);border-color:var(--line);color:var(--text)}
+.detail .dpanel[hidden]{display:none}
+.detail .live{padding:10px 16px 12px}
+.detail .m.note{align-self:center;font-size:11.5px;color:var(--faint);background:var(--surface-2);border-radius:999px;padding:2px 10px;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail .m.monitor{background:var(--wait-soft)}
+.detail .m .from{font-size:10.5px;font-weight:900;color:var(--wait);margin-bottom:2px}
+.detail .live h4{margin:0 0 8px;font-size:12.5px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.detail .live .lstate{font-size:11px;font-weight:700;color:var(--faint)}
+.detail .live .lstate.on{color:var(--run)}
+.detail .live .lstate.on::before{content:"● "}
+.detail .live .lnote{margin-left:auto;font-size:11px;font-weight:500;color:var(--faint)}
+.detail .lpane{height:min(52vh,560px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.detail .m .ts{font-size:10.5px;color:var(--faint);margin-top:3px}
+.detail .m.user{align-self:flex-end;max-width:80%;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 11px}
+.detail .m.assistant{align-self:flex-start;max-width:92%;padding:2px 4px}
+.detail .m .mt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;line-height:1.6}
+.detail .m.tool{align-self:stretch;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.detail .m.tool.failed{border-color:var(--block)}
+.detail .m.tool summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;padding:6px 10px;font-size:12.5px}
+.detail .m.tool summary .tn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px}
+.detail .m.tool summary .ts{margin:0}
+.detail .m.tool pre,.detail .lpane>pre{margin:0;padding:7px 10px;border-top:1px solid var(--line);font:11.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;color:var(--muted)}
+.detail pre.out.err{color:var(--block)}
 .detail::backdrop{background:rgba(10,14,24,.45)}
 .detail .dh{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .detail .dh svg{width:48px;height:48px}
@@ -306,9 +333,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail form.msg .status.bad{color:var(--block)}
 .detail form.msg .status:empty{display:none}
 .detail form.msg .ok{justify-self:end;appearance:none;border:1px solid var(--run);background:var(--run);color:var(--surface);border-radius:8px;padding:7px 16px;font:700 13px var(--sans);cursor:pointer}
-.info .mail{appearance:none;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);border-radius:999px;font:700 11px var(--sans);padding:1px 8px;cursor:pointer;line-height:17px}
-.info .mail:hover{color:var(--text);border-color:var(--text)}
-.info .mail.has{color:var(--surface);background:var(--accent);border-color:var(--accent)}
+.info .when{align-items:center}
 .tab .tc .a{color:var(--surface);background:var(--wait)}
 .info .marks{display:flex;align-items:center;gap:5px;flex:none}
 .mode{font-size:10px;font-weight:900;letter-spacing:.05em;border-radius:4px;padding:1px 6px;border:1px solid var(--line-strong);color:var(--muted);white-space:nowrap}
@@ -369,7 +394,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send)', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send)', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -390,7 +415,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기)', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기)', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -509,6 +534,56 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 
   /* ── Cards ── */
   // everything the page knows about one agent, in full
+  /* ── Live conversation (like the VS Code panel), masked by the server ── */
+  let liveES = null;
+  function stopLive() { if (liveES) { liveES.close(); liveES = null; } }
+  function livePane(s) {
+    stopLive();
+    const wrap = el('section', 'live');
+    const h = el('h4', null, t('liveTitle'));
+    const state = el('span', 'lstate', t('liveConnecting'));
+    h.append(state, el('span', 'lnote', t('liveMasked')));
+    const pane = el('div', 'lpane');
+    pane.setAttribute('role', 'log');
+    pane.setAttribute('aria-live', 'off');
+    wrap.append(h, pane);
+    const tools = new Map();   // tool_use id → its <details>, so a result lands under its call
+    const time = (at) => { if (!at) return ''; const d = new Date(at), p2 = (x) => String(x).padStart(2, '0'); return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
+    const put = (entries) => {
+      const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
+      for (const e of entries) {
+        if (e.role === 'note') { pane.append(el('div', 'm note', str(e.text) + (e.at ? '  · ' + time(e.at) : ''))); continue; }
+        if (e.role === 'user' || e.role === 'assistant' || e.role === 'monitor') {
+          const m = el('div', 'm ' + (e.role === 'monitor' ? 'user monitor' : e.role));
+          if (e.role === 'monitor') m.append(el('div', 'from', t('fromPage')));
+          m.append(el('div', 'mt', str(e.text)), el('div', 'ts', time(e.at)));
+          pane.append(m);
+        } else if (e.role === 'tool') {
+          const d = el('details', 'm tool');
+          const sum = el('summary');
+          sum.append(el('span', 'k', ACT_ICON[e.action?.kind] || '•'), el('span', 'tn', actText(e.action) || str(e.name)), el('span', 'ts', time(e.at)));
+          d.append(sum, el('pre', 'in', str(e.input)));
+          tools.set(e.id, d);
+          pane.append(d);
+        } else if (e.role === 'result') {
+          const out = el('pre', 'out' + (e.error ? ' err' : ''), str(e.text));
+          const host = tools.get(e.id);
+          if (host) { host.append(out); if (e.error) host.classList.add('failed'); }
+          else pane.append(out);
+        }
+      }
+      while (pane.children.length > 400) pane.firstChild.remove();
+      if (atBottom) pane.scrollTop = pane.scrollHeight;
+    };
+    try {
+      liveES = new EventSource('/api/live?session=' + encodeURIComponent(str(s.name)) + '&token=' + encodeURIComponent(token));
+      liveES.addEventListener('init', (ev) => { pane.replaceChildren(); tools.clear(); put(JSON.parse(ev.data)); state.textContent = t('liveOn'); state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
+      liveES.addEventListener('add', (ev) => put(JSON.parse(ev.data)));
+      liveES.onerror = () => { state.textContent = t('liveOff'); state.className = 'lstate'; };
+    } catch (e) { state.textContent = t('liveOff'); }
+    return wrap;
+  }
+
   function showDetail(s, focusMessage) {
     const d = $('detail');
     const st = STATE[s.state] ? s.state : 'resting';
@@ -557,11 +632,35 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       else { status.textContent = t('failed'); status.className = 'status bad'; }
     });
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) form.requestSubmit(); });
-    d.replaceChildren(head, dl, form);
+    const tabs = el('div', 'dtabs');
+    tabs.setAttribute('role', 'tablist');
+    const info = el('div', 'dpanel'); info.append(dl);
+    const conv = el('div', 'dpanel'); conv.append(livePane(s));
+    const panels = { info, conv };
+    let pick = (() => { try { return localStorage.getItem('am.dtab') === 'conv' ? 'conv' : 'info'; } catch (e2) { return 'info'; } })();
+    const buttons = {};
+    const show = (k) => {
+      pick = k;
+      try { localStorage.setItem('am.dtab', k); } catch (e2) {}
+      for (const [key, b] of Object.entries(buttons)) b.setAttribute('aria-selected', String(key === k));
+      for (const [key, p] of Object.entries(panels)) p.hidden = key !== k;
+      if (k === 'conv') { const lp = conv.querySelector('.lpane'); if (lp) lp.scrollTop = lp.scrollHeight; }
+    };
+    for (const [k, label] of [['info', t('tabInfo')], ['conv', t('tabConv')]]) {
+      const b = el('button', 'dtab', label);
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.addEventListener('click', () => show(k));
+      buttons[k] = b;
+      tabs.append(b);
+    }
+    show(pick);
+    d.replaceChildren(head, tabs, info, conv, form);
     if (!d.open) d.showModal();
     (focusMessage ? ta : close).focus();
   }
   $('detail').addEventListener('click', (e) => { if (e.target === $('detail')) $('detail').close(); });   // click outside closes
+  $('detail').addEventListener('close', stopLive);
 
   function botCard(s) {
     const st = STATE[s.state] ? s.state : 'resting';
@@ -577,7 +676,8 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const row = el('div', 'row');
     const nm = el('div', 'nm');
     nm.title = str(s.name);
-    if (s.nick) nm.append(el('span', 'nick', nickFor(s)), el('span', 'full', str(s.short) || str(s.name)));
+    // the short id (-7b) stays out of the narrow header; hovering shows the full session name, the detail shows both
+    if (s.nick) nm.append(el('span', 'nick', nickFor(s)));
     else nm.append(el('span', 'short', str(s.short) || str(s.name)));
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     if (asked) nm.append(el('span', 'ask-tag', t('asking')));
@@ -590,12 +690,6 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       right.append(m);
     }
     right.append(badge(st));
-    const mail = el('button', 'mail' + (s.queued ? ' has' : ''), s.queued ? '✉ ' + s.queued : '✉');
-    mail.type = 'button';
-    mail.title = t('msgTo', { x: nickFor(s) || str(s.name) });
-    mail.setAttribute('aria-label', mail.title);
-    mail.addEventListener('click', () => showDetail(s, true));
-    right.append(mail);
     row.append(nm, right);
     info.append(row);
     // the leader's role for this session, or else the session's own title
@@ -840,8 +934,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const box = $('approvals');
     const list = data.approvals || [];
     // rebuild only when the set of requests changes, so a click in progress is not thrown away
-    const others = data.inEditor || [];
-    const ids = list.map((a) => a.id).concat(others.map((w) => 'vs:' + w.session + ':' + w.at)).join(',');
+    const ids = list.map((a) => a.id).join(',');
     if (box.dataset.ids === ids) {
       for (const a of list) { const n = box.querySelector('[data-id="' + a.id + '"] .left'); if (n) n.textContent = t('left', { n: secsLeft(a) }); }
       return;
@@ -957,22 +1050,6 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       });
       if (kind === 'tool') acts.append(btn('deny', t('deny'), 'deny'), btn('deny', t('stop'), 'stop'), btn('', t('inEditor'), 'editor'));
       card.append(main, acts);
-      box.append(card);
-    }
-    // prompts only VS Code can answer: say who is waiting and what the prompt says
-    for (const w of others) {
-      const card = el('div', 'approval editor');
-      const who = el('div', 'who');
-      who.append(el('span', 'ask', t('vsTitle')));
-      const agent = el('button', 'agent');
-      agent.type = 'button';
-      agent.append(robotNode(str(w.session), 'working', !!w.isLeader, true), el('b', null, str(lang === 'ko' && w.nickKo || w.nick) || str(w.session)));
-      if (w.short) agent.append(el('span', 'sh', str(w.short)));
-      agent.addEventListener('click', () => select(str(w.project)));
-      who.append(agent, el('span', 'proj', str(w.project)), el('span', 'left', ago(w.at)));
-      card.append(who);
-      if (w.message) card.append(el('div', 'what', str(w.message)));
-      card.append(el('div', 'about', t('vsHint')));
       box.append(card);
     }
   }

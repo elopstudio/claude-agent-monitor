@@ -36,12 +36,17 @@ The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 A project is the folder name of the git root above a session's working directory. The leader is the session
 named in `config.json`; without one, it is the session that sent the most messages (at least 3).
 
-## What it never reads or exposes
+## What it never reads, and what it shows
 
 - `~/.claude/sessions/*.key`, `.credentials.json` and settings files are never opened.
-- User prompts, conversation text, tool results, message bodies and socket addresses never reach the API.
-- A tool action is reduced to its kind plus a short label (a file name or the command's own description).
-  Web lookups show neither the URL nor the query.
+- The cards, tabs, board and state API carry no user prompts, conversation text, tool results or message bodies:
+  a tool action is reduced to its kind plus a short label (a file name or the command's own description), and
+  web lookups show neither the URL nor the query. Socket addresses never reach the page.
+- The one exception is the **conversation view** in an agent's detail dialog, which follows that session's
+  transcript live, like the VS Code panel. It is streamed only while the dialog is open, needs the page's token,
+  is never stored or logged, and is masked on the way out: e-mail addresses, phone numbers, resident registration
+  and card numbers, and anything that looks like a key, token or password become `[email]`, `[secret]` and so on.
+  Long letter-and-digit runs (a full commit hash, say) are masked too.
 - Requests whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` are refused (421), so a web page cannot
   reach the API by pointing its own domain at this machine (DNS rebinding).
 

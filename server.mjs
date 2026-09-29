@@ -346,6 +346,9 @@ const pending = new Map()              // id → { id, sessionId, tool, what, co
 // Prompts that only VS Code can answer (held messages between sessions, one-time auto-mode checks, MCP forms…):
 // Claude Code announces them with a Notification hook. The page can't answer these, but it can say who is waiting.
 const waiting = new Map()              // sessionId → { type, message, at }
+const handedBack = new Map()           // sessionId → when the monitor sent a request back to VS Code
+const HANDBACK_MS = 2 * 60 * 1000
+const handBack = (sessionId) => { if (sessionId) handedBack.set(sessionId, Date.now()) }
 
 function writeRuntime() {
   fs.mkdirSync(RUNTIME, { recursive: true })
@@ -385,7 +388,8 @@ function hookEvent(input) {
     const type = String(input.notification_type || 'other')
     hookStats.notifications[type] = (hookStats.notifications[type] || 0) + 1
     // "idle_prompt" is just "done, your turn" — the card already shows that as waiting
-    if (sessionId && type !== 'idle_prompt') waiting.set(sessionId, { type, message: clip(input.message || '', 240), at: Date.now() })
+    const expected = Date.now() - (handedBack.get(sessionId) || 0) < HANDBACK_MS
+    if (sessionId && type !== 'idle_prompt' && !expected) waiting.set(sessionId, { type, message: clip(input.message || '', 240), at: Date.now() })
     notifyPages()
     return Promise.resolve({})
   }
@@ -393,14 +397,14 @@ function hookEvent(input) {
   if (sessionId && waiting.delete(sessionId)) notifyPages()
   if (event !== 'PermissionRequest') return Promise.resolve({})
   // nobody is watching the page — hand the request straight back to the normal prompt
-  if (!pageOpen()) { hookStats.permission.skippedNoViewer++; return Promise.resolve({}) }
+  if (!pageOpen()) { hookStats.permission.skippedNoViewer++; handBack(sessionId); return Promise.resolve({}) }
   hookStats.permission.shown++
   const toolName = String(input.tool_name || '')
   hookStats.permission.tools[toolName] = (hookStats.permission.tools[toolName] || 0) + 1
   return new Promise((resolve) => {
     const id = crypto.randomBytes(8).toString('hex')
     const done = (decision) => { clearTimeout(timer); pending.delete(id); notifyPages(); resolve(decision) }
-    const timer = setTimeout(() => done({}), APPROVAL_WAIT_MS)
+    const timer = setTimeout(() => { handBack(sessionId); done({}) }, APPROVAL_WAIT_MS)
     // "Yes, and don't ask again for …" — kept exactly as Claude Code sent them, and handed back unchanged when picked
     const suggestions = Array.isArray(input.permission_suggestions) ? input.permission_suggestions.slice(0, 4) : []
     pending.set(id, {
@@ -440,7 +444,7 @@ function decide(id, answer, pick, extra) {
   }
   else if (answer === 'deny') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor' }))
   else if (answer === 'stop') p.done(decision({ behavior: 'deny', message: 'Denied from the agent monitor — stopped to wait for the user', interrupt: true }))
-  else p.done({})   // "answer in VS Code" — the normal prompt appears right away
+  else { handBack(p.sessionId); p.done({}) }   // "answer in VS Code" — the normal prompt appears right away
   return true
 }
 
@@ -453,6 +457,120 @@ function readBody(req, limit = 256 * 1024) {
   })
 }
 const sameToken = (v) => typeof v === 'string' && v.length === TOKEN.length && crypto.timingSafeEqual(Buffer.from(v), Buffer.from(TOKEN))
+
+/* ── Live conversation view ─────────────────── */
+
+// The detail dialog can follow one session's conversation as it happens, like the VS Code panel.
+// It is streamed straight from the transcript file and never stored or logged, and personal data is masked
+// on the way out: e-mail addresses, phone numbers, resident registration and card numbers, and anything
+// that looks like a key or token.
+const MASKS = [
+  [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[email]'],
+  [/\b\d{6}-?[1-8]\d{6}\b/g, '[id-number]'],
+  [/\b(?:\d[ -]?){13,16}\b/g, '[card]'],
+  [/(?:\+?82[- ]?)?0?1[016789][- .]?\d{3,4}[- .]?\d{4}\b/g, '[phone]'],
+  [/\b0\d{1,2}[- .]\d{3,4}[- .]\d{4}\b/g, '[phone]'],
+  [/\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/g, '[secret]'],
+  [/\b(?=[A-Za-z0-9+/_-]*\d)(?=[A-Za-z0-9+/_-]*[A-Za-z])[A-Za-z0-9+/_-]{40,}={0,2}/g, '[secret]'],
+  [/((?:password|passwd|pwd|secret|token|api[_-]?key|authorization)["']?\s*[:=]\s*["']?)[^\s"',;]+/gi, '$1[secret]'],
+]
+const mask = (text) => MASKS.reduce((t, [re, to]) => t.replace(re, to), String(text ?? ''))
+const LIVE_TEXT = 4000, LIVE_RESULT = 3000, LIVE_INPUT = 1500, LIVE_FIRST = 80
+
+// One transcript line → zero or more view entries (the main conversation only; subagents' own chains are skipped).
+function liveEntries(o) {
+  if (!o || o.isSidechain || o.isMeta) return []
+  const at = o.timestamp ? Date.parse(o.timestamp) : 0
+  const out = []
+  const content = o.message?.content
+  if (o.type === 'user') {
+    const pushUser = (raw) => { const e = userEntry(raw, at); if (e) out.push({ ...e, text: mask(clip2(e.text, LIVE_TEXT)) }) }
+    if (typeof content === 'string') pushUser(content)
+    else if (Array.isArray(content)) for (const c of content) {
+      if (c?.type === 'text' && c.text?.trim()) pushUser(c.text)
+      if (c?.type === 'tool_result') {
+        const raw = typeof c.content === 'string' ? c.content : Array.isArray(c.content) ? c.content.map((x) => x?.type === 'text' ? x.text : '[' + (x?.type || 'data') + ']').join('\n') : ''
+        out.push({ role: 'result', id: String(c.tool_use_id || ''), error: !!c.is_error, text: mask(clip2(raw, LIVE_RESULT)), at })
+      }
+    }
+  } else if (o.type === 'assistant' && Array.isArray(content)) {
+    for (const c of content) {
+      if (c?.type === 'text' && c.text?.trim()) out.push({ role: 'assistant', text: mask(clip2(c.text, LIVE_TEXT)), at })
+      if (c?.type === 'tool_use') out.push({ role: 'tool', id: String(c.id || ''), name: String(c.name || ''), action: describe(c.name, c.input), input: mask(clip2(JSON.stringify(c.input ?? {}, null, 1), LIVE_INPUT)), at })
+    }
+  }
+  return out
+}
+// What Claude Code writes into the user side besides what a person typed — reminders, task notices, hook
+// feedback, slash-command echoes — is reduced to a short note, or dropped, so the view reads like the chat.
+const tagText = (text, tag) => { const m = String(text).match(new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>')); return m ? m[1].trim() : '' }
+function userEntry(raw, at) {
+  let text = String(raw ?? '')
+  // a message sent from this page, delivered by hooks/inbox.mjs
+  const fromPage = text.match(/Message\(s\) the user typed on the agent monitor page[^\n]*\n([\s\S]*?)(?:<\/system-reminder>|$)/)
+  if (fromPage) {
+    const lines = fromPage[1].split('\n').map((l) => l.replace(/^- /, '').trim()).filter(Boolean)
+    return lines.length ? { role: 'monitor', text: lines.join('\n'), at } : null
+  }
+  if (text.includes('<task-notification>')) {
+    const summary = tagText(text, 'summary') || tagText(text, 'status')
+    return { role: 'note', text: '⚙ ' + (summary || 'background task update'), at }
+  }
+  const command = tagText(text, 'command-name')
+  if (command) return { role: 'note', text: '⌘ ' + command + (tagText(text, 'command-args') ? ' ' + tagText(text, 'command-args') : ''), at }
+  const bash = tagText(text, 'bash-input')
+  if (bash) return { role: 'note', text: '! ' + bash, at }
+  text = text
+    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
+    .replace(/<(local-command-[a-z]+|bash-std(?:out|err)|command-message|command-args)>[\s\S]*?<\/\1>/g, '')
+    .trim()
+  if (!text) return null
+  // "[Request interrupted by user]" and similar stay, as notes
+  if (/^\[[^\]]{3,80}\]$/.test(text)) return { role: 'note', text, at }
+  return { role: 'user', text, at }
+}
+
+// like clip() but keeps line breaks
+const clip2 = (v, n) => { const t = String(v ?? ''); return t.length > n ? t.slice(0, n) + '\n… (' + (t.length - n) + ' more characters)' : t }
+
+async function streamSession(req, res, name) {
+  const target = (await readRegistry()).find((x) => x.name === name)
+  const file = target && await findTranscript(target.sessionId)
+  if (!file) { res.writeHead(404).end(); return }
+  res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' })
+  const send = (event, data) => { try { res.write('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n') } catch {} }
+  const { lines, size } = await tailLines(file)
+  const first = []
+  for (const l of lines) { try { first.push(...liveEntries(JSON.parse(l))) } catch {} }
+  send('init', first.slice(-LIVE_FIRST))
+  let pos = size, rest = ''
+  let busy = false
+  const timer = setInterval(async () => {
+    if (busy) return
+    busy = true
+    try {
+      const st = await fsp.stat(file)
+      if (st.size < pos) { pos = st.size; rest = '' }   // rewritten — start over from the end
+      if (st.size > pos) {
+        const fh = await fsp.open(file, 'r')
+        try {
+          const n = Math.min(st.size - pos, 4 * 1024 * 1024)
+          const buf = Buffer.alloc(n)
+          await fh.read(buf, 0, n, pos)
+          pos += n
+          const parts = (rest + buf.toString('utf8')).split('\n')
+          rest = parts.pop()
+          const add = []
+          for (const l of parts) { if (l) try { add.push(...liveEntries(JSON.parse(l))) } catch {} }
+          if (add.length) send('add', add)
+        } finally { await fh.close() }
+      }
+    } catch {}
+    busy = false
+  }, 1000)
+  const ping = setInterval(() => { try { res.write(': ping\n\n') } catch {} }, 15000)
+  req.on('close', () => { clearInterval(timer); clearInterval(ping) })
+}
 
 /* ── Messages from the page to an agent ───────── */
 
@@ -570,6 +688,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404).end(); return
     }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }
+    if (url.pathname === '/api/live') {
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      await streamSession(req, res, url.searchParams.get('session') || '')
+      return
+    }
     if (url.pathname === '/api/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' })
       res.write('retry: 2000\n\n')
