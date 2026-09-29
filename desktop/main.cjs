@@ -69,7 +69,7 @@ async function startServer() {
 }
 
 /* ── window and tray ── */
-const DARK = { color: '#0f1116', symbolColor: '#e8eaef', height: 44 }, LIGHT = { color: '#f2f3f7', symbolColor: '#171a21', height: 44 }
+const DARK = { color: '#171b22', symbolColor: '#e8eaef', height: 36 }, LIGHT = { color: '#ffffff', symbolColor: '#171a21', height: 36 }
 const overlay = () => (nativeTheme.shouldUseDarkColors ? DARK : LIGHT)
 nativeTheme.on('updated', () => { if (win) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
 const zoom = () => { const z = Number(readSettings().zoom); return z >= 0.5 && z <= 2 ? z : 1 }
