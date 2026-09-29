@@ -31,6 +31,39 @@ const STALL_MS = 10 * 60 * 1000        // "working" with no sign of life for thi
 const RECENT_RESULTS = 20              // tool errors are counted over the last this many tool results
 const MESSAGE_FEED = 14
 
+// a look picked on the page for a VS Code session: config.json projects.<key>.avatars.<short name or name>
+const LOOK_ACCS = ['ball', 'twin', 'phones', 'sprout', 'bolt']
+const lookOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && LOOK_ACCS.includes(v.acc) ? { c: v.c, acc: v.acc } : null)
+function lookFor(config, key, name, short) {
+  const av = config.projects?.[key]?.avatars || {}
+  return lookOf(av[short]) || lookOf(av[name])
+}
+// writes the name and look into config.json, keeping everything else in it as it was
+async function saveLook(body) {
+  const key = String(body.project || '').toLowerCase(), who = String(body.session || '')
+  if (!/^[a-z0-9][a-z0-9._-]{0,80}$/.test(key) || !who || who.length > 120) return 400
+  const file = path.join(ROOT, 'config.json')
+  let config = {}
+  try { config = JSON.parse(await fsp.readFile(file, 'utf8')) } catch (e) { if (e.code !== 'ENOENT') return 409 }
+  config.projects = config.projects || {}
+  const p = (config.projects[key] = config.projects[key] || {})
+  if (typeof body.nick === 'string') {
+    const nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
+    p.names = p.names || {}
+    if (nick) p.names[who] = nick; else delete p.names[who]
+  }
+  if (body.avatar !== undefined) {
+    const look = lookOf(body.avatar)
+    p.avatars = p.avatars || {}
+    if (look) p.avatars[who] = look; else delete p.avatars[who]
+  }
+  const tmp = file + '.' + process.pid + '.tmp'
+  await fsp.writeFile(tmp, JSON.stringify(config, null, 2) + '\n')
+  await fsp.rename(tmp, file)
+  notifyPages()
+  return 200
+}
+
 function loadConfig() {
   try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8')) } catch { return {} }
 }
@@ -288,7 +321,7 @@ async function buildState() {
     const short = s.name.toLowerCase().startsWith(key + '-') ? s.name.slice(key.length) : s.name
     if (!boards.has(key)) boards.set(key, await readBoard(key))
     const sess = {
-      id: s.sessionId.slice(0, 8), fullId: s.sessionId, name: s.name, short, nick: '', nickKo: '', state: displayState(s, now),
+      id: s.sessionId.slice(0, 8), fullId: s.sessionId, name: s.name, short, nick: '', nickKo: '', avatar: lookFor(config, key, s.name, short), state: displayState(s, now),
       statusSince: s.statusUpdatedAt, startedAt: s.startedAt, kind: s.kind,
       role: '', title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
@@ -865,6 +898,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
       if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
+      if (url.pathname === '/api/look') { json(await saveLook(body), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }
       if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || ''), Number(body.pick), body.answers) ? 200 : 404, {}); return }
       res.writeHead(404).end(); return

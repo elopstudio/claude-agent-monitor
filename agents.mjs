@@ -245,6 +245,9 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
       // takes effect from the next message: the process is restarted on the same session
       if (MODES.includes(body.mode)) a.mode = body.mode
       if (typeof body.model === 'string') a.model = body.model.replace(/[^\w.:[\]-]/g, '')
+      if (typeof body.nick === 'string') a.nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
+      if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
+      if (typeof body.nick === 'string' || body.avatar !== undefined) { save(); notifyPages(); if (!('mode' in body) && !('model' in body)) return [200, {}] }
       if (a.proc && a.state !== 'working') stop(a)
       save()
       emit(a, { kind: 'note', text: 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '') + ' — from the next message' })
