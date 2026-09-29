@@ -18,11 +18,16 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { createAgents } from './agents.mjs'
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.dirname(fileURLToPath(import.meta.url))   // the code: public/, hooks/
+// the data: config.json, boards/, .runtime/ — the code's own folder unless MONITOR_HOME says otherwise
+// (the desktop app points it at a writable folder; an installed app's own folder is read-only)
+const DATA = process.env.MONITOR_HOME ? path.resolve(process.env.MONITOR_HOME) : ROOT
+// where the hooks find the running monitor, wherever the monitor is installed
+const LINK = path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json')
 const CLAUDE = process.env.CLAUDE_HOME || path.join(os.homedir(), '.claude')
 const SESSIONS_DIR = path.join(CLAUDE, 'sessions')
 const PROJECTS_DIR = path.join(CLAUDE, 'projects')
-const BOARDS_DIR = path.join(ROOT, 'boards')
+const BOARDS_DIR = path.join(DATA, 'boards')
 const PORT = Number(process.env.PORT) || 4777
 const HOST = '127.0.0.1'
 const TAIL_BYTES = 768 * 1024          // transcripts grow to tens of MB — read only the end
@@ -42,7 +47,7 @@ function lookFor(config, key, name, short) {
 async function saveLook(body) {
   const key = String(body.project || '').toLowerCase(), who = String(body.session || '')
   if (!/^[a-z0-9][a-z0-9._-]{0,80}$/.test(key) || !who || who.length > 120) return 400
-  const file = path.join(ROOT, 'config.json')
+  const file = path.join(DATA, 'config.json')
   let config = {}
   try { config = JSON.parse(await fsp.readFile(file, 'utf8')) } catch (e) { if (e.code !== 'ENOENT') return 409 }
   config.projects = config.projects || {}
@@ -65,7 +70,7 @@ async function saveLook(body) {
 }
 
 function loadConfig() {
-  try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8')) } catch { return {} }
+  try { return JSON.parse(fs.readFileSync(path.join(DATA, 'config.json'), 'utf8')) } catch { return {} }
 }
 
 /* ── Session registry ─────────────────────────── */
@@ -429,7 +434,7 @@ async function buildState() {
 // input here with the token below; for a permission request the page can answer allow / deny.
 // Pending requests live in memory only — they are never written to disk or logged.
 const TOKEN = crypto.randomBytes(24).toString('hex')
-const RUNTIME = path.join(ROOT, '.runtime')
+const RUNTIME = path.join(DATA, '.runtime')
 const APPROVAL_WAIT_MS = 60 * 1000     // after this the request goes back to VS Code / the terminal
 const VIEWER_MS = 20 * 1000            // a poll this recent also counts as an open page
 // Open pages keep an event stream (SSE) to the server. It is not throttled like a hidden tab's timers,
@@ -449,9 +454,12 @@ const handBack = (sessionId) => { if (sessionId) handedBack.set(sessionId, Date.
 
 function writeRuntime() {
   fs.mkdirSync(RUNTIME, { recursive: true })
-  fs.writeFileSync(path.join(RUNTIME, 'bridge.json'), JSON.stringify({ port: PORT, token: TOKEN }), { mode: 0o600 })
+  const link = JSON.stringify({ port: PORT, token: TOKEN })
+  fs.writeFileSync(path.join(RUNTIME, 'bridge.json'), link, { mode: 0o600 })
+  fs.mkdirSync(path.dirname(LINK), { recursive: true })
+  fs.writeFileSync(LINK, link, { mode: 0o600 })
 }
-function removeRuntime() { try { fs.unlinkSync(path.join(RUNTIME, 'bridge.json')) } catch {} }
+function removeRuntime() { for (const f of [path.join(RUNTIME, 'bridge.json'), LINK]) { try { fs.unlinkSync(f) } catch {} } }
 
 // What a human needs to judge the request, and nothing more.
 function approvalDetail(tool, input = {}) {
@@ -847,7 +855,7 @@ async function listDirs(p) {
 }
 
 const agents = createAgents({
-  root: ROOT, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, attachedPaths,
+  root: ROOT, dataDir: DATA, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, attachedPaths,
   askPage: (input, opts) => hookEvent(input, null, opts),
   configPath: loadConfig().claudePath || '',
   // an agent brought back after a restart shows its conversation from the transcript, in the agent view's own shapes

@@ -5,10 +5,13 @@
 // the monitor, which shows it on the page and waits for a person; the answer goes back as the tool's result.
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 
-const RUNTIME = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')
+// the running monitor leaves its port and token in ~/.claude-agent-monitor (the folder next to the code is the old place)
+const RUNTIME = [path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json'), path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')]
+  .find((p) => fs.existsSync(p)) || ''
 const AGENT = process.env.MONITOR_AGENT || ''
 
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n')

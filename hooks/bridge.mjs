@@ -7,10 +7,13 @@
 // so Claude Code carries on exactly as if this hook did not exist (the normal prompt appears).
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 
-const RUNTIME = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')
+// the running monitor leaves its port and token in ~/.claude-agent-monitor (the folder next to the code is the old place)
+const RUNTIME = [path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json'), path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')]
+  .find((p) => fs.existsSync(p)) || ''
 const WAIT_MS = 75 * 1000   // a little longer than the monitor's own 60 s wait
 
 function readStdin() {

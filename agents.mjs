@@ -22,12 +22,12 @@ const ACCS = ["ball","twin","phones","sprout","bolt"]
 // { c: palette index 0-7, acc: headgear } — anything else means "the usual look from the name"
 const avatarOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && ACCS.includes(v.acc) ? { c: v.c, acc: v.acc } : null)
 
-export function createAgents({ root, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
+export function createAgents({ root, dataDir, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
   const agents = new Map()          // id → agent
 
   // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
   // session) — never what was said. After a restart they come back stopped; the next message resumes the session.
-  const FILE = path.join(root, '.runtime', 'agents.json')
+  const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
   const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt']
   function save() {
     try {
@@ -141,7 +141,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
   }
 
   function spawnAgent(a) {
-    const mcp = JSON.stringify({ mcpServers: { monitor: { command: process.execPath, args: [path.join(root, 'hooks', 'permission-mcp.mjs')], env: { MONITOR_AGENT: a.id } } } })
+    const mcp = JSON.stringify({ mcpServers: { monitor: { command: process.execPath, args: [path.join(root, 'hooks', 'permission-mcp.mjs')], env: { MONITOR_AGENT: a.id, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } } } })
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--include-partial-messages', '--verbose',
       '--permission-mode', a.mode, '--mcp-config', mcp, '--permission-prompt-tool', 'mcp__monitor__approve']
     if (a.model) args.push('--model', a.model)

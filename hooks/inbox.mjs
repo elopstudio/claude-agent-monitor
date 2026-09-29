@@ -7,10 +7,14 @@
 // same session — it exits 0 quietly and nothing happens.
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 
-const RUNTIME = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')
+// the running monitor leaves its port and token in ~/.claude-agent-monitor (the folder next to the code is the old place)
+// looked up on every try: the monitor may not be running yet when this starts waiting
+const linkFile = () => [path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json'), path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')]
+  .find((p) => fs.existsSync(p)) || ''
 const WAIT_MS = 26 * 60 * 1000   // a little longer than the monitor's own wait
 
 function readStdin() {
@@ -49,7 +53,7 @@ async function main() {
   let reply = null
   while (Date.now() < deadline) {
     let conf
-    try { conf = JSON.parse(fs.readFileSync(RUNTIME, 'utf8')) } catch { conf = null }
+    try { conf = JSON.parse(fs.readFileSync(linkFile(), 'utf8')) } catch { conf = null }
     const raw = conf ? await post(conf.port, conf.token, JSON.stringify({ session_id: input.session_id })) : null
     if (raw !== null) { try { reply = JSON.parse(raw) } catch { reply = {} } break }
     await new Promise((r) => setTimeout(r, 3000))
