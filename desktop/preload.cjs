@@ -1,0 +1,16 @@
+// The page's bridge to the app window: navigation and zoom for the buttons in its custom header.
+// Only these calls are exposed; the page gets no other access to Electron or the system.
+const { contextBridge, ipcRenderer } = require('electron')
+
+const call = (action) => ipcRenderer.invoke('monitor-app', action)
+contextBridge.exposeInMainWorld('monitorApp', {
+  back: () => call('back'),
+  forward: () => call('forward'),
+  reload: () => call('reload'),
+  zoomIn: () => call('zoom-in'),
+  zoomOut: () => call('zoom-out'),
+  zoomReset: () => call('zoom-reset'),
+  state: () => call('state'),
+  // the app reports zoom and history changes (keyboard shortcuts included)
+  onChange: (fn) => ipcRenderer.on('monitor-app-state', (_e, s) => fn(s)),
+})

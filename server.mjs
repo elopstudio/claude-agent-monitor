@@ -173,46 +173,77 @@ function describe(name, input = {}) {
   }
 }
 
-const tailCache = new Map()   // sessionId → { size, mtimeMs, info }
+const tailCache = new Map()   // sessionId → { file, offset, mtimeMs, info }
+const emptyInfo = () => ({ title: '', activity: null, activityAt: 0, lastEventAt: 0, sent: [], context: 0, results: 0, errors: 0, lastErrorAt: 0, recent: [] })
+
+// One transcript line, oldest to newest: later lines simply overwrite the "latest" fields.
+function applyLine(info, o) {
+  const ts = o.timestamp ? Date.parse(o.timestamp) : 0
+  if (ts) info.lastEventAt = ts
+  if (o.type === 'ai-title' && o.aiTitle) info.title = clip(o.aiTitle, 200)
+  // tool results: only whether each one failed, never what it said
+  if (o.type === 'user' && !o.isSidechain && Array.isArray(o.message?.content)) {
+    for (const c of o.message.content) if (c?.type === 'tool_result') info.recent.push({ e: !!c.is_error, ts })
+    if (info.recent.length > RECENT_RESULTS) info.recent.splice(0, info.recent.length - RECENT_RESULTS)
+  }
+  if (o.type !== 'assistant' || o.isSidechain) return
+  // how full the context is: the newest reply's input side (fresh + cache written + cache read)
+  const u = o.message?.usage
+  if (u) info.context = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
+  if (!Array.isArray(o.message?.content)) return
+  for (const c of o.message.content) {
+    if (c?.type !== 'tool_use') continue
+    info.activity = describe(c.name, c.input)
+    info.activityAt = ts
+    // a send without a message is only an idle-notice subscription, not conversation
+    if (c.name === 'SendMessage' && c.input?.to && c.input.message) {
+      info.sent.push({ to: String(c.input.to), summary: clip(c.input.summary || '', 70), at: ts })
+      if (info.sent.length > 60) info.sent.shift()
+    }
+  }
+}
+function finish(info) {
+  info.results = info.recent.length
+  info.errors = info.recent.filter((r) => r.e).length
+  info.lastErrorAt = info.recent.reduce((t, r) => (r.e && r.ts > t ? r.ts : t), 0)
+  return info
+}
+// bytes → complete lines; the part after the last newline is still being written and is read next time
+function completeLines(buf) {
+  const end = buf.lastIndexOf(0x0a)
+  if (end < 0) return { lines: [], used: 0 }
+  return { lines: buf.subarray(0, end).toString('utf8').split('\n'), used: end + 1 }
+}
+
+// Each transcript is read once from its tail; after that only what was appended since the last poll.
 async function transcriptInfo(sessionId) {
   const file = await findTranscript(sessionId)
   if (!file) return null
   let st
   try { st = await fsp.stat(file) } catch { return null }
   const prev = tailCache.get(sessionId)
-  if (prev && prev.size === st.size && prev.mtimeMs === st.mtimeMs) return prev.info
-  const { lines, size, mtimeMs } = await tailLines(file)
-  const info = { title: prev?.info?.title || '', activity: null, activityAt: 0, lastEventAt: 0, sent: [], context: 0, results: 0, errors: 0, lastErrorAt: 0 }
-  let titleSeen = false
-  for (let i = lines.length - 1; i >= 0; i--) {
-    let o
-    try { o = JSON.parse(lines[i]) } catch { continue }
-    const ts = o.timestamp ? Date.parse(o.timestamp) : 0
-    if (!info.lastEventAt && ts) info.lastEventAt = ts
-    if (!titleSeen && o.type === 'ai-title' && o.aiTitle) { info.title = clip(o.aiTitle, 200); titleSeen = true }
-    // tool results: only whether each one failed, never what it said
-    if (o.type === 'user' && !o.isSidechain && Array.isArray(o.message?.content) && info.results < RECENT_RESULTS) {
-      for (const c of o.message.content) {
-        if (c?.type !== 'tool_result' || info.results >= RECENT_RESULTS) continue
-        info.results++
-        if (c.is_error) { info.errors++; if (!info.lastErrorAt) info.lastErrorAt = ts }
-      }
+  if (prev && prev.file === file && prev.size === st.size && prev.mtimeMs === st.mtimeMs) return prev.info
+  const grew = prev && prev.file === file && st.size >= prev.offset && st.size - prev.offset <= TAIL_BYTES
+  const from = grew ? prev.offset : Math.max(0, st.size - TAIL_BYTES)
+  const info = grew ? prev.info : emptyInfo()
+  if (!grew && prev?.info?.title) info.title = prev.info.title
+  const fh = await fsp.open(file, 'r')
+  let used = 0
+  try {
+    const n = st.size - from
+    const buf = Buffer.alloc(n)
+    if (n) await fh.read(buf, 0, n, from)
+    let { lines, used: u } = completeLines(buf)
+    used = u
+    if (!grew && from > 0) lines = lines.slice(1)   // started mid-file: the first line is cut in half
+    for (const l of lines) {
+      if (!l) continue
+      let o
+      try { o = JSON.parse(l) } catch { continue }
+      applyLine(info, o)
     }
-    // how full the context is: the newest reply's input side (fresh + cache written + cache read)
-    const u = o.type === 'assistant' && !o.isSidechain ? o.message?.usage : null
-    if (u && !info.context) info.context = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
-    if (o.type !== 'assistant' || o.isSidechain || !Array.isArray(o.message?.content)) continue
-    for (let j = o.message.content.length - 1; j >= 0; j--) {
-      const c = o.message.content[j]
-      if (c?.type !== 'tool_use') continue
-      if (!info.activity) { info.activity = describe(c.name, c.input); info.activityAt = ts }
-      // a send without a message is only an idle-notice subscription, not conversation
-      if (c.name === 'SendMessage' && c.input?.to && c.input.message) {
-        info.sent.push({ to: String(c.input.to), summary: clip(c.input.summary || '', 70), at: ts })
-      }
-    }
-  }
-  tailCache.set(sessionId, { size, mtimeMs, info })
+  } finally { await fh.close() }
+  tailCache.set(sessionId, { file, offset: from + used, size: st.size, mtimeMs: st.mtimeMs, info: finish(info) })
   return info
 }
 
@@ -440,7 +471,17 @@ const VIEWER_MS = 20 * 1000            // a poll this recent also counts as an o
 // Open pages keep an event stream (SSE) to the server. It is not throttled like a hidden tab's timers,
 // so it says reliably that a page is open, and it tells the page at once when a request comes or goes.
 const streams = new Set()
-function notifyPages() { for (const res of streams) { try { res.write('event: changed\ndata: {}\n\n') } catch {} } }
+// the state is built at most once a second however many pages ask; any change builds it afresh
+let stateCache = null
+function cachedState() {
+  if (stateCache && Date.now() - stateCache.at < 1000) return stateCache.p
+  const p = buildState()
+  stateCache = { at: Date.now(), p }
+  p.catch(() => { stateCache = null })
+  return p
+}
+function notifyPages() {
+  stateCache = null; for (const res of streams) { try { res.write('event: changed\ndata: {}\n\n') } catch {} } }
 const pageOpen = () => streams.size > 0 || Date.now() - lastViewAt < VIEWER_MS
 let lastViewAt = 0
 const modes = new Map()                // sessionId → { mode, at }
@@ -938,7 +979,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/state') {
       if (url.searchParams.get('visible') === '1') lastViewAt = Date.now()
-      json(200, await buildState())
+      json(200, await cachedState())
       return
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {

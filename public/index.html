@@ -60,6 +60,17 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .wrap{--gut:24px;margin:0 auto;padding:0 var(--gut) 60px}
 @media (max-width:640px){ .wrap{--gut:16px;padding-bottom:48px} }
 /* header, approvals and tabs stay on screen; approvals scroll inside when there are many */
+/* the desktop app: this header is the window's title bar — drag it to move the window */
+.in-app .sticky{-webkit-app-region:drag;padding-top:6px}
+.in-app .top{padding-right:150px;min-height:44px}
+.in-app .sticky button,.in-app .sticky a,.in-app .sticky input,.in-app .sticky select,.in-app .tabs,.in-app .totals,.in-app .lang,.in-app .approvals{-webkit-app-region:no-drag}
+.appbar{display:flex;align-items:center;gap:2px;-webkit-app-region:no-drag;margin-right:6px}
+.appbar .ab{appearance:none;border:0;background:transparent;color:var(--muted);font:700 15px var(--sans);width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center}
+.appbar .ab:hover:not(:disabled){background:var(--surface-2);color:var(--text)}
+.appbar .ab:disabled{opacity:.3;cursor:default}
+.appbar .ab.pct{width:auto;padding:0 6px;font:700 11.5px var(--mono)}
+.appbar .sep{width:1px;height:18px;background:var(--line-strong);margin:0 6px}
+.top .brand-wrap{display:flex;align-items:center;gap:8px}
 .sticky{position:sticky;top:0;z-index:20;margin:0 calc(-1 * var(--gut));padding:16px var(--gut) 0;background:var(--bg)}
 
 .mono{font-family:var(--mono)}
@@ -659,9 +670,31 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
   function select(key) {
     selected = key;
     try { localStorage.setItem('am.tab', key); } catch (e) {}
-    history.replaceState(null, '', location.search + '#' + encodeURIComponent(key));
+    const hash = '#' + encodeURIComponent(key);
+    if (location.hash !== hash) history.pushState(null, '', location.search + hash);
     if (last) render(last);
   }
+  window.addEventListener('popstate', () => { selected = decodeURIComponent(location.hash.slice(1)) || ALL; if (last) render(last); });
+
+  /* ── inside the desktop app: the header is the window's title bar, with back / forward / reload / zoom ── */
+  if (window.monitorApp) {
+    document.documentElement.classList.add('in-app');
+    const bar = el('div', 'appbar');
+    const b = (label, title, fn) => { const x = el('button', 'ab', label); x.type = 'button'; x.title = title; x.setAttribute('aria-label', title); x.addEventListener('click', fn); bar.append(x); return x; };
+    const back = b('←', 'Back (Alt+←)', () => window.monitorApp.back());
+    const fwd = b('→', 'Forward (Alt+→)', () => window.monitorApp.forward());
+    b('⟳', 'Reload (F5)', () => window.monitorApp.reload());
+    bar.append(el('span', 'sep'));
+    b('−', 'Zoom out (Ctrl+-)', () => window.monitorApp.zoomOut());
+    const pct = b('100%', 'Reset zoom (Ctrl+0)', () => window.monitorApp.zoomReset());
+    pct.classList.add('pct');
+    b('+', 'Zoom in (Ctrl+=)', () => window.monitorApp.zoomIn());
+    const show = (st) => { if (!st) return; pct.textContent = Math.round(st.zoom * 100) + '%'; back.disabled = !st.canBack; fwd.disabled = !st.canForward; };
+    window.monitorApp.onChange(show);
+    window.monitorApp.state().then(show);
+    document.querySelector('.top .brand').before(bar);
+  }
+
   function setLang(next) {
     if (!I18N[next]) return;
     lang = next;
@@ -1794,7 +1827,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
   bell();
   applyStatic();
 
-  let timer = null;
+  let timer = null, lastSig = '', lastDraw = 0;
   async function refreshToken() {
     try { const d = await (await fetch('/api/state?visible=1', { cache: 'no-store' })).json(); if (d.token) token = d.token; } catch (e) {}
   }
@@ -1804,7 +1837,11 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       if (!r.ok) throw new Error(String(r.status));
       const data = await r.json();
       if (data.token) token = data.token;
-      render(data);
+      // nothing changed: leave the page as it is (redrawn every 30 s anyway, for the relative times,
+      // and every time while a request's countdown runs)
+      const sig = JSON.stringify({ ...data, now: 0, token: '', hooks: null });
+      if (sig !== lastSig || (data.approvals || []).length || Date.now() - lastDraw > 30000) { lastSig = sig; lastDraw = Date.now(); render(data); }
+      else last = data;
       alertAsks(data);
       setLive(true); notice('');
     } catch (e) {

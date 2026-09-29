@@ -1,6 +1,6 @@
 // Agent Monitor as a desktop app: runs the monitor server inside the app, shows it in its own window,
 // and lives in the tray — so it no longer depends on a terminal or on VS Code staying open.
-const { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage } = require('electron')
+const { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -21,6 +21,30 @@ function dataDir() {
   if (s.dataDir && fs.existsSync(s.dataDir)) return s.dataDir
   // while developing, the repository itself; installed, a folder in the home directory
   return app.isPackaged ? path.join(app.getPath('home'), '.claude-agent-monitor') : CODE
+}
+
+/* ── Claude Code hooks: approvals, modes, messages ── */
+// The monitor learns about permission prompts, modes and idle sessions through hooks registered in
+// ~/.claude/settings.json. The app registers them itself, pointing at the scripts it ships, so a new PC
+// needs nothing but Claude Code: with Node.js on the PATH the hooks run on it directly; without, this
+// app's own executable runs them as Node (ELECTRON_RUN_AS_NODE).
+const setup = require('./hooks-setup.cjs')({ hooksDir: path.join(CODE, 'hooks'), execPath: process.execPath })
+const { hookState, installHooks, findNode, CLAUDE_SETTINGS } = setup
+
+async function offerHooks(always) {
+  const state = hookState()
+  if (state === 'ok' && !always) return
+  const settings = readSettings()
+  if (!always && settings.hooksDeclined) return
+  const r = await dialog.showMessageBox({
+    type: 'question', buttons: ['설치', '나중에'], defaultId: 0, cancelId: 1,
+    message: always ? 'Claude Code hook을 이 앱 기준으로 다시 설치할까요?' : 'Claude Code에 모니터 hook을 설치할까요?',
+    detail: '승인·질문에 답하기, 권한 모드 표시, 에이전트에게 메시지 보내기에 필요합니다.\n' + CLAUDE_SETTINGS + ' 의 모니터 항목만 추가·교체하고, 다른 설정은 그대로 둡니다 (백업: settings.json.before-agent-monitor).\n' + (findNode() ? 'hook은 이 PC의 Node.js로 실행됩니다.' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다.'),
+  })
+  if (r.response !== 0) { if (!always) writeSettings({ ...settings, hooksDeclined: true }); return }
+  try { installHooks(); await dialog.showMessageBox({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
+  catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
+  if (tray) tray.setContextMenu(trayMenu())
 }
 
 /* ── the server ── */
@@ -45,15 +69,59 @@ async function startServer() {
 }
 
 /* ── window and tray ── */
+const DARK = { color: '#0f1116', symbolColor: '#e8eaef', height: 44 }, LIGHT = { color: '#f2f3f7', symbolColor: '#171a21', height: 44 }
+const overlay = () => (nativeTheme.shouldUseDarkColors ? DARK : LIGHT)
+nativeTheme.on('updated', () => { if (win) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
+const zoom = () => { const z = Number(readSettings().zoom); return z >= 0.5 && z <= 2 ? z : 1 }
+function report() {
+  if (!win) return
+  const wc = win.webContents, h = wc.navigationHistory
+  wc.send('monitor-app-state', { zoom: wc.getZoomFactor(), canBack: h.canGoBack(), canForward: h.canGoForward() })
+}
+function appAction(wc, action) {
+  const h = wc.navigationHistory
+  if (action === 'back' && h.canGoBack()) h.goBack()
+  else if (action === 'forward' && h.canGoForward()) h.goForward()
+  else if (action === 'reload') wc.reloadIgnoringCache()
+  else if (action.startsWith('zoom')) {
+    const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
+    const cur = wc.getZoomFactor()
+    let next = 1
+    if (action === 'zoom-in') next = steps.find((s) => s > cur + 0.001) || 2
+    if (action === 'zoom-out') next = [...steps].reverse().find((s) => s < cur - 0.001) || 0.5
+    wc.setZoomFactor(next)
+    writeSettings({ ...readSettings(), zoom: next })
+  }
+  setTimeout(report, 50)
+}
+ipcMain.handle('monitor-app', (e, action) => {
+  if (action !== 'state') appAction(e.sender, String(action))
+  const h = e.sender.navigationHistory
+  return { zoom: e.sender.getZoomFactor(), canBack: h.canGoBack(), canForward: h.canGoForward() }
+})
 let win = null, tray = null, quitting = false
 function showWindow() {
   if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); return }
   win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
-    backgroundColor: '#0f1116', autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, sandbox: true },
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
+    // no Windows title bar: the page's own header is the title bar; Windows still draws minimise /
+    // maximise / close in its corner, in the page's colours (snap layouts keep working)
+    titleBarStyle: 'hidden', titleBarOverlay: overlay(),
+    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   })
   win.loadURL(URL)
+  const wc = win.webContents
+  wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report() })
+  wc.on('did-navigate-in-page', report)
+  // the usual shortcuts: zoom, reload, back / forward
+  wc.on('before-input-event', (e, i) => {
+    if (i.type !== 'keyDown') return
+    const k = i.key, mod = i.control || i.meta
+    const act = mod && (k === '=' || k === '+') ? 'zoom-in' : mod && k === '-' ? 'zoom-out' : mod && k === '0' ? 'zoom-reset'
+      : k === 'F5' || (mod && k.toLowerCase() === 'r') ? 'reload' : i.alt && k === 'ArrowLeft' ? 'back' : i.alt && k === 'ArrowRight' ? 'forward' : null
+    if (act) { e.preventDefault(); appAction(wc, act) }
+  })
   // links in replies open in the real browser, not inside the app
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url) } })
@@ -68,6 +136,7 @@ function trayMenu() {
     { label: '브라우저에서 열기', click: () => shell.openExternal(URL) },
     { type: 'separator' },
     { label: '로그인할 때 자동 시작', type: 'checkbox', checked: login, click: (item) => { app.setLoginItemSettings({ openAtLogin: item.checked, args: ['--hidden'] }); tray.setContextMenu(trayMenu()) } },
+    { label: 'Claude Code hook 설치/갱신…', click: () => offerHooks(true) },
     { label: '데이터 폴더 열기', click: () => shell.openPath(dataDir()) },
     {
       label: '데이터 폴더 바꾸기…', enabled: ownServer, click: async () => {
@@ -104,6 +173,8 @@ else {
     tray.on('click', showWindow)
     // started at login: stay in the tray until opened
     if (!process.argv.includes('--hidden')) showWindow()
+    // a PC where the monitor's hooks are not registered yet: offer to register them
+    offerHooks(false)
   })
   app.on('window-all-closed', () => { /* the tray keeps the app alive */ })
   app.on('before-quit', () => { quitting = true })
