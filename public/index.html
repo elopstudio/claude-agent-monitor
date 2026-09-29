@@ -91,7 +91,6 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .cnt.wait{color:var(--wait);background:var(--wait-soft)}
 .cnt.rest{color:var(--faint);border:1px dashed var(--line-strong)}
 .pbody{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px}
-.pbody.solo{grid-template-columns:minmax(0,1fr)}
 
 /* Org chart */
 .org{min-width:0}
@@ -168,9 +167,19 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .feed .t{color:var(--faint);font-size:11px}
 .empty{color:var(--faint);font-size:12px;padding:12px;text-align:center}
 
-.bcols{display:flex;flex-direction:column;gap:2px;padding:6px 8px 8px}
-.bgroup>h4{margin:6px 4px 4px;font-size:11.5px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center}
-.bgroup>h4 .n{font-family:var(--mono);color:var(--faint);font-weight:500}
+/* Board — a kanban under the org chart */
+.kanban{border-top:1px solid var(--line);padding:12px 16px 16px}
+.kanban>h3{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:8px}
+.kanban>h3 .n{margin-left:auto;font-family:var(--mono);font-weight:500;color:var(--faint);font-size:11.5px}
+.kanban>.empty{border:1px dashed var(--line-strong);border-radius:10px}
+.kcols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start}
+.kcol{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 8px 4px;min-width:0}
+.kcol>h4{margin:0 2px 8px;font-size:12px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center}
+.kcol>h4 .n{margin-left:auto;font-family:var(--mono);color:var(--faint);font-weight:500}
+.kcol.k-run{border-top:3px solid var(--run)}
+.kcol.k-queue{border-top:3px solid var(--wait)}
+.kcol.k-dec{border-top:3px dashed var(--block)}
+.kcol.k-done{border-top:3px solid var(--line-strong)}
 .task{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin:0 0 5px;font-size:12.5px;display:flex;gap:6px;align-items:flex-start;position:relative}
 .task.blocked{border-color:var(--block);padding-left:13px}
 .task.blocked::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;border-radius:8px 0 0 8px;background:repeating-linear-gradient(45deg,var(--block) 0 3px,transparent 3px 6px)}
@@ -182,13 +191,14 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 
 .notice{margin:0 0 16px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);color:var(--muted);font-size:13px}
 
-@media (max-width:1100px){ .pbody{grid-template-columns:1fr} }
+@media (max-width:1100px){ .pbody{grid-template-columns:1fr} .kcols{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:640px){
   .tree{margin-left:14px;padding-left:14px;grid-template-columns:1fr}
   .tree:not(.flat)>.bot-card::before{left:-16px;width:14px}
   .bot-card,.bot-card.leader{grid-template-columns:76px minmax(0,1fr)}
   .leader .stage .robot{width:72px;height:72px}
   .project .counts{margin-left:0}
+  .kcols{grid-template-columns:minmax(0,1fr)}
 }
 
 /* Language switch */
@@ -234,7 +244,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
       board: 'Board', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
-      more: '+{n} more', none: 'None', noSessions: 'No Claude Code sessions are running.',
+      more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
       noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
@@ -251,7 +261,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
       board: '작업판', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
-      more: '외 {n}건', none: '없음', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
+      more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
       noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
@@ -424,18 +434,23 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 
   function boardPanel(p) {
     const b = p.board;
-    const panel = el('section', 'panel');
+    const panel = el('section', 'kanban');
     const h = el('h3', null, '📋 ' + t('board'));
-    if (b.updatedAt) h.append(el('span', 'n', t('boardUpdated', { t: dur(Date.parse(b.updatedAt)) })));
+    if (b && b.updatedAt) h.append(el('span', 'n', t('boardUpdated', { t: dur(Date.parse(b.updatedAt)) })));
     panel.append(h);
+    if (!b) {
+      // every project gets the same layout — say how to fill it rather than leaving a gap
+      panel.append(el('div', 'empty', t('noBoard', { f: 'boards/' + p.key + '.json' })));
+      return panel;
+    }
     const tasks = Array.isArray(b.tasks) ? b.tasks : [];
     // the leader writes "-0f" or a full session name — show the nickname when there is one
     const nickOf = (v) => { const s = p.sessions.find((x) => x.short === v || x.name === v || x.nick === v || x.nickKo === v); return s ? nickFor(s) : v; };
-    const box = el('div', 'bcols');
-    const group = (title, items, withPos, limit) => {
-      const g = el('div', 'bgroup');
+    const cols = el('div', 'kcols');
+    const column = (cls, title, items, withPos, limit) => {
+      const c = el('div', 'kcol ' + cls);
       const hh = el('h4', null, title); hh.append(el('span', 'n', String(items.length)));
-      g.append(hh);
+      c.append(hh);
       let q = 0;
       for (const it of items.slice(0, limit)) {
         const st = str(it.status);
@@ -443,22 +458,24 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
         if (withPos && st === 'queued') row.append(el('span', 'pos', String(++q)));
         row.append(el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title)));
         if (it.session) row.append(el('span', 'ss', nickOf(str(it.session))));
-        g.append(row);
+        c.append(row);
       }
-      if (items.length > limit) g.append(el('div', 'more', t('more', { n: items.length - limit })));
-      if (!items.length) g.append(el('div', 'more', t('none')));
-      return g;
+      if (items.length > limit) c.append(el('div', 'more', t('more', { n: items.length - limit })));
+      if (!items.length) c.append(el('div', 'more', t('none')));
+      return c;
     };
     const time = (v) => Date.parse(str(v)) || 0;
-    box.append(
-      group('▶ ' + t('inProgress'), tasks.filter((x) => x.status === 'running'), false, 8),
-      group('○ ' + t('queued'), tasks.filter((x) => x.status === 'queued' || x.status === 'blocked')
-        .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || (Number(a.order) || 999) - (Number(c.order) || 999)), true, 8),
-      group('✓ ' + t('done'), tasks.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 5),
+    const byOrder = (a, c) => (Number(a.order) || 999) - (Number(c.order) || 999);
+    const dec = (Array.isArray(b.decisions) ? b.decisions : []).filter((d) => d.status !== 'closed')
+      .map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort(byOrder);
+    cols.append(
+      column('k-run', '▶ ' + t('inProgress'), tasks.filter((x) => x.status === 'running'), false, 12),
+      column('k-queue', '○ ' + t('queued'), tasks.filter((x) => x.status === 'queued' || x.status === 'blocked')
+        .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || byOrder(a, c)), true, 12),
+      column('k-dec', '? ' + t('decisions'), dec, true, 12),
+      column('k-done', '✓ ' + t('done'), tasks.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 8),
     );
-    const dec = (Array.isArray(b.decisions) ? b.decisions : []).filter((d) => d.status !== 'closed');
-    if (dec.length) box.append(group('? ' + t('decisions'), dec.map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort((a, c) => (Number(a.order) || 999) - (Number(c.order) || 999)), true, 8));
-    panel.append(box);
+    panel.append(cols);
     return panel;
   }
 
@@ -475,8 +492,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     head.append(counts);
     sec.append(head);
 
-    const hasSide = p.messages.length || p.board;
-    const body = el('div', 'pbody' + (hasSide ? '' : ' solo'));
+    const body = el('div', 'pbody');
     const org = el('div', 'org');
     const leader = p.sessions.find((s) => s.isLeader);
     const others = p.sessions.filter((s) => !s.isLeader);
@@ -486,14 +502,10 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       for (const s of others) tree.append(botCard(s));
       org.append(tree);
     }
-    body.append(org);
-    if (hasSide) {
-      const side = el('div', 'side');
-      if (p.board) side.append(boardPanel(p));
-      side.append(feedPanel(p));
-      body.append(side);
-    }
-    sec.append(body);
+    const side = el('div', 'side');
+    side.append(feedPanel(p));
+    body.append(org, side);
+    sec.append(body, boardPanel(p));
     return sec;
   }
 
