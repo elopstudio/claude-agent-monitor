@@ -58,7 +58,12 @@ State is never carried by colour alone: every state also has a symbol, a word, a
 ## Approvals from the page (optional)
 
 Permission prompts can be answered from the monitor instead of VS Code. Claude Code runs `hooks/bridge.mjs`
-on every `PermissionRequest`; the request shows up at the top of the page with **Allow / Deny / Answer in VS Code**.
+on every `PermissionRequest`; the request shows up at the top of the page, naming the agent that asked:
+
+- **Tool prompts** — Allow, "Always allow: …" (the same choices VS Code offers), Deny, Deny and stop.
+- **Questions** (`AskUserQuestion`) — pick the options or type your own answer, then send.
+- **Plans** (`ExitPlanMode`) — Approve plan or Keep planning.
+- **Answer in VS Code** hands any of them back to the normal prompt.
 The same hook, on `PostToolUse` and `Stop`, tells the page each session's permission mode (MANUAL, AUTO, …).
 
 Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):

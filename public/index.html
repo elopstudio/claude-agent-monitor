@@ -45,7 +45,8 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transparent 70%),var(--bg);color:var(--text);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
-.wrap{max-width:1400px;margin:0 auto;padding:22px 16px 60px}
+.wrap{margin:0 auto;padding:22px 24px 60px}
+@media (max-width:640px){ .wrap{padding:18px 16px 48px} }
 .mono{font-family:var(--mono)}
 
 /* Header */
@@ -231,6 +232,19 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .approval .acts{max-width:560px}
 .approval button:disabled{opacity:.5;cursor:default}
 .approval .done{font-weight:900;font-size:13px;padding:8px 4px}
+.approval .qs{display:flex;flex-direction:column;gap:12px;margin:10px 0 0}
+.approval .q .qh{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 6px}
+.approval .q .chip{font-size:10.5px;font-weight:900;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 6px}
+.approval .q .qt{font-weight:700;font-size:13.5px}
+.approval .q .multi{font-size:11px;color:var(--faint)}
+.approval .opts{display:flex;flex-wrap:wrap;gap:6px}
+.approval .opt{appearance:none;text-align:left;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);border-radius:8px;padding:7px 10px;cursor:pointer;font:500 13px var(--sans);max-width:360px}
+.approval .opt small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:2px}
+.approval .opt[aria-pressed="true"]{border:2px solid var(--run);background:var(--run-soft);padding:6px 9px}
+.approval .opt[aria-pressed="true"]::before{content:"✓ ";font-weight:900;color:var(--run)}
+.approval .other{margin:6px 0 0;width:100%;max-width:520px;font:13px var(--sans);color:var(--text);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:7px 10px}
+.approval pre.plan{max-height:420px;font-size:12.5px}
+.approval .warn{color:var(--block);font-size:12px;font-weight:700}
 .approval .done.ok{color:var(--run)}
 .approval .done.bad{color:var(--block)}
 @media (max-width:640px){ .approval{grid-template-columns:1fr} .approval .acts{justify-content:stretch} .approval button{flex:1} }
@@ -286,7 +300,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       board: 'Board', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
       askTitle: 'NEEDS APPROVAL', asksFor: 'Asking to run {x}', asking: 'WAITING FOR YOU', unknownAgent: 'an agent outside the list', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
-      failed: 'Could not send the answer.', gone: 'Already answered or timed out', didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
+      failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
+      didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
       noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
@@ -306,7 +321,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       board: '작업판', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
       askTitle: '승인 필요', asksFor: '{x} 실행 허락을 기다리는 중', asking: '승인 대기', unknownAgent: '목록에 없는 에이전트', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
-      failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
+      failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
+      didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
       noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
@@ -586,7 +602,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       const main = el('div');
       const who = el('div', 'who');
       const name = str(lang === 'ko' && a.nickKo || a.nick) || str(a.session) || '?';
-      who.append(el('span', 'ask', t('askTitle')));
+      const kind = a.questions ? 'question' : a.plan ? 'plan' : 'tool';
+      who.append(el('span', 'ask', kind === 'question' ? t('questionKind') : kind === 'plan' ? t('planKind') : t('askTitle')));
       if (a.session) {
         // the same robot as on the agent's card, so it can be matched at a glance
         const agent = el('button', 'agent');
@@ -604,13 +621,63 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       if (a.about) main.append(el('div', 'about', str(a.about)));
       if (a.what) main.append(el('div', 'what', str(a.what)));
       if (a.code) main.append(el('pre', null, str(a.code)));
+      if (a.plan) main.append(el('pre', 'plan', str(a.plan)));
+      // one entry per question: the picked labels plus any typed answer
+      const picks = [];
+      if (a.questions) {
+        const qs = el('div', 'qs');
+        a.questions.forEach((q, qi) => {
+          const pick = { labels: new Set(), other: null };
+          picks.push(pick);
+          const box = el('div', 'q');
+          const qh = el('div', 'qh');
+          if (q.header) qh.append(el('span', 'chip', str(q.header)));
+          qh.append(el('span', 'qt', str(q.question)));
+          if (q.multiSelect) qh.append(el('span', 'multi', t('pickMany')));
+          const opts = el('div', 'opts');
+          for (const o of q.options || []) {
+            const b = el('button', 'opt');
+            b.type = 'button';
+            b.setAttribute('aria-pressed', 'false');
+            b.append(document.createTextNode(str(o.label)));
+            if (o.description) b.append(el('small', null, str(o.description)));
+            b.addEventListener('click', () => {
+              const on = !pick.labels.has(o.label);
+              if (!q.multiSelect) { pick.labels.clear(); for (const x of opts.children) x.setAttribute('aria-pressed', 'false'); }
+              if (on) pick.labels.add(o.label); else pick.labels.delete(o.label);
+              b.setAttribute('aria-pressed', String(on));
+            });
+            opts.append(b);
+          }
+          const other = document.createElement('input');
+          other.className = 'other';
+          other.placeholder = t('otherPh');
+          other.setAttribute('aria-label', t('otherPh'));
+          pick.other = other;
+          box.append(qh, opts, other);
+          qs.append(box);
+        });
+        main.append(qs);
+      }
+      const collect = () => picks.map((p, i) => {
+        const parts = [...p.labels];
+        if (p.other && p.other.value.trim()) parts.push(p.other.value.trim());
+        return { i, value: parts.join(', ') };
+      });
       const acts = el('div', 'acts');
-      const btn = (cls, label, answer, pick) => {
+      const btn = (cls, label, answer, pick, getAnswers) => {
         const b = el('button', cls, label);
         b.type = 'button';
         b.addEventListener('click', async () => {
+          const answers = getAnswers ? getAnswers() : undefined;
+          if (answers && answers.some((x) => !x.value)) {
+            let w = acts.querySelector('.warn');
+            if (!w) { w = el('div', 'warn'); acts.prepend(w); }
+            w.textContent = t('needAnswers');
+            return;
+          }
           for (const x of acts.querySelectorAll('button')) x.disabled = true;
-          const send = () => fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ id: a.id, answer, pick }) });
+          const send = () => fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ id: a.id, answer, pick, answers }) });
           let status = 0;
           try {
             let r = await send();
@@ -619,20 +686,24 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
           } catch (e) { status = 0; }
           // say what happened right on the card, then let the next poll clear it
           const done = el('div', 'done ' + (status === 200 ? 'ok' : 'bad'),
-            status === 200 ? t({ allow: 'didAllow', always: 'didAlways', deny: 'didDeny', stop: 'didStop' }[answer] || 'didEditor') : status === 404 ? t('gone') : t('failed'));
+            status === 200 ? t(kind === 'plan' && answer === 'allow' ? 'didPlan' : kind === 'plan' && answer === 'deny' ? 'didKeep' : { allow: 'didAllow', always: 'didAlways', deny: 'didDeny', stop: 'didStop', answers: 'didAnswer' }[answer] || 'didEditor') : status === 404 ? t('gone') : t('failed'));
           acts.replaceChildren(done);
           clearTimeout(timer); timer = setTimeout(tick, 1200);
         });
         return b;
       };
-      acts.append(btn('allow', t('allow'), 'allow'));
+      if (kind === 'question') {
+        acts.append(btn('allow', t('sendAnswers'), 'answers', undefined, collect), btn('', t('inEditor'), 'editor'));
+      } else if (kind === 'plan') {
+        acts.append(btn('allow', t('approvePlan'), 'allow'), btn('deny', t('keepPlanning'), 'deny'), btn('', t('inEditor'), 'editor'));
+      } else acts.append(btn('allow', t('allow'), 'allow'));
       // the same "yes, and don't ask again for …" choices VS Code would offer
-      (Array.isArray(a.options) ? a.options : []).forEach((label, i) => {
+      (kind === 'tool' && Array.isArray(a.options) ? a.options : []).forEach((label, i) => {
         const b = btn('always', t('always', { x: str(label) }), 'always', i);
         b.title = str(label);
         acts.append(b);
       });
-      acts.append(btn('deny', t('deny'), 'deny'), btn('deny', t('stop'), 'stop'), btn('', t('inEditor'), 'editor'));
+      if (kind === 'tool') acts.append(btn('deny', t('deny'), 'deny'), btn('deny', t('stop'), 'stop'), btn('', t('inEditor'), 'editor'));
       card.append(main, acts);
       box.append(card);
     }
