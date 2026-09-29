@@ -208,6 +208,18 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .task .ss{font-family:var(--mono);font-size:10.5px;color:var(--muted);flex:none}
 .task.done{background:transparent;color:var(--muted)}
 .more{font-size:11px;color:var(--faint);padding:0 4px 4px}
+.task{flex-wrap:wrap}
+.task .answer{display:block;color:var(--run);font-size:12px;margin-top:3px;font-weight:500}
+.mini{appearance:none;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--muted);border-radius:6px;font:700 11px var(--sans);padding:1px 7px;cursor:pointer;flex:none}
+.mini:hover:not(:disabled){color:var(--text);border-color:var(--text)}
+.mini:disabled{opacity:.35;cursor:default}
+.mini.wide{width:100%;padding:5px;margin:2px 0 4px}
+.task .moves{display:inline-flex;gap:2px;flex:none}
+form.inline{display:flex;gap:5px;flex-wrap:wrap;width:100%;margin:6px 0 2px}
+form.inline input,form.inline select{flex:1 1 160px;min-width:0;font:13px var(--sans);color:var(--text);background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:5px 8px}
+form.inline select{flex:0 1 150px}
+form.inline button{appearance:none;border-radius:6px;font:700 12px var(--sans);padding:5px 10px;cursor:pointer;border:1px solid var(--line-strong);background:var(--surface);color:var(--text)}
+form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--surface)}
 
 .notice{margin:0 0 16px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);color:var(--muted);font-size:13px}
 
@@ -346,7 +358,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -367,7 +379,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -596,6 +608,74 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     return panel;
   }
 
+  /* ── Board edits ── */
+  async function boardEdit(p, body) {
+    const send = () => fetch('/api/board', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ project: p.key, ...body }) });
+    let r;
+    try { r = await send(); if (r.status === 403) { await refreshToken(); r = await send(); } } catch (e) { r = null; }
+    notice(!r ? t('failed') : r.status === 409 ? t('boardChanged') : r.ok ? '' : t('failed'));
+    clearTimeout(timer); tick();
+    return !!(r && r.ok);
+  }
+  // an inline form; while it is open the board is not redrawn, so typing is never thrown away
+  function inlineForm(host, placeholder, onSend, extra) {
+    const f = el('form', 'inline');
+    f.dataset.editing = '1';
+    const input = document.createElement('input');
+    input.placeholder = placeholder;
+    input.setAttribute('aria-label', placeholder);
+    f.append(input);
+    if (extra) f.append(extra);
+    const ok = el('button', 'ok', t('send')); ok.type = 'submit';
+    const no = el('button', 'no', t('cancel')); no.type = 'button';
+    no.addEventListener('click', () => { f.remove(); clearTimeout(timer); tick(); });
+    f.addEventListener('submit', async (e) => { e.preventDefault(); if (!input.value.trim()) return; ok.disabled = true; if (await onSend(input.value.trim(), f)) f.remove(); else ok.disabled = false; });
+    f.append(ok, no);
+    host.append(f);
+    input.focus();
+    return f;
+  }
+  function decisionControls(p, it, row, tt) {
+    if (it.answer) { const a = el('div', 'answer', '↳ ' + str(it.answer)); tt.append(a); }
+    const b = el('button', 'mini', it.answer ? t('reanswer') : t('answer'));
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      if (row.querySelector('form')) return;
+      inlineForm(row, t('answerPh'), (v) => boardEdit(p, { op: 'answer', index: it._i, title: it.title, answer: v }));
+    });
+    row.append(b);
+  }
+  function queueControls(p, it, items, row) {
+    const queued = items.filter((x) => x.status === 'queued');
+    const at = queued.indexOf(it);
+    const move = (d) => {
+      const next = queued.slice();
+      const j = at + d;
+      if (j < 0 || j >= next.length) return;
+      [next[at], next[j]] = [next[j], next[at]];
+      boardEdit(p, { op: 'reorder', order: next.map((x) => x._i), titles: next.map((x) => x.title) });
+    };
+    const up = el('button', 'mini', '▲'); up.type = 'button'; up.title = t('moveUp'); up.disabled = at === 0; up.addEventListener('click', () => move(-1));
+    const dn = el('button', 'mini', '▼'); dn.type = 'button'; dn.title = t('moveDown'); dn.disabled = at === queued.length - 1; dn.addEventListener('click', () => move(1));
+    const box = el('span', 'moves'); box.append(up, dn);
+    row.append(box);
+  }
+  function addTaskForm(p) {
+    const wrap = el('div', 'add');
+    const b = el('button', 'mini wide', '+ ' + t('addTask'));
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      if (wrap.querySelector('form')) return;
+      const who = document.createElement('select');
+      who.setAttribute('aria-label', t('assignee'));
+      who.append(new Option(t('nobody'), ''));
+      for (const s of p.sessions) who.append(new Option(nickFor(s) + ' ' + str(s.short), str(s.short) || str(s.name)));
+      inlineForm(wrap, t('taskPh'), (v) => boardEdit(p, { op: 'add', title: v, session: who.value }), who);
+    });
+    wrap.append(b);
+    return wrap;
+  }
+
   function boardPanel(p) {
     const b = p.board;
     const panel = el('section', 'kanban');
@@ -604,7 +684,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     panel.append(h);
     if (!b) {
       // every project gets the same layout — say how to fill it rather than leaving a gap
-      panel.append(el('div', 'empty', t('noBoard', { f: 'boards/' + p.key + '.json' })));
+      panel.append(el('div', 'empty', t('noBoard', { f: 'boards/' + p.key + '.json' })), addTaskForm(p));
       return panel;
     }
     const tasks = Array.isArray(b.tasks) ? b.tasks : [];
@@ -620,25 +700,30 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
         const st = str(it.status);
         const row = el('div', 'task' + (st === 'blocked' ? ' blocked' : '') + (st === 'done' ? ' done' : ''));
         if (withPos && st === 'queued') row.append(el('span', 'pos', String(++q)));
-        row.append(el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title)));
+        const tt = el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title));
+        row.append(tt);
         if (it.session) row.append(el('span', 'ss', nickOf(str(it.session))));
+        if (it._dec) decisionControls(p, it, row, tt);
+        if (cls === 'k-queue' && st === 'queued') queueControls(p, it, items, row);
         c.append(row);
       }
       if (items.length > limit) c.append(el('div', 'more', t('more', { n: items.length - limit })));
       if (!items.length) c.append(el('div', 'more', t('none')));
+      if (cls === 'k-queue') c.append(addTaskForm(p));
       return c;
     };
     const time = (v) => Date.parse(str(v)) || 0;
     const byOrder = (a, c) => (Number(a.order) || 999) - (Number(c.order) || 999);
-    const dec = (Array.isArray(b.decisions) ? b.decisions : []).filter((d) => d.status !== 'closed')
-      .map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort(byOrder);
+    const dec = (Array.isArray(b.decisions) ? b.decisions : []).map((d, i) => ({ ...d, _i: i })).filter((d) => d.status !== 'closed')
+      .map((d) => ({ title: d.title, status: d.status === 'answered' ? 'answered' : 'queued', order: d.order, answer: d.answer, _i: d._i, _dec: true })).sort(byOrder);
+    const indexed = tasks.map((x, i) => ({ ...x, _i: i }));
     // decisions come first: nothing behind them can move until a human answers
     cols.append(
       column('k-dec', '? ' + t('decisions'), dec, true, 12),
-      column('k-run', '▶ ' + t('inProgress'), tasks.filter((x) => x.status === 'running'), false, 12),
-      column('k-queue', '○ ' + t('queued'), tasks.filter((x) => x.status === 'queued' || x.status === 'blocked')
-        .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || byOrder(a, c)), true, 12),
-      column('k-done', '✓ ' + t('done'), tasks.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 8),
+      column('k-run', '▶ ' + t('inProgress'), indexed.filter((x) => x.status === 'running'), false, 12),
+      column('k-queue', '○ ' + t('queued'), indexed.filter((x) => x.status === 'queued' || x.status === 'blocked')
+        .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || byOrder(a, c)), true, 30),
+      column('k-done', '✓ ' + t('done'), indexed.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 8),
     );
     panel.append(cols);
     return panel;
@@ -913,8 +998,10 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     box0Key = selected;
     const box = $('projects');
     const cur = data.projects.find((p) => p.key === selected);
+    const keep = box0Key === selected ? box.querySelector('.kanban [data-editing]')?.closest('.kanban') : null;
     box.replaceChildren(...(selected === ALL ? (data.projects.length ? [allNode(data)] : []) : cur ? [projectNode(cur)] : []));
     if (!data.projects.length) box.append(el('div', 'notice', t('noSessions')));
+    if (keep) box.querySelector('.kanban')?.replaceWith(keep);
     const feed = document.querySelector('.feed'); if (feed) feed.scrollTop = feedTop;
 
     const d = new Date(data.now), p2 = (x) => String(x).padStart(2, '0');

@@ -453,6 +453,53 @@ function readBody(req, limit = 256 * 1024) {
 }
 const sameToken = (v) => typeof v === 'string' && v.length === TOKEN.length && crypto.timingSafeEqual(Buffer.from(v), Buffer.from(TOKEN))
 
+/* ── Board edits from the page ────────────────── */
+
+// The leader writes the same file, so every edit re-reads it, checks that the item the page meant is still
+// there (by position and title), changes only that, and replaces the file in one step.
+const BOARD_KEY = /^[a-z0-9][a-z0-9._-]{0,80}$/
+async function editBoard(body) {
+  const key = String(body.project || '').toLowerCase()
+  if (!BOARD_KEY.test(key)) return 400
+  const file = path.join(BOARDS_DIR, key + '.json')
+  let b
+  try { b = JSON.parse(await fsp.readFile(file, 'utf8')) } catch (e) {
+    if (e.code !== 'ENOENT' || body.op !== 'add') return e.code === 'ENOENT' ? 404 : 409
+    b = { tasks: [], decisions: [] }
+  }
+  if (!Array.isArray(b.tasks)) b.tasks = []
+  if (!Array.isArray(b.decisions)) b.decisions = []
+  const now = new Date().toISOString()
+  const same = (item, title) => item && String(item.title) === String(title)
+  if (body.op === 'answer') {
+    const d = b.decisions[Number(body.index)]
+    const answer = clip(body.answer, 1000)
+    if (!same(d, body.title)) return 409
+    if (!answer) return 400
+    Object.assign(d, { status: 'answered', answer, answeredAt: now, answeredBy: 'monitor' })
+  } else if (body.op === 'reorder') {
+    // body.order: task positions in their new queue order, e.g. [4, 2, 7]
+    const list = Array.isArray(body.order) ? body.order.map(Number) : []
+    const titles = Array.isArray(body.titles) ? body.titles : []
+    if (!list.length || list.some((i, n) => !same(b.tasks[i], titles[n]))) return 409
+    list.forEach((i, n) => { b.tasks[i].order = n + 1 })
+  } else if (body.op === 'add') {
+    const title = clip(body.title, 300)
+    if (!title) return 400
+    const maxOrder = Math.max(0, ...b.tasks.map((x) => Number(x.order) || 0))
+    const task = { title, status: 'queued', order: maxOrder + 1, addedBy: 'monitor', addedAt: now }
+    if (body.session) task.session = clip(body.session, 80)
+    b.tasks.push(task)
+  } else return 400
+  b.updatedAt = now
+  fs.mkdirSync(BOARDS_DIR, { recursive: true })
+  const tmp = file + '.' + process.pid + '.tmp'
+  await fsp.writeFile(tmp, JSON.stringify(b, null, 2) + '\n')
+  await fsp.rename(tmp, file)
+  notifyPages()
+  return 200
+}
+
 /* ── HTTP ─────────────────────────────────────── */
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
@@ -474,6 +521,7 @@ const server = http.createServer(async (req, res) => {
       if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
       const body = await readBody(req)
       if (url.pathname === '/hook') { json(200, await hookEvent(body)); return }
+      if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }
       if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || ''), Number(body.pick), body.answers) ? 200 : 404, {}); return }
       res.writeHead(404).end(); return
     }
