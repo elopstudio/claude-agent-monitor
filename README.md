@@ -1,5 +1,7 @@
 # claude-agent-monitor
 
+**English** | [한국어](README.ko.md)
+
 A local dashboard for every Claude Code session running on this machine, grouped as
 **project → leader → agents**. No dependencies (Node 18+), read-only, listens on `127.0.0.1` only.
 
