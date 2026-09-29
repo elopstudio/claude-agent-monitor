@@ -1,0 +1,6 @@
+{
+  "order": ["my-app", "my-infra"],
+  "projects": {
+    "my-app": { "label": "표시 이름", "leader": "my-app-1a" }
+  }
+}

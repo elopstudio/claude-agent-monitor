@@ -1,0 +1,12 @@
+{
+  "updatedAt": "2026-01-01T00:00:00Z",
+  "tasks": [
+    { "title": "진행 중인 작업", "session": "-0f", "status": "running" },
+    { "title": "대기 1번", "session": "-74", "status": "queued", "order": 1 },
+    { "title": "막힌 작업", "session": "-7c", "status": "blocked", "order": 2 },
+    { "title": "끝난 작업", "session": "-27", "status": "done", "doneAt": "2026-01-01T00:00:00Z" }
+  ],
+  "decisions": [
+    { "title": "사람이 정해야 할 것", "status": "open", "order": 1 }
+  ]
+}

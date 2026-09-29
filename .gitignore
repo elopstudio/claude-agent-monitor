@@ -1,0 +1,5 @@
+node_modules/
+logs/
+config.json
+boards/*.json
+!boards/example.json
