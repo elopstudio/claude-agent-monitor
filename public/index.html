@@ -468,11 +468,12 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     const byOrder = (a, c) => (Number(a.order) || 999) - (Number(c.order) || 999);
     const dec = (Array.isArray(b.decisions) ? b.decisions : []).filter((d) => d.status !== 'closed')
       .map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort(byOrder);
+    // decisions come first: nothing behind them can move until a human answers
     cols.append(
+      column('k-dec', '? ' + t('decisions'), dec, true, 12),
       column('k-run', '▶ ' + t('inProgress'), tasks.filter((x) => x.status === 'running'), false, 12),
       column('k-queue', '○ ' + t('queued'), tasks.filter((x) => x.status === 'queued' || x.status === 'blocked')
         .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || byOrder(a, c)), true, 12),
-      column('k-dec', '? ' + t('decisions'), dec, true, 12),
       column('k-done', '✓ ' + t('done'), tasks.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 8),
     );
     panel.append(cols);
