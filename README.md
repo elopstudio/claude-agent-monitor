@@ -105,6 +105,9 @@ VS Code extension does it: the monitor runs the installed `claude` program in he
 (`claude -p --input-format stream-json --output-format stream-json --include-partial-messages`) in the folder you pick,
 on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conversation tab is the full chat:
 
+- **Name** and **Look** in the dialog are optional. Leave the name empty for an automatic one. The look is one of eight
+  colours and a headgear (antenna, twin, headphones, sprout, bolt), with a live preview. The crown is not on offer:
+  it marks the leader, and a monitor agent that becomes the leader wears it in its own colour;
 - replies stream in as they are written; tool calls open to show input and result;
 - permission prompts and questions arrive in the conversation through `hooks/permission-mcp.mjs`
   (`--permission-prompt-tool`) and wait for your answer — there is no VS Code to fall back to;
@@ -112,6 +115,11 @@ on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conv
   permission mode and model changes apply from the next message the same way;
 - attached images go into the message as images; other files by path;
 - **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
+
+The list of these agents survives a restart. `.runtime/agents.json` keeps who each one is (folder, name, look,
+permission mode, model, session id) and never what was said. When the server starts again they come back stopped,
+their conversation read back from the transcript, and the next message resumes the same session.
+**End agent** also removes it from that list.
 
 The first reply takes a little longer while `claude` starts. Set `"claudePath"` in `config.json` if the program is not found.
 
