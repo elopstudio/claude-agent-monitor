@@ -551,11 +551,11 @@ const MASKS = [
   [/(?:\+?82[- ]?)?0?1[016789][- .]?\d{3,4}[- .]?\d{4}\b/g, '[phone]'],
   [/\b0\d{1,2}[- .]\d{3,4}[- .]\d{4}\b/g, '[phone]'],
   [/\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/g, '[secret]'],
-  [/\b(?=[A-Za-z0-9+/_-]*\d)(?=[A-Za-z0-9+/_-]*[A-Za-z])[A-Za-z0-9+/_-]{40,}={0,2}/g, '[secret]'],
+  [/\b(?=[A-Za-z0-9+_-]*\d)(?=[A-Za-z0-9+_-]*[A-Za-z])[A-Za-z0-9+_-]{40,}={0,2}/g, '[secret]'],
   [/((?:password|passwd|pwd|secret|token|api[_-]?key|authorization)["']?\s*[:=]\s*["']?)[^\s"',;]+/gi, '$1[secret]'],
 ]
 const mask = (text) => MASKS.reduce((t, [re, to]) => t.replace(re, to), String(text ?? ''))
-const LIVE_TEXT = 4000, LIVE_RESULT = 3000, LIVE_INPUT = 1500, LIVE_FIRST = 80
+const LIVE_TEXT = 4000, LIVE_RESULT = 3000, LIVE_INPUT = 8000, LIVE_FIRST = 80
 
 // One transcript line → zero or more view entries (the main conversation only; subagents' own chains are skipped).
 function liveEntries(o, sidechain = false) {

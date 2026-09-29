@@ -119,7 +119,7 @@ export function createAgents({ root, mask, clip, clip2, describe, notifyPages, p
         if (c?.type === 'tool_use') {
           a.activity = describe(c.name, c.input)
           a.activityAt = Date.now()
-          emit(a, { kind: 'tool', id: String(c.id || ''), name: String(c.name || ''), action: a.activity, input: mask(clip2(JSON.stringify(c.input ?? {}, null, 1), 1500)) })
+          emit(a, { kind: 'tool', id: String(c.id || ''), name: String(c.name || ''), action: a.activity, input: mask(clip2(JSON.stringify(c.input ?? {}, null, 1), 8000)) })
         }
       }
       return
