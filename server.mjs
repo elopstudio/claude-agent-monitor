@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// 로컬 Claude Code 세션 모니터 — 읽기 전용, 127.0.0.1 에만 뜬다.
+// Local Claude Code session monitor — read-only, listens on 127.0.0.1 only.
 //
-// 읽는 것
-//   ~/.claude/sessions/<pid>.json        세션 목록(이름·작업 폴더·busy/idle) — *.key 등 다른 파일은 열지 않는다
-//   ~/.claude/projects/*/<id>.jsonl      대화 기록의 **끝부분만** — 세션 제목·마지막 도구 동작·세션 간 메시지 요약
-//   ./boards/<프로젝트>.json             리더가 쓰는 작업판(선택)
-// 내보내지 않는 것
-//   사용자 프롬프트·대화 본문·도구 결과·메시지 본문·소켓 주소·토큰. 도구 동작은 이름과 짧은 표지(파일 이름, 명령 설명)만.
+// Reads
+//   ~/.claude/sessions/<pid>.json        session registry (name, cwd, busy/idle) — other files (*.key etc.) are never opened
+//   ~/.claude/projects/*/<id>.jsonl      only the TAIL of each transcript — last tool action, summaries of messages between sessions
+//   ./boards/<project>.json              task board written by the project's leader (optional)
+// Never exposes
+//   user prompts, conversation text, tool results, message bodies, socket paths, tokens.
+//   Tool actions are reduced to a kind plus a short label (file name, command description).
+//   Human-readable wording is left to the page, so it can be shown in any language.
 import http from 'node:http'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -21,15 +23,15 @@ const PROJECTS_DIR = path.join(CLAUDE, 'projects')
 const BOARDS_DIR = path.join(ROOT, 'boards')
 const PORT = Number(process.env.PORT) || 4777
 const HOST = '127.0.0.1'
-const TAIL_BYTES = 768 * 1024          // 대화 기록은 세션당 수십 MB — 끝부분만 읽는다
-const WAITING_MS = 30 * 60 * 1000      // idle 이 이보다 짧으면 「대기」, 길면 「쉬는 중」
+const TAIL_BYTES = 768 * 1024          // transcripts grow to tens of MB — read only the end
+const WAITING_MS = 30 * 60 * 1000      // idle for less than this = "waiting", longer = "resting"
 const MESSAGE_FEED = 14
 
 function loadConfig() {
   try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8')) } catch { return {} }
 }
 
-/* ── 세션 목록 ─────────────────────────────── */
+/* ── Session registry ─────────────────────────── */
 
 function alive(pid) {
   try { process.kill(pid, 0); return true } catch (e) { return e.code === 'EPERM' }
@@ -40,7 +42,7 @@ async function readRegistry() {
   try { files = await fsp.readdir(SESSIONS_DIR) } catch { return [] }
   const out = []
   for (const f of files) {
-    if (!/^\d+\.json$/.test(f)) continue   // <pid>.json 만 — 키 파일은 열지 않는다
+    if (!/^\d+\.json$/.test(f)) continue   // <pid>.json only — key files are never opened
     try {
       const o = JSON.parse(await fsp.readFile(path.join(SESSIONS_DIR, f), 'utf8'))
       if (!o.sessionId || !o.pid) continue
@@ -49,12 +51,12 @@ async function readRegistry() {
         status: o.status || 'unknown', statusUpdatedAt: o.statusUpdatedAt || o.updatedAt || 0,
         startedAt: o.startedAt || 0, kind: o.kind || '', socket: o.messagingSocketPath || '',
       })
-    } catch { /* 쓰는 중인 파일 — 다음 폴링에 */ }
+    } catch { /* file being written — pick it up on the next poll */ }
   }
   return out.filter((s) => alive(s.pid))
 }
 
-/* ── 프로젝트 = 작업 폴더의 git 루트 ─────────── */
+/* ── Project = git root of the session's working directory ── */
 
 const rootCache = new Map()
 function projectRoot(cwd) {
@@ -72,7 +74,7 @@ function projectRoot(cwd) {
 }
 const projectKey = (root) => path.basename(root).toLowerCase()
 
-/* ── 대화 기록 끝부분 ───────────────────────── */
+/* ── Transcript tail ──────────────────────────── */
 
 const transcriptPath = new Map()
 async function findTranscript(sessionId) {
@@ -95,7 +97,7 @@ async function tailLines(file) {
     const buf = Buffer.alloc(n)
     await fh.read(buf, 0, n, size - n)
     let lines = buf.toString('utf8').split('\n')
-    if (n < size) lines = lines.slice(1)   // 잘린 첫 줄
+    if (n < size) lines = lines.slice(1)   // first line is cut in half
     return { lines: lines.filter(Boolean), size, mtimeMs }
   } finally { await fh.close() }
 }
@@ -103,27 +105,29 @@ async function tailLines(file) {
 const clip = (s, n = 90) => { s = String(s ?? '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s }
 const base = (p) => (typeof p === 'string' ? p.split(/[\\/]/).pop() : '')
 
+// A tool call becomes { kind, key, arg }: kind picks the icon, key picks the page's wording, arg is a short label.
 function describe(name, input = {}) {
+  const a = (key, kind, arg = '') => ({ kind, key, arg })
   switch (name) {
-    case 'Bash': case 'PowerShell': return { kind: 'shell', text: clip(input.description || '명령 실행') }
-    case 'Read': return { kind: 'read', text: '읽기 · ' + base(input.file_path) }
-    case 'Edit': case 'NotebookEdit': return { kind: 'edit', text: '수정 · ' + base(input.file_path || input.notebook_path) }
-    case 'Write': return { kind: 'edit', text: '쓰기 · ' + base(input.file_path) }
-    case 'Grep': return { kind: 'search', text: '코드 검색' }
-    case 'Glob': return { kind: 'search', text: '파일 찾기' }
-    case 'SendMessage': return { kind: 'talk', text: '메시지 · ' + clip(input.summary || '', 60) }
-    case 'ListAgents': return { kind: 'talk', text: '팀 둘러보기' }
-    case 'Agent': return { kind: 'agent', text: '하위 에이전트 · ' + clip(input.description || '', 60) }
-    case 'WebFetch': case 'WebSearch': return { kind: 'web', text: '웹 조회' }
-    case 'Artifact': return { kind: 'publish', text: '페이지 게시' }
-    case 'ArtifactData': return { kind: 'publish', text: '작업판 갱신' }
-    case 'Skill': return { kind: 'skill', text: '스킬 · ' + clip(input.skill || '', 40) }
-    case 'ToolSearch': return { kind: 'skill', text: '도구 불러오기' }
-    case 'TaskStop': return { kind: 'shell', text: '백그라운드 작업 멈춤' }
-    case 'Monitor': return { kind: 'shell', text: '진행 지켜보기' }
+    case 'Bash': case 'PowerShell': return a('shell', 'shell', clip(input.description || ''))
+    case 'Read': return a('read', 'read', base(input.file_path))
+    case 'Edit': case 'NotebookEdit': return a('edit', 'edit', base(input.file_path || input.notebook_path))
+    case 'Write': return a('write', 'edit', base(input.file_path))
+    case 'Grep': return a('grep', 'search')
+    case 'Glob': return a('glob', 'search')
+    case 'SendMessage': return a('message', 'talk', clip(input.summary || '', 60))
+    case 'ListAgents': return a('team', 'talk')
+    case 'Agent': return a('agent', 'agent', clip(input.description || '', 60))
+    case 'WebFetch': case 'WebSearch': return a('web', 'web')
+    case 'Artifact': return a('publish', 'publish')
+    case 'ArtifactData': return a('board', 'publish')
+    case 'Skill': return a('skill', 'skill', clip(input.skill || '', 40))
+    case 'ToolSearch': return a('tools', 'skill')
+    case 'TaskStop': return a('stop', 'shell')
+    case 'Monitor': return a('monitor', 'shell')
     default:
-      if (name?.startsWith('mcp__')) return { kind: 'web', text: '연결 도구 · ' + clip(name.split('__')[1] || '', 30) }
-      return { kind: 'other', text: clip(name || '작업', 40) }
+      if (name?.startsWith('mcp__')) return a('connector', 'web', clip(name.split('__')[1] || '', 30))
+      return a('other', 'other', clip(name || '', 40))
   }
 }
 
@@ -149,17 +153,17 @@ async function transcriptInfo(sessionId) {
       const c = o.message.content[j]
       if (c?.type !== 'tool_use') continue
       if (!info.activity) { info.activity = describe(c.name, c.input); info.activityAt = ts }
-      if (c.name === 'SendMessage' && c.input?.to && (c.input.message || c.input.summary)) {
-        info.sent.push({ to: String(c.input.to), summary: clip(c.input.summary || '', 70), at: ts, pure: !c.input.message })
+      // a send without a message is only an idle-notice subscription, not conversation
+      if (c.name === 'SendMessage' && c.input?.to && c.input.message) {
+        info.sent.push({ to: String(c.input.to), summary: clip(c.input.summary || '', 70), at: ts })
       }
     }
   }
-  info.sent = info.sent.filter((m) => !m.pure)   // 알림 신청만 한 것은 대화가 아니다
   tailCache.set(sessionId, { size, mtimeMs, info })
   return info
 }
 
-/* ── 상태 조립 ─────────────────────────────── */
+/* ── State ────────────────────────────────────── */
 
 function displayState(s, now) {
   if (s.status === 'busy') return 'working'
@@ -196,17 +200,17 @@ async function buildState() {
     const p = projects.get(key)
     p.sessions.push(sess)
     for (const m of info?.sent || []) {
-      // 답장은 주소(소켓)로 가므로 이름으로 되돌린다 — 주소 자체는 내보내지 않는다
+      // replies are addressed to a socket — map it back to a name, never expose the address itself
       const sock = m.to.replace(/^uds:/, '')
-      const to = bySocket.get(sock) || (m.to.startsWith('uds:') ? '(답장)' : m.to)
-      p.messages.push({ from: s.name, to, summary: m.summary, at: m.at })
+      const name = bySocket.get(sock) || (m.to.startsWith('uds:') ? null : m.to)
+      p.messages.push({ from: s.name, to: name, summary: m.summary, at: m.at })
     }
   }
 
   const out = []
   for (const p of projects.values()) {
     const cfg = config.projects?.[p.key] || {}
-    // 리더: 설정 > 메시지를 가장 많이 보낸 세션(3건 이상)
+    // leader: config first, otherwise the session that sent the most messages (at least 3)
     let leader = cfg.leader && p.sessions.find((s) => s.name === cfg.leader) ? cfg.leader : null
     if (!leader) {
       const top = [...p.sessions].sort((a, b) => b.sentCount - a.sentCount)[0]
@@ -235,7 +239,7 @@ async function buildState() {
   return { now, projects: out }
 }
 
-/* ── HTTP ──────────────────────────────────── */
+/* ── HTTP ─────────────────────────────────────── */
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
 const server = http.createServer(async (req, res) => {

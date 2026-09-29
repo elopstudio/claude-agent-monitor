@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>에이전트 관제</title>
+<title>Agent Monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -48,7 +48,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .wrap{max-width:1400px;margin:0 auto;padding:22px 16px 60px}
 .mono{font-family:var(--mono)}
 
-/* 머리 */
+/* Header */
 .top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
 .brand{display:flex;align-items:center;gap:12px}
 .brand .logo{width:46px;height:46px;flex:none}
@@ -67,7 +67,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .pill.wait b,.pill.wait .g{color:var(--wait)}
 .pill.rest b,.pill.rest .g{color:var(--faint)}
 
-/* 프로젝트 탭 */
+/* Project tabs */
 .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin;margin:0 0 -1px;padding:0 4px;position:relative;z-index:1}
 .tab{appearance:none;flex:none;display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;border-bottom:0;background:transparent;color:var(--muted);font:500 13px var(--sans);padding:9px 14px 10px 8px;border-radius:12px 12px 0 0;cursor:pointer;transition:background .15s,color .15s}
 .tab:hover{background:var(--surface-2);color:var(--text)}
@@ -80,7 +80,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .tab .tc .w{color:var(--wait);background:var(--wait-soft)}
 .tab .tc .z{color:var(--faint);border:1px dashed var(--line-strong);line-height:15px}
 
-/* 프로젝트 */
+/* Project */
 .project{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin:0 0 16px;box-shadow:0 1px 3px var(--shadow);overflow:hidden}
 .project>.phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line)}
 .project .folder{font-family:var(--mono);font-weight:700;font-size:16px}
@@ -93,7 +93,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .pbody{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px}
 .pbody.solo{grid-template-columns:minmax(0,1fr)}
 
-/* 조직도 */
+/* Org chart */
 .org{min-width:0}
 .tree{position:relative;margin:10px 0 0 42px;padding-left:22px;border-left:2px dashed var(--line-strong);display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
 .tree.flat{margin-left:0;padding-left:0;border-left:0}
@@ -133,7 +133,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .b-done{color:var(--done);background:var(--done-soft)}
 .b-rest{color:var(--faint);border-color:var(--line-strong);border-style:dashed}
 
-/* 로봇 — 상태는 색이 아니라 표정·움직임 */
+/* Robots — state is shown by face and motion, not colour */
 .robot *{transform-box:view-box}
 .robot .rb{transform-origin:32px 60px}
 .st-working .robot .rb{animation:bob 1.8s ease-in-out infinite}
@@ -153,7 +153,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .st-resting .robot .rb{filter:grayscale(1);opacity:.5}
 @media (prefers-reduced-motion:reduce){.robot *,.live i::after,.stage .shadow{animation:none!important}}
 
-/* 옆 칸 — 팀 대화·작업판 */
+/* Side column — team chat and board */
 .side{display:flex;flex-direction:column;gap:12px;min-width:0}
 .panel{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .panel>h3{margin:0;font-size:12.5px;font-weight:700;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;background:var(--surface)}
@@ -189,6 +189,12 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   .leader .stage .robot{width:72px;height:72px}
   .project .counts{margin-left:0}
 }
+
+/* Language switch */
+.top .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lang{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;background:var(--surface)}
+.lang button{appearance:none;border:0;background:transparent;color:var(--muted);font:700 11.5px var(--sans);padding:5px 11px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--text);color:var(--surface)}
 </style>
 </head>
 <body>
@@ -197,28 +203,83 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     <div class="brand">
       <span class="logo st-working" id="logo"></span>
       <div>
-        <h1>에이전트 관제</h1>
-        <div class="sub"><span class="live" id="live"><i></i><span id="live-text">연결 중</span></span><span id="asof"></span></div>
+        <h1 data-i18n="title"></h1>
+        <div class="sub"><span class="live" id="live"><i></i><span id="live-text"></span></span><span id="asof"></span></div>
       </div>
     </div>
-    <div class="totals" id="totals"></div>
+    <div class="right">
+      <div class="totals" id="totals"></div>
+      <div class="lang" id="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="ko">한국어</button>
+      </div>
+    </div>
   </header>
   <div class="notice" id="notice" hidden></div>
-  <nav class="tabs" id="tabs" role="tablist" aria-label="프로젝트"></nav>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
   <main id="projects"></main>
 </div>
 
 <script>
 (() => {
   const POLL_MS = 3000;
+
+  /* ── Wording ── English is the default; Korean is an option. */
+  const I18N = {
+    en: {
+      title: 'Agent Monitor', live: 'Live', connecting: 'Connecting', offline: 'Offline', updated: 'Updated {t}',
+      projects: 'Projects', sessions: 'Sessions', working: 'Working', waiting: 'Waiting', resting: 'Resting',
+      leader: 'LEAD', idleBubble: 'Resting', waitBubble: 'Waiting', last: 'Last · {x}',
+      forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
+      chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
+      board: 'Board', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
+      more: '+{n} more', none: 'None', noSessions: 'No Claude Code sessions are running.',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects',
+      m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
+      act: {
+        shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
+        glob: 'Finding files', message: 'Message · {x}', team: 'Checking on the team', agent: 'Subagent · {x}', web: 'Looking something up',
+        publish: 'Publishing a page', board: 'Updating a board', skill: 'Skill · {x}', tools: 'Loading tools', stop: 'Stopping a background task',
+        monitor: 'Watching progress', connector: 'Connector · {x}', other: '{x}',
+      },
+    },
+    ko: {
+      title: '에이전트 관제', live: '실시간', connecting: '연결 중', offline: '끊김', updated: '갱신 {t}',
+      projects: '프로젝트', sessions: '세션', working: '작업 중', waiting: '대기', resting: '쉬는 중',
+      leader: '리더', idleBubble: '쉬는 중', waitBubble: '대기 중', last: '마지막 · {x}',
+      forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
+      chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
+      board: '작업판', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
+      more: '외 {n}건', none: '없음', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트',
+      m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
+      act: {
+        shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
+        glob: '파일 찾기', message: '메시지 · {x}', team: '팀 둘러보기', agent: '하위 에이전트 · {x}', web: '웹 조회',
+        publish: '페이지 게시', board: '작업판 갱신', skill: '스킬 · {x}', tools: '도구 불러오기', stop: '백그라운드 작업 멈춤',
+        monitor: '진행 지켜보기', connector: '연결 도구 · {x}', other: '{x}',
+      },
+    },
+  };
+  const qsLang = new URLSearchParams(location.search).get('lang');
+  let lang = I18N[qsLang] ? qsLang : (() => { try { const v = localStorage.getItem('am.lang'); return I18N[v] ? v : 'en'; } catch (e) { return 'en'; } })();
+  const fmt = (s, vars = {}) => String(s).replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
+  const t = (key, vars) => fmt(I18N[lang][key] ?? I18N.en[key] ?? key, vars);
+  function actText(a) {
+    if (!a) return '';
+    if (a.key === 'shell' && a.arg) return a.arg;   // the command's own description reads better than a generic label
+    const tpl = I18N[lang].act[a.key] ?? I18N.en.act[a.key] ?? '{x}';
+    return fmt(tpl, { x: a.arg || '' }).replace(/ · $/, '');
+  }
+
   const STATE = {
-    working: { label: '작업 중', glyph: '▶', cls: 'b-run' },
-    waiting: { label: '대기',   glyph: '○', cls: 'b-wait' },
-    resting: { label: '쉬는 중', glyph: '–', cls: 'b-rest' },
+    working: { key: 'working', glyph: '▶', cls: 'b-run' },
+    waiting: { key: 'waiting', glyph: '○', cls: 'b-wait' },
+    resting: { key: 'resting', glyph: '–', cls: 'b-rest' },
   };
   const ACT_ICON = { shell: '⌨', read: '📖', edit: '✎', search: '🔍', talk: '💬', agent: '🤖', web: '🌐', publish: '📋', skill: '🧩', other: '•' };
 
-  /* ── 로봇 ── 색·장식 = 누구인지(이름과 함께), 표정·동작 = 상태 */
+  /* ── Robots ── colour + headgear = who (always shown with the name), face + motion = state */
   const PALETTE = [
     ['#8fb4ff', '#5b83dc'], ['#86dcb0', '#48a878'], ['#c7a8ff', '#9573dc'], ['#ffb37a', '#dc8243'],
     ['#ff9fb8', '#dc6d8c'], ['#79d6e3', '#43a6b5'], ['#ffd166', '#d9a32a'], ['#b5c46a', '#869636'],
@@ -257,63 +318,80 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     return `<svg class="robot" viewBox="${mini ? '1 0 62 46' : '0 0 64 64'}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g class="rb">${lower}${accessory(s.acc, dark)}${ears}<rect x="8" y="12" width="48" height="32" rx="12" fill="${body}"/><rect x="13" y="14.6" width="13" height="3" rx="1.5" fill="#fff" opacity=".4"/><rect x="14" y="19" width="36" height="19.5" rx="8" fill="#1d2230"/><circle cx="18.6" cy="34.5" r="2.3" fill="#ff8fa8" opacity=".5"/><circle cx="45.4" cy="34.5" r="2.3" fill="#ff8fa8" opacity=".5"/>${face(st)}</g>${zz}</svg>`;
   }
   function robotNode(name, st, leader, mini) {
-    const t = document.createElement('template');
-    t.innerHTML = robotSvg(name, st, leader, mini).trim();   // 정적 도형만 — 데이터 문자열은 넣지 않는다
-    return t.content.firstChild;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = robotSvg(name, st, leader, mini).trim();   // static shapes only — no data strings go in here
+    return tpl.content.firstChild;
   }
 
-  /* ── 도우미 ── */
+  /* ── Helpers ── */
   const $ = (id) => document.getElementById(id);
   function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
-  function ago(ms) {
+  function dur(ms) {
     if (!ms) return '';
-    const m = Math.round((Date.now() - ms) / 60000);
-    if (m < 1) return '방금';
-    if (m < 60) return m + '분';
+    const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+    if (m < 60) return t('m', { n: m });
     const h = Math.floor(m / 60);
-    if (h < 24) return h + '시간' + (m % 60 ? ' ' + (m % 60) + '분' : '');
-    return Math.floor(h / 24) + '일';
+    if (h < 24) return m % 60 ? t('hm', { h, m: m % 60 }) : t('h', { n: h });
+    return t('d', { n: Math.floor(h / 24) });
   }
-  function badge(st) { const s = STATE[st] || STATE.resting; const b = el('span', 'badge ' + s.cls); b.append(el('span', 'g', s.glyph), document.createTextNode(s.label)); return b; }
+  const ago = (ms) => (Date.now() - ms < 60000 ? t('justNow') : t('ago', { t: dur(ms) }));
+  function badge(st) { const s = STATE[st] || STATE.resting; const b = el('span', 'badge ' + s.cls); b.append(el('span', 'g', s.glyph), document.createTextNode(t(s.key))); return b; }
+
   let selected = decodeURIComponent(location.hash.slice(1)) || (() => { try { return localStorage.getItem('am.tab') || ''; } catch (e) { return ''; } })();
   let last = null, box0Key = '';
   function select(key) {
     selected = key;
     try { localStorage.setItem('am.tab', key); } catch (e) {}
-    history.replaceState(null, '', '#' + encodeURIComponent(key));
+    history.replaceState(null, '', location.search + '#' + encodeURIComponent(key));
     if (last) render(last);
   }
+  function setLang(next) {
+    if (!I18N[next]) return;
+    lang = next;
+    try { localStorage.setItem('am.lang', next); } catch (e) {}
+    applyStatic();
+    if (last) render(last);
+  }
+  function applyStatic() {
+    document.documentElement.lang = lang;
+    document.title = t('title');
+    for (const n of document.querySelectorAll('[data-i18n]')) n.textContent = t(n.dataset.i18n);
+    for (const b of document.querySelectorAll('#lang button')) b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
+    $('tabs').setAttribute('aria-label', t('tabsLabel'));
+    if (!$('live').classList.contains('on')) $('live-text').textContent = last ? t('offline') : t('connecting');
+  }
 
-  /* ── 카드 ── */
-  function botCard(s, projectKey) {
+  /* ── Cards ── */
+  function botCard(s) {
     const st = STATE[s.state] ? s.state : 'resting';
     const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : ''));
     const stage = el('div', 'stage');
     stage.setAttribute('role', 'img');
-    stage.setAttribute('aria-label', str(s.name) + ' ' + STATE[st].label);
+    stage.setAttribute('aria-label', str(s.name) + ' ' + t(st));
     stage.append(el('span', 'shadow'), robotNode(str(s.name), st, s.isLeader, false));
     const info = el('div', 'info');
     const row = el('div', 'row');
     const nm = el('div', 'nm');
-    nm.append(el('span', 'short', str(s.short) || str(s.name)));
-    if (s.isLeader) nm.append(el('span', 'role-tag', '리더'));
     nm.title = str(s.name);
+    nm.append(el('span', 'short', str(s.short) || str(s.name)));
+    if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     row.append(nm, badge(st));
     info.append(row);
     if (s.role) info.append(el('div', 'title', str(s.role)));
     const bubble = el('div', 'bubble');
     if (s.activity && st === 'working') {
-      bubble.append(el('span', 'k', ACT_ICON[s.activity.kind] || '•'), el('span', null, str(s.activity.text)));
+      bubble.append(el('span', 'k', ACT_ICON[s.activity.kind] || '•'), el('span', null, actText(s.activity)));
     } else if (s.activity) {
-      bubble.append(el('span', 'k', '⏸'), el('span', null, '마지막 · ' + str(s.activity.text)));
+      bubble.append(el('span', 'k', '⏸'), el('span', null, t('last', { x: actText(s.activity) })));
     } else {
-      bubble.append(el('span', null, st === 'resting' ? '쉬는 중' : '대기 중'));
+      bubble.append(el('span', null, st === 'resting' ? t('idleBubble') : t('waitBubble')));
     }
     info.append(bubble);
     const when = el('div', 'when');
-    when.append(el('span', null, STATE[st].label + ' ' + ago(s.statusSince) + (st === 'working' ? '째' : ' 전부터')));
-    if (s.startedAt) when.append(el('span', null, '켜진 지 ' + ago(s.startedAt)));
+    const since = dur(s.statusSince);
+    when.append(el('span', null, st === 'working' ? t('forWorking', { t: since }) : st === 'waiting' ? t('sinceWaiting', { t: since }) : t('sinceResting', { t: since })));
+    if (s.startedAt) when.append(el('span', null, t('up', { t: dur(s.startedAt) })));
     info.append(when);
     card.append(stage, info);
     return card;
@@ -321,19 +399,18 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 
   function feedPanel(p) {
     const panel = el('section', 'panel');
-    const h = el('h3', null, '💬 팀 대화');
+    const h = el('h3', null, '💬 ' + t('chat'));
     h.append(el('span', 'n', String(p.messages.length)));
     panel.append(h);
-    if (!p.messages.length) { panel.append(el('div', 'empty', '최근 메시지 없음')); return panel; }
-    const leaderName = p.leader;
-    const shortOf = (n) => { const x = str(n); return x.toLowerCase().startsWith(p.key + '-') ? x.slice(p.key.length) : x; };
+    if (!p.messages.length) { panel.append(el('div', 'empty', t('noChat'))); return panel; }
+    const shortOf = (n) => { if (!n) return t('reply'); const x = str(n); return x.toLowerCase().startsWith(p.key + '-') ? x.slice(p.key.length) : x; };
     const ul = el('ul', 'feed');
     for (const m of p.messages) {
       const li = el('li');
       const who = el('span', 'who');
-      who.append(robotNode(str(m.from), 'working', m.from === leaderName, true), document.createTextNode(shortOf(m.from)), el('span', 'arrow', '→'), document.createTextNode(shortOf(m.to)));
+      who.append(robotNode(str(m.from), 'working', m.from === p.leader, true), document.createTextNode(shortOf(m.from)), el('span', 'arrow', '→'), document.createTextNode(shortOf(m.to)));
       const body = el('div');
-      body.append(el('div', 's', str(m.summary) || '(요약 없음)'), el('div', 't', ago(m.at) + (ago(m.at) === '방금' ? '' : ' 전')));
+      body.append(el('div', 's', str(m.summary) || t('noSummary')), el('div', 't', ago(m.at)));
       li.append(who, body);
       ul.append(li);
     }
@@ -344,8 +421,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   function boardPanel(p) {
     const b = p.board;
     const panel = el('section', 'panel');
-    const h = el('h3', null, '📋 작업판');
-    if (b.updatedAt) h.append(el('span', 'n', ago(Date.parse(b.updatedAt)) + ' 전 갱신'));
+    const h = el('h3', null, '📋 ' + t('board'));
+    if (b.updatedAt) h.append(el('span', 'n', t('boardUpdated', { t: dur(Date.parse(b.updatedAt)) })));
     panel.append(h);
     const tasks = Array.isArray(b.tasks) ? b.tasks : [];
     const box = el('div', 'bcols');
@@ -354,53 +431,53 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       const hh = el('h4', null, title); hh.append(el('span', 'n', String(items.length)));
       g.append(hh);
       let q = 0;
-      for (const t of items.slice(0, limit)) {
-        const st = str(t.status);
+      for (const it of items.slice(0, limit)) {
+        const st = str(it.status);
         const row = el('div', 'task' + (st === 'blocked' ? ' blocked' : '') + (st === 'done' ? ' done' : ''));
         if (withPos && st === 'queued') row.append(el('span', 'pos', String(++q)));
-        row.append(el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(t.title)));
-        if (t.session) row.append(el('span', 'ss', str(t.session)));
+        row.append(el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title)));
+        if (it.session) row.append(el('span', 'ss', str(it.session)));
         g.append(row);
       }
-      if (items.length > limit) g.append(el('div', 'more', '외 ' + (items.length - limit) + '건'));
-      if (!items.length) g.append(el('div', 'more', '없음'));
+      if (items.length > limit) g.append(el('div', 'more', t('more', { n: items.length - limit })));
+      if (!items.length) g.append(el('div', 'more', t('none')));
       return g;
     };
     const time = (v) => Date.parse(str(v)) || 0;
     box.append(
-      group('▶ 진행 중', tasks.filter((t) => t.status === 'running'), false, 8),
-      group('○ 대기', tasks.filter((t) => t.status === 'queued' || t.status === 'blocked')
+      group('▶ ' + t('inProgress'), tasks.filter((x) => x.status === 'running'), false, 8),
+      group('○ ' + t('queued'), tasks.filter((x) => x.status === 'queued' || x.status === 'blocked')
         .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || (Number(a.order) || 999) - (Number(c.order) || 999)), true, 8),
-      group('✓ 완료', tasks.filter((t) => t.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 5),
+      group('✓ ' + t('done'), tasks.filter((x) => x.status === 'done').sort((a, c) => time(c.doneAt) - time(a.doneAt)), false, 5),
     );
     const dec = (Array.isArray(b.decisions) ? b.decisions : []).filter((d) => d.status !== 'closed');
-    if (dec.length) box.append(group('? 결정 대기', dec.map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort((a, c) => a.order - c.order), true, 8));
+    if (dec.length) box.append(group('? ' + t('decisions'), dec.map((d) => ({ title: d.title, status: 'queued', order: d.order })).sort((a, c) => a.order - c.order), true, 8));
     panel.append(box);
     return panel;
   }
 
   function projectNode(p) {
-    const det = el('section', 'project');
-    det.setAttribute('role', 'tabpanel');
-    const sum = el('div', 'phead');
-    sum.append(el('span', 'folder', p.key));
-    if (p.label) sum.append(el('span', 'label', p.label));
+    const sec = el('section', 'project');
+    sec.setAttribute('role', 'tabpanel');
+    const head = el('div', 'phead');
+    head.append(el('span', 'folder', p.key));
+    if (p.label) head.append(el('span', 'label', p.label));
     const counts = el('span', 'counts');
-    if (p.counts.working) counts.append(el('span', 'cnt run', '▶ 작업 중 ' + p.counts.working));
-    if (p.counts.waiting) counts.append(el('span', 'cnt wait', '○ 대기 ' + p.counts.waiting));
-    if (p.counts.resting) counts.append(el('span', 'cnt rest', '– 쉬는 중 ' + p.counts.resting));
-    sum.append(counts);
-    det.append(sum);
+    if (p.counts.working) counts.append(el('span', 'cnt run', '▶ ' + t('working') + ' ' + p.counts.working));
+    if (p.counts.waiting) counts.append(el('span', 'cnt wait', '○ ' + t('waiting') + ' ' + p.counts.waiting));
+    if (p.counts.resting) counts.append(el('span', 'cnt rest', '– ' + t('resting') + ' ' + p.counts.resting));
+    head.append(counts);
+    sec.append(head);
 
     const hasSide = p.messages.length || p.board;
     const body = el('div', 'pbody' + (hasSide ? '' : ' solo'));
     const org = el('div', 'org');
     const leader = p.sessions.find((s) => s.isLeader);
     const others = p.sessions.filter((s) => !s.isLeader);
-    if (leader) { const lw = el('div', 'lead-wrap'); lw.append(botCard(leader, p.key)); org.append(lw); }
+    if (leader) { const lw = el('div', 'lead-wrap'); lw.append(botCard(leader)); org.append(lw); }
     if (others.length) {
       const tree = el('div', 'tree' + (leader ? '' : ' flat'));
-      for (const s of others) tree.append(botCard(s, p.key));
+      for (const s of others) tree.append(botCard(s));
       org.append(tree);
     }
     body.append(org);
@@ -410,52 +487,58 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       side.append(feedPanel(p));
       body.append(side);
     }
-    det.append(body);
-    return det;
+    sec.append(body);
+    return sec;
   }
 
   function render(data) {
+    last = data;
     const all = data.projects.flatMap((p) => p.sessions);
     const n = (st) => all.filter((s) => s.state === st).length;
     const totals = $('totals');
     totals.replaceChildren();
     const pill = (cls, g, label, v) => { const x = el('span', 'pill ' + cls); x.append(el('span', 'g', g), document.createTextNode(label + ' '), el('b', null, String(v))); return x; };
-    totals.append(pill('', '◆', '프로젝트', data.projects.length), pill('', '●', '세션', all.length), pill('run', '▶', '작업 중', n('working')), pill('wait', '○', '대기', n('waiting')), pill('rest', '–', '쉬는 중', n('resting')));
-    last = data;
+    totals.append(pill('', '◆', t('projects'), data.projects.length), pill('', '●', t('sessions'), all.length), pill('run', '▶', t('working'), n('working')), pill('wait', '○', t('waiting'), n('waiting')), pill('rest', '–', t('resting'), n('resting')));
+
     if (!data.projects.some((p) => p.key === selected)) selected = data.projects[0]?.key || '';
     const tabs = $('tabs');
     tabs.replaceChildren();
     for (const p of data.projects) {
-      const t = el('button', 'tab');
-      t.type = 'button';
-      t.setAttribute('role', 'tab');
-      t.setAttribute('aria-selected', String(p.key === selected));
+      const tab = el('button', 'tab');
+      tab.type = 'button';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(p.key === selected));
       const lead = p.sessions.find((s) => s.isLeader) || p.sessions[0];
-      const face = p.counts.working ? 'working' : p.counts.waiting ? 'waiting' : 'resting';
-      t.append(robotNode(lead ? str(lead.name) : p.key, face, !!(lead && lead.isLeader), true), el('span', 'tname', p.key));
+      const mood = p.counts.working ? 'working' : p.counts.waiting ? 'waiting' : 'resting';
+      tab.append(robotNode(lead ? str(lead.name) : p.key, mood, !!(lead && lead.isLeader), true), el('span', 'tname', p.key));
       const tc = el('span', 'tc');
       if (p.counts.working) tc.append(el('span', 'r', '▶ ' + p.counts.working));
       if (p.counts.waiting) tc.append(el('span', 'w', '○ ' + p.counts.waiting));
       if (!p.counts.working && !p.counts.waiting) tc.append(el('span', 'z', '– ' + p.counts.resting));
-      t.append(tc);
-      t.addEventListener('click', () => select(p.key));
-      tabs.append(t);
+      tab.append(tc);
+      tab.addEventListener('click', () => select(p.key));
+      tabs.append(tab);
     }
+
+    // re-rendering every few seconds must not throw away the chat scroll position
     const feedTop = box0Key === selected ? (document.querySelector('.feed')?.scrollTop || 0) : 0;
     box0Key = selected;
     const box = $('projects');
     const cur = data.projects.find((p) => p.key === selected);
     box.replaceChildren(...(cur ? [projectNode(cur)] : []));
-    if (!data.projects.length) box.append(el('div', 'notice', '실행 중인 Claude Code 세션이 없습니다.'));
+    if (!data.projects.length) box.append(el('div', 'notice', t('noSessions')));
     const feed = document.querySelector('.feed'); if (feed) feed.scrollTop = feedTop;
+
     const d = new Date(data.now), p2 = (x) => String(x).padStart(2, '0');
-    $('asof').textContent = '갱신 ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
+    $('asof').textContent = t('updated', { t: p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()) });
   }
 
-  function setLive(on, text) { $('live').classList.toggle('on', on); $('live-text').textContent = text; }
+  function setLive(on) { $('live').classList.toggle('on', on); $('live-text').textContent = on ? t('live') : t('offline'); }
   function notice(msg) { const n = $('notice'); n.textContent = msg; n.hidden = !msg; }
 
+  for (const b of document.querySelectorAll('#lang button')) b.addEventListener('click', () => setLang(b.dataset.lang));
   $('logo').append(robotNode('leader', 'working', true, false));
+  applyStatic();
 
   let timer = null;
   async function tick() {
@@ -463,9 +546,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       const r = await fetch('/api/state', { cache: 'no-store' });
       if (!r.ok) throw new Error(String(r.status));
       render(await r.json());
-      setLive(true, '실시간'); notice('');
+      setLive(true); notice('');
     } catch (e) {
-      setLive(false, '끊김'); notice('모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.');
+      setLive(false); notice(t('noServer'));
     }
     timer = setTimeout(tick, document.hidden ? POLL_MS * 5 : POLL_MS);
   }

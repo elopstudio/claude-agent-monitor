@@ -1,41 +1,59 @@
 # claude-agent-monitor
 
-이 PC 에서 돌고 있는 Claude Code 세션을 **프로젝트 → 리더 → 에이전트** 로 묶어 보는 로컬 관제 화면.
-의존성 없음(Node 18+), 읽기 전용, `127.0.0.1` 에만 뜬다.
+A local dashboard for every Claude Code session running on this machine, grouped as
+**project → leader → agents**. No dependencies (Node 18+), read-only, listens on `127.0.0.1` only.
 
 ```bash
-npm start            # http://127.0.0.1:4777  (PORT=… 로 바꿈)
+npm start            # http://127.0.0.1:4777  (override with PORT=…)
 ```
 
-## 무엇을 읽나
+The page is in English by default. Switch to Korean with the **EN / 한국어** toggle in the header
+(remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
 
-| 출처 | 쓰는 것 |
+## What you see
+
+- **One tab per project.** Each tab shows the leader's robot and how many sessions are working (▶) or waiting (○).
+  The selected tab is kept in the URL (`#project-name`) and in the browser.
+- **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
+  Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
+- **Board** (optional). The project's tasks in progress, queued (numbered), done, and decisions waiting on a human.
+- **Team chat.** Who messaged whom, as one-line summaries.
+
+The page polls every 3 seconds (every 15 seconds while the tab is hidden).
+
+## What it reads
+
+| Source | Used for |
 |---|---|
-| `~/.claude/sessions/<pid>.json` | 세션 이름 · 작업 폴더 · busy/idle · 시작 시각. 프로세스가 죽은 항목은 뺀다 |
-| `~/.claude/projects/*/<sessionId>.jsonl` | **끝부분 768KB 만** — 마지막 도구 동작, 세션끼리 보낸 메시지의 요약 한 줄 |
-| `boards/<프로젝트>.json` | 리더가 쓰는 작업판(진행·대기·완료·결정 대기)과 세션 역할 — 선택 |
-| `config.json` | 프로젝트 표시 이름 · 리더 지정 · 순서 — 선택(`config.example.json` 참고) |
+| `~/.claude/sessions/<pid>.json` | Session name, working directory, busy/idle, start time. Entries whose process is gone are dropped |
+| `~/.claude/projects/*/<sessionId>.jsonl` | **Only the last 768 KB** — the latest tool action and the summary line of messages sent to other sessions |
+| `boards/<project>.json` | The task board and per-session roles, written by the project's leader — optional |
+| `config.json` | Project labels, leader assignment, tab order — optional (see `config.example.json`) |
 
-프로젝트는 세션 작업 폴더의 git 루트 폴더 이름이고, 화면에서는 탭 하나가 프로젝트 하나다(선택은 주소 `#이름` 과 브라우저에 기억). 리더는 `config.json` 에 적은 세션, 없으면
-메시지를 가장 많이 보낸 세션(3건 이상)으로 잡는다.
+A project is the folder name of the git root above a session's working directory. The leader is the session
+named in `config.json`; without one, it is the session that sent the most messages (at least 3).
 
-## 읽지도, 내보내지도 않는 것
+## What it never reads or exposes
 
-- `~/.claude/sessions/*.key`, `.credentials.json`, 설정 파일 — 열지 않는다
-- 사용자 프롬프트 · 대화 본문 · 도구 결과 · 메시지 본문 · 소켓 주소 — API 에 넣지 않는다
-- 도구 동작은 이름과 짧은 표지(파일 이름, 명령 설명)만 보인다. 웹 조회는 주소·검색어를 숨긴다
+- `~/.claude/sessions/*.key`, `.credentials.json` and settings files are never opened.
+- User prompts, conversation text, tool results, message bodies and socket addresses never reach the API.
+- A tool action is reduced to its kind plus a short label (a file name or the command's own description).
+  Web lookups show neither the URL nor the query.
 
-## 상태
+## States
 
-| 표시 | 뜻 |
+| Shown as | Meaning |
 |---|---|
-| ▶ 작업 중 | 세션이 busy — 로봇이 타자 친다 |
-| ○ 대기 | idle 30분 미만 — 로봇이 존다 |
-| – 쉬는 중 | idle 30분 이상 — 로봇이 흐려진다 |
+| ▶ Working | The session is busy — the robot is typing |
+| ○ Waiting | Idle for less than 30 minutes — the robot is dozing |
+| – Resting | Idle for 30 minutes or more — the robot is greyed out |
 
-상태는 색만으로 가르지 않는다 — 기호 · 글자 · 표정 · 움직임을 함께 쓴다.
+State is never carried by colour alone: every state also has a symbol, a word, a face and a motion.
 
-## 작업판 형식
+## Board format
 
-`boards/example.json` 참고. `status` 는 `running | queued | blocked | done`, 대기 순서는 `order`,
-세션 역할은 `roles: { "-0f": "인증 · 공정 시뮬" }`. `boards/*.json` 과 `config.json` 은 로컬 상태라 커밋하지 않는다.
+See `boards/example.json`.
+
+- `status` is one of `running | queued | blocked | done`; `order` sets the queue position.
+- `roles` maps a session to a short role, e.g. `{ "-0f": "auth · simulation" }`.
+- `boards/*.json` and `config.json` are local state and are not committed.

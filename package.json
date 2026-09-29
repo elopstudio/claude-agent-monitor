@@ -2,7 +2,7 @@
   "name": "claude-agent-monitor",
   "version": "0.1.0",
   "private": true,
-  "description": "로컬 Claude Code 세션을 프로젝트·리더·에이전트로 묶어 보는 관제 화면(읽기 전용)",
+  "description": "Local dashboard for Claude Code sessions, grouped as project → leader → agents (read-only)",
   "type": "module",
   "scripts": {
     "start": "node server.mjs"
