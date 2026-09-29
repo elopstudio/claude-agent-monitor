@@ -298,6 +298,25 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .approval .done.bad{color:var(--block)}
 @media (max-width:640px){ .approval{grid-template-columns:1fr} .approval .acts{justify-content:stretch} .approval button{flex:1} }
 .detail{border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);color:var(--text);padding:0;width:min(980px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:0 20px 60px var(--bot-shadow)}
+.detail .actl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px 0;font-size:12.5px;color:var(--muted)}
+.detail .actl select,.newagent select,.newagent input{font:13px var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px}
+.detail .actl button{appearance:none;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);border-radius:8px;padding:5px 12px;font:700 12.5px var(--sans);cursor:pointer}
+.detail .actl .stop{color:var(--block);border-color:var(--block)}
+.detail .actl .stop:disabled{opacity:.4;cursor:default}
+.detail .actl .end{margin-left:auto}
+.detail .m.assistant.streaming .mt::after{content:"▍";animation:blink2 1s steps(2) infinite;color:var(--accent)}
+@keyframes blink2{50%{opacity:0}}
+.newagent{padding:14px 16px 16px;display:grid;gap:10px}
+.newagent .row{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+.newagent .row input{width:100%}
+.newagent textarea{width:100%;resize:vertical;font:13.5px/1.5 var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
+.newagent .hint{font-size:12px;color:var(--muted)}
+.newagent .status{font-size:12.5px;font-weight:700}
+.newagent .status.bad{color:var(--block)}
+.newagent .send{justify-self:end;appearance:none;border:1px solid var(--run);background:var(--run);color:var(--surface);border-radius:8px;padding:7px 16px;font:700 13px var(--sans);cursor:pointer}
+.newagent-btn{appearance:none;border:1px dashed var(--line-strong);background:transparent;color:var(--muted);border-radius:999px;padding:3px 12px;font:700 12px var(--sans);cursor:pointer}
+.newagent-btn:hover{color:var(--text);border-color:var(--text)}
+.info .mon-tag{font-size:10px;font-weight:900;letter-spacing:.04em;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 6px;white-space:nowrap}
 .detail .dtabs{display:flex;gap:4px;padding:8px 16px 0;border-bottom:1px solid var(--line)}
 .detail .dtab{appearance:none;border:1px solid transparent;border-bottom:0;background:none;color:var(--muted);font:700 13px var(--sans);padding:7px 14px;border-radius:8px 8px 0 0;cursor:pointer;margin-bottom:-1px}
 .detail .dtab[aria-selected="true"]{background:var(--surface);border-color:var(--line);color:var(--text)}
@@ -427,7 +446,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', newBelow: 'New below ↓', attach: 'Attach', remove: 'Remove', tooMany: 'Up to 5 files per message', tooBig: '{x} is over 20 MB', uploadFailed: 'Could not upload {x}', stillUploading: 'Still uploading — wait a moment', sec: '{n}s', barThink: 'Thinking… {t}', barTool: '{x} — running for {t}', barAsk: 'Waiting for your answer below', barVs: 'Waiting for an answer in VS Code', barWaiting: 'Done — waiting for input', barResting: 'Resting', barGone: 'This session has ended', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send · drop or paste files)', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', newAgent: 'New agent', folder: 'Folder', modelLabel: 'Model', modelDefault: 'Default', firstMsg: 'First message (optional)', newAgentHint: 'Runs the claude program here, on your own Claude Code login — no VS Code needed. Approvals and questions come to this page.', startAgent: 'Start', startFailed: 'Could not start — check the folder.', stopAgent: 'Stop', endAgent: 'End agent', endConfirm: 'End this agent? Its conversation stays in the transcript.', monTag: 'MONITOR', msgAgent: 'Goes straight to the agent.', barStopped: 'Stopped — send a message to continue', turnDone: 'turn done · {t}s', newBelow: 'New below ↓', attach: 'Attach', remove: 'Remove', tooMany: 'Up to 5 files per message', tooBig: '{x} is over 20 MB', uploadFailed: 'Could not upload {x}', stillUploading: 'Still uploading — wait a moment', sec: '{n}s', barThink: 'Thinking… {t}', barTool: '{x} — running for {t}', barAsk: 'Waiting for your answer below', barVs: 'Waiting for an answer in VS Code', barWaiting: 'Done — waiting for input', barResting: 'Resting', barGone: 'This session has ended', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send · drop or paste files)', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -448,7 +467,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', newBelow: '새 내용 ↓', attach: '파일 첨부', remove: '빼기', tooMany: '한 번에 5개까지 첨부할 수 있습니다', tooBig: '{x} 파일이 20MB를 넘습니다', uploadFailed: '{x} 파일을 올리지 못했습니다', stillUploading: '아직 올리는 중입니다 — 잠시만요', sec: '{n}초', barThink: '생각 중… {t}', barTool: '{x} — {t}째 실행 중', barAsk: '아래에서 답을 기다리는 중', barVs: 'VS Code에서 답을 기다리는 중', barWaiting: '끝남 — 입력을 기다리는 중', barResting: '쉬는 중', barGone: '이 세션은 종료됐습니다', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기 · 파일은 끌어다 놓거나 붙여넣기)', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', newAgent: '새 에이전트', folder: '폴더', modelLabel: '모델', modelDefault: '기본', firstMsg: '첫 메시지 (선택)', newAgentHint: '이 폴더에서 claude 프로그램을 직접 실행합니다 — 지금 로그인된 Claude Code 그대로, VS Code 없이. 승인과 질문은 이 페이지로 옵니다.', startAgent: '시작', startFailed: '시작하지 못했습니다 — 폴더를 확인해 주세요.', stopAgent: '중단', endAgent: '에이전트 종료', endConfirm: '이 에이전트를 종료할까요? 대화 기록은 남습니다.', monTag: '모니터', msgAgent: '에이전트에게 바로 전달됩니다.', barStopped: '멈춤 — 메시지를 보내면 이어서 합니다', turnDone: '턴 완료 · {t}초', newBelow: '새 내용 ↓', attach: '파일 첨부', remove: '빼기', tooMany: '한 번에 5개까지 첨부할 수 있습니다', tooBig: '{x} 파일이 20MB를 넘습니다', uploadFailed: '{x} 파일을 올리지 못했습니다', stillUploading: '아직 올리는 중입니다 — 잠시만요', sec: '{n}초', barThink: '생각 중… {t}', barTool: '{x} — {t}째 실행 중', barAsk: '아래에서 답을 기다리는 중', barVs: 'VS Code에서 답을 기다리는 중', barWaiting: '끝남 — 입력을 기다리는 중', barResting: '쉬는 중', barGone: '이 세션은 종료됐습니다', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기 · 파일은 끌어다 놓거나 붙여넣기)', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -593,7 +612,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     wrap.append(state, pane, jump);
     const add = (node) => pane.insertBefore(node, tail);
     const open = new Map();   // tool calls still waiting for their result: id → entry
-    let lastAt = 0;
+    let lastAt = 0, agentState = s.managed ? 'idle' : '', thinking = false;
     const secs = (ms) => { const n = Math.max(0, Math.round((Date.now() - ms) / 1000)); return n < 60 ? t('sec', { n }) : dur(ms); };
     liveCtl = {
       name: str(s.name),
@@ -608,15 +627,17 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
         const vs = (data?.inEditor || []).find((w) => w.session === s.name);
         bar.replaceChildren();
         let cls = 'lbar';
-        if (!cur) { bar.textContent = t('barGone'); }
+        const st = s.managed ? (agentState === 'working' ? 'working' : agentState === 'stopped' ? 'stopped' : 'waiting') : cur?.state;
+        if (!cur && !s.managed) { bar.textContent = t('barGone'); }
         else if (asking) { bar.append(el('span', 'k', '✋'), document.createTextNode(t('barAsk'))); cls += ' ask'; }
         else if (vs) { bar.append(el('span', 'k', '🖥'), document.createTextNode(t('barVs'))); cls += ' ask'; }
-        else if (cur.state === 'working') {
+        else if (st === 'working') {
           const tool = [...open.values()].pop();
           if (tool) bar.append(el('span', 'k', ACT_ICON[tool.action?.kind] || '•'), document.createTextNode(t('barTool', { x: actText(tool.action) || str(tool.name), t: secs(tool.at || Date.now()) })));
-          else bar.append(el('span', 'dots', ''), document.createTextNode(t('barThink', { t: secs(lastAt || cur.statusSince || Date.now()) })));
+          else bar.append(el('span', 'dots', ''), document.createTextNode(t('barThink', { t: secs(lastAt || cur?.statusSince || Date.now()) })));
           cls += ' busy';
-        } else if (cur.state === 'waiting') bar.textContent = t('barWaiting');
+        } else if (st === 'waiting') bar.textContent = t('barWaiting');
+        else if (st === 'stopped') bar.textContent = t('barStopped');
         else bar.textContent = t('barResting');
         const stick = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
         bar.className = cls;
@@ -662,6 +683,53 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       // reading further up: say that something new came in below, instead of jumping there
       else if (pane.children.length !== before) jump.hidden = false;
     };
+    // a monitor agent: its own stream — text grows in place as it is written, like the VS Code panel
+    const blocks = new Map();   // message id + block index → its text element
+    const putAgent = (ev) => {
+      if (ev.kind === 'state') { agentState = ev.state; if (ev.state !== 'working') thinking = false; if (liveCtl) liveCtl.update(last); if (onAgentState) onAgentState(ev.state); return; }
+      if (ev.kind === 'user') return put([{ role: 'user', text: ev.text, files: ev.files, at: ev.at }]);
+      if (ev.kind === 'tool') return put([{ role: 'tool', id: ev.id, name: ev.name, action: ev.action, input: ev.input, at: ev.at }]);
+      if (ev.kind === 'result') return put([{ role: 'result', id: ev.id, error: ev.error, text: ev.text, at: ev.at }]);
+      if (ev.kind === 'note') return put([{ role: 'note', text: ev.text, at: ev.at }]);
+      if (ev.kind === 'turn') return put([{ role: 'note', text: (ev.ok ? '✓ ' : '⚠ ') + t('turnDone', { t: (ev.ms / 1000).toFixed(1) }) + (ev.text ? ' — ' + str(ev.text) : ''), at: ev.at }]);
+      if (ev.kind === 'block' && ev.type === 'thinking') { thinking = !ev.done; return; }
+      if (ev.kind === 'block' && ev.type === 'text') {
+        const key = ev.msg + ':' + ev.index;
+        let m = blocks.get(key);
+        const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
+        if (!m) {
+          if (!ev.text) return;
+          open.clear();
+          m = el('div', 'm assistant');
+          m.append(el('div', 'mt', ''), el('div', 'ts', time(ev.at)));
+          blocks.set(key, m);
+          add(m);
+        }
+        m.firstChild.textContent = str(ev.text);
+        if (!ev.done) m.classList.add('streaming'); else m.classList.remove('streaming');
+        lastAt = ev.at;
+        if (atBottom) pane.scrollTop = pane.scrollHeight;
+        else jump.hidden = false;
+      }
+    };
+    let onAgentState = null;
+    wrap.onAgentState = (fn) => { onAgentState = fn; };
+    if (s.managed) {
+      try {
+        liveES = new EventSource('/api/agent-stream?id=' + encodeURIComponent(str(s.agentId)) + '&token=' + encodeURIComponent(token));
+        liveES.addEventListener('init', (ev) => {
+          const d = JSON.parse(ev.data);
+          pane.replaceChildren(tail); tools.clear(); open.clear(); blocks.clear();
+          for (const e of d.events) putAgent(e);
+          agentState = d.state; if (onAgentState) onAgentState(d.state);
+          state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight;
+          if (liveCtl) liveCtl.update(last);
+        });
+        liveES.addEventListener('e', (ev) => putAgent(JSON.parse(ev.data)));
+        liveES.onerror = () => { state.textContent = t('liveOff'); state.className = 'lstate'; };
+      } catch (e) { state.textContent = t('liveOff'); }
+      return wrap;
+    }
     try {
       liveES = new EventSource('/api/live?session=' + encodeURIComponent(str(s.name)) + '&token=' + encodeURIComponent(token));
       liveES.addEventListener('init', (ev) => { pane.replaceChildren(tail); tools.clear(); open.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
@@ -671,7 +739,87 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     return wrap;
   }
 
-  function showDetail(s, focusMessage) {
+  async function agentCall(pathname, body) {
+    const go = () => fetch(pathname, { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify(body) });
+    try { let r = await go(); if (r.status === 403) { await refreshToken(); r = await go(); } return r.ok ? await r.json() : null; } catch (e) { return null; }
+  }
+  const MODE_KEYS = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions'];
+  const MODELS = [['', 'modelDefault'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];
+  function modeSelect(value) {
+    const sel = document.createElement('select');
+    for (const k of MODE_KEYS) sel.append(new Option((I18N[lang].modes || I18N.en.modes)[k] || k, k));
+    sel.value = value || 'default';
+    return sel;
+  }
+  function modelSelect(value) {
+    const sel = document.createElement('select');
+    for (const [k, label] of MODELS) sel.append(new Option(label === 'modelDefault' ? t('modelDefault') : label, k));
+    sel.value = MODELS.some(([k]) => k === value) ? value : '';
+    return sel;
+  }
+  // stop, permission mode, model, close — above a monitor agent's conversation
+  function agentControls(s, lp) {
+    const bar = el('div', 'actl');
+    const stop = el('button', 'stop', '■ ' + t('stopAgent'));
+    stop.type = 'button';
+    stop.addEventListener('click', () => agentCall('/api/agents/stop', { id: s.agentId }));
+    const mode = modeSelect(s.mode);
+    const model = modelSelect(s.model);
+    const apply = () => agentCall('/api/agents/settings', { id: s.agentId, mode: mode.value, model: model.value });
+    mode.addEventListener('change', apply);
+    model.addEventListener('change', apply);
+    const close = el('button', 'end', t('endAgent'));
+    close.type = 'button';
+    close.addEventListener('click', async () => { if (!confirm(t('endConfirm'))) return; await agentCall('/api/agents/close', { id: s.agentId }); $('detail').close(); });
+    const lab = (text, node) => { const l = el('label'); l.append(document.createTextNode(text + ' '), node); return l; };
+    bar.append(stop, lab(t('dMode'), mode), lab(t('modelLabel'), model), close);
+    stop.disabled = true;
+    lp.onAgentState((st) => { stop.disabled = st !== 'working'; });
+    return bar;
+  }
+
+  // a new agent the monitor runs: folder, permission mode, model and the first message
+  function showNewAgent(p) {
+    stopLive();   // a conversation that was open in the dialog is closed first
+    const d = $('detail');
+    const head = el('div', 'dh');
+    const who = el('div', 'who');
+    who.append(el('b', null, t('newAgent')));
+    const close = el('button', 'close', t('close'));
+    close.type = 'button';
+    close.addEventListener('click', () => d.close());
+    head.append(who, close);
+    const form = el('form', 'newagent');
+    const folder = document.createElement('input');
+    folder.value = p ? str(p.root) : '';
+    folder.placeholder = 'C:/dev/my-project';
+    const mode = modeSelect('default');
+    const model = modelSelect('');
+    const ta = document.createElement('textarea');
+    ta.rows = 4;
+    ta.placeholder = t('firstMsg');
+    const status = el('div', 'status');
+    const go = el('button', 'send', t('startAgent'));
+    go.type = 'submit';
+    const row = (label, node) => { const l = el('label', 'row'); l.append(el('span', null, label), node); return l; };
+    form.append(row(t('folder'), folder), row(t('dMode'), mode), row(t('modelLabel'), model), ta, el('div', 'hint', t('newAgentHint')), status, go);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      go.disabled = true;
+      const r = await agentCall('/api/agents/start', { cwd: folder.value.trim(), mode: mode.value, model: model.value, text: ta.value.trim() });
+      go.disabled = false;
+      if (!r || !r.id) { status.textContent = t('startFailed'); status.className = 'status bad'; return; }
+      // open its conversation right away; the card appears with the next poll
+      showDetail({ name: r.name, short: r.name, managed: true, agentId: r.id, mode: mode.value, model: model.value, state: 'working', startedAt: Date.now() }, false, 'conv');
+      clearTimeout(timer); tick();
+    });
+    d.replaceChildren(head, form);
+    if (!d.open) d.showModal();
+    if (approvalsBox.parentNode !== d) d.append(approvalsBox);
+    (folder.value ? ta : folder).focus();
+  }
+
+  function showDetail(s, focusMessage, tab) {
     const d = $('detail');
     const st = STATE[s.state] ? s.state : 'resting';
     const project = (last?.projects || []).find((p) => p.sessions.some((x) => x.name === s.name));
@@ -701,7 +849,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     ta.rows = 3;
     ta.placeholder = t('msgPh', { x: nickFor(s) || str(s.name) });
     ta.setAttribute('aria-label', ta.placeholder);
-    const hint = el('div', 'hint', s.listening ? t('msgNow') : st === 'working' ? t('msgAfterTurn') : t('msgNotListening'));
+    const hint = el('div', 'hint', s.managed ? t('msgAgent') : s.listening ? t('msgNow') : st === 'working' ? t('msgAfterTurn') : t('msgNotListening'));
     const status = el('div', 'status');
     const send = el('button', 'send', t('send'));
     send.type = 'submit';
@@ -751,7 +899,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       if (files.some((x) => !x.path)) { status.textContent = t('stillUploading'); status.className = 'status bad'; return; }
       if (!text && !files.length) return;
       send.disabled = true;
-      const post = () => fetch('/api/message', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ session: s.name, text, files: files.map((x) => x.path) }) });
+      const post = () => s.managed
+        ? fetch('/api/agents/send', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ id: s.agentId, text, files: files.map((x) => x.path) }) })
+        : fetch('/api/message', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ session: s.name, text, files: files.map((x) => x.path) }) });
       let r;
       try { r = await post(); if (r.status === 403) { await refreshToken(); r = await post(); } } catch (e2) { r = null; }
       send.disabled = false;
@@ -762,9 +912,12 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     const tabs = el('div', 'dtabs');
     tabs.setAttribute('role', 'tablist');
     const info = el('div', 'dpanel'); info.append(dl);
-    const conv = el('div', 'dpanel'); conv.append(livePane(s));
+    const conv = el('div', 'dpanel');
+    const lp = livePane(s);
+    if (s.managed) conv.append(agentControls(s, lp));
+    conv.append(lp);
     const panels = { info, conv };
-    let pick = (() => { try { return localStorage.getItem('am.dtab') === 'conv' ? 'conv' : 'info'; } catch (e2) { return 'info'; } })();
+    let pick = tab || (() => { try { return localStorage.getItem('am.dtab') === 'conv' ? 'conv' : 'info'; } catch (e2) { return 'info'; } })();
     const buttons = {};
     const show = (k) => {
       pick = k;
@@ -809,6 +962,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     if (s.nick) nm.append(el('span', 'nick', nickFor(s)));
     else nm.append(el('span', 'short', str(s.short) || str(s.name)));
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
+    if (s.managed) nm.append(el('span', 'mon-tag', t('monTag')));
     if (asked) nm.append(el('span', 'ask-tag', t('asking')));
     else if (inVs) nm.append(el('span', 'ask-tag', t('vsTag')));
     else if (stalled) nm.append(el('span', 'stall-tag', t('stallTag', { t: dur(Date.now() - s.stalledFor) })));
@@ -998,6 +1152,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     sec.setAttribute('role', 'tabpanel');
     const head = el('div', 'phead');
     head.append(el('span', 'folder all', t('allTab')));
+    const nb = newAgentButton(null);
     const all = data.projects.flatMap((p) => p.sessions);
     const n = (st) => all.filter((x) => x.state === st).length;
     const counts = el('span', 'counts');
@@ -1024,8 +1179,15 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       g.append(h, grid);
       body.append(g);
     }
+    head.append(nb);
     sec.append(head, body);
     return sec;
+  }
+  function newAgentButton(p) {
+    const b = el('button', 'newagent-btn', '+ ' + t('newAgent'));
+    b.type = 'button';
+    b.addEventListener('click', () => showNewAgent(p));
+    return b;
   }
 
   function projectNode(p) {
@@ -1038,7 +1200,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
     if (p.counts.working) counts.append(el('span', 'cnt run', '▶ ' + t('working') + ' ' + p.counts.working));
     if (p.counts.waiting) counts.append(el('span', 'cnt wait', '○ ' + t('waiting') + ' ' + p.counts.waiting));
     if (p.counts.resting) counts.append(el('span', 'cnt rest', '– ' + t('resting') + ' ' + p.counts.resting));
-    head.append(counts);
+    head.append(counts, newAgentButton(p));
     sec.append(head);
 
     const body = el('div', 'pbody');
@@ -1094,7 +1256,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
       } else {
         who.append(el('b', null, t('unknownAgent')));
       }
-      who.append(el('span', 'proj', str(a.tool)), el('span', 'left', t('left', { n: secsLeft(a) })));
+      who.append(el('span', 'proj', str(a.tool)), ...(a.managed ? [] : [el('span', 'left', t('left', { n: secsLeft(a) }))]));
       main.append(who);
       if (a.about) main.append(el('div', 'about', str(a.about)));
       if (a.what) main.append(el('div', 'what', str(a.what)));
@@ -1171,9 +1333,11 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
         return b;
       };
       if (kind === 'question') {
-        acts.append(btn('allow', t('sendAnswers'), 'answers', undefined, collect), btn('', t('inEditor'), 'editor'));
+        acts.append(btn('allow', t('sendAnswers'), 'answers', undefined, collect));
+        if (!a.managed) acts.append(btn('', t('inEditor'), 'editor'));
       } else if (kind === 'plan') {
-        acts.append(btn('allow', t('approvePlan'), 'allow'), btn('deny', t('keepPlanning'), 'deny'), btn('', t('inEditor'), 'editor'));
+        acts.append(btn('allow', t('approvePlan'), 'allow'), btn('deny', t('keepPlanning'), 'deny'));
+        if (!a.managed) acts.append(btn('', t('inEditor'), 'editor'));
       } else acts.append(btn('allow', t('allow'), 'allow'));
       // the same "yes, and don't ask again for …" choices VS Code would offer
       (kind === 'tool' && Array.isArray(a.options) ? a.options : []).forEach((label, i) => {
@@ -1181,7 +1345,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
         b.title = str(label);
         acts.append(b);
       });
-      if (kind === 'tool') acts.append(btn('deny', t('deny'), 'deny'), btn('deny', t('stop'), 'stop'), btn('', t('inEditor'), 'editor'));
+      if (kind === 'tool') { acts.append(btn('deny', t('deny'), 'deny'), btn('deny', t('stop'), 'stop')); if (!a.managed) acts.append(btn('', t('inEditor'), 'editor')); }
       card.append(main, acts);
       box.append(card);
     }

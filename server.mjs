@@ -16,6 +16,7 @@ import path from 'node:path'
 import os from 'node:os'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { createAgents } from './agents.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const CLAUDE = process.env.CLAUDE_HOME || path.join(os.homedir(), '.claude')
@@ -236,6 +237,7 @@ async function buildState() {
   const bySession = new Map()
 
   for (const s of reg) {
+    if (agents?.byAgentSession(s.sessionId)) continue
     const root = projectRoot(s.cwd)
     const key = projectKey(root)
     if (!projects.has(key)) projects.set(key, { key, root, sessions: [], messages: [] })
@@ -265,6 +267,23 @@ async function buildState() {
     }
   }
 
+  // agents the monitor runs itself
+  for (const m of agents ? agents.sessions(now) : []) {
+    if (!projects.has(m.key)) projects.set(m.key, { key: m.key, root: m.root, sessions: [], messages: [] })
+    if (!boards.has(m.key)) boards.set(m.key, await readBoard(m.key))
+    const info = await transcriptInfo(m.sessionId).catch(() => null)
+    const sess = {
+      id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', state: m.state,
+      statusSince: m.statusSince, startedAt: m.startedAt, kind: 'monitor', managed: true, agentId: m.agentId, running: m.running,
+      role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
+      lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model,
+      listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
+      lastSignAt: m.lastEventAt || 0, stalledFor: 0,
+    }
+    projects.get(m.key).sessions.push(sess)
+    bySession.set(m.sessionId, { sess, project: m.key })
+  }
+
   const allSessions = [...projects.values()].flatMap((p) => p.sessions.map((s) => ({ s, names: config.projects?.[p.key]?.names || {} })))
   const pinned = new Map(allSessions.map(({ s, names }) => [s, names[s.name] || names[s.short] || '']))
   assignNicks(allSessions.map((x) => x.s), (s) => pinned.get(s))
@@ -290,7 +309,7 @@ async function buildState() {
     p.sessions.sort((a, b) => (b.isLeader - a.isLeader) || a.name.localeCompare(b.name))
     p.messages.sort((a, b) => b.at - a.at)
     out.push({
-      key: p.key, label: cfg.label || '', leader,
+      key: p.key, root: p.root, label: cfg.label || '', leader,
       sessions: p.sessions, messages: p.messages.slice(0, MESSAGE_FEED),
       board: boards.get(p.key) || null,
       counts: {
@@ -312,7 +331,7 @@ async function buildState() {
     return {
       id: q.id, project: hit?.project || '', session: hit?.sess.name || '', short: hit?.sess.short || '',
       nick: hit?.sess.nick || '', nickKo: hit?.sess.nickKo || '', isLeader: !!hit?.sess.isLeader, about: hit ? (hit.sess.role || hit.sess.title) : '',
-      tool: q.tool, what: q.what, code: q.code, options: q.options, questions: q.questions || null, plan: q.plan || '', at: q.at, expiresAt: q.expiresAt,
+      managed: !!q.managed, tool: q.tool, what: q.what, code: q.code, options: q.options, questions: q.questions || null, plan: q.plan || '', at: q.at, expiresAt: q.expiresAt,
     }
   })
   // the token rides along so an open page keeps working across server restarts; like the inline copy,
@@ -386,7 +405,7 @@ function recordOutcome(p, how) {
   outcomes.length = Math.min(outcomes.length, 20)
 }
 
-function hookEvent(input, res) {
+function hookEvent(input, res, opts = {}) {
   const sessionId = String(input.session_id || '')
   const event = String(input.hook_event_name || 'unknown')
   hookStats.events[event] = (hookStats.events[event] || 0) + 1
@@ -405,7 +424,8 @@ function hookEvent(input, res) {
   if (sessionId && waiting.delete(sessionId)) notifyPages()
   if (event !== 'PermissionRequest') return Promise.resolve({})
   // nobody is watching the page — hand the request straight back to the normal prompt
-  if (!pageOpen()) { hookStats.permission.skippedNoViewer++; handBack(sessionId); return Promise.resolve({}) }
+  if (!opts.managed && agents?.byAgentSession(sessionId)) return Promise.resolve({})
+  if (!opts.managed && !pageOpen()) { hookStats.permission.skippedNoViewer++; handBack(sessionId); return Promise.resolve({}) }
   hookStats.permission.shown++
   const toolName = String(input.tool_name || '')
   hookStats.permission.tools[toolName] = (hookStats.permission.tools[toolName] || 0) + 1
@@ -416,7 +436,9 @@ function hookEvent(input, res) {
       if (!p) return
       clearTimeout(timer); pending.delete(id); recordOutcome(p, how); notifyPages(); resolve(decision)
     }
-    const timer = setTimeout(() => { handBack(sessionId); done({}, 'timeout') }, APPROVAL_WAIT_MS)
+    // an agent the monitor runs has no VS Code to fall back to: it waits for the page (up to a day)
+    const wait = opts.managed ? 24 * 60 * 60 * 1000 : APPROVAL_WAIT_MS
+    const timer = setTimeout(() => { handBack(sessionId); done({}, 'timeout') }, wait)
     // Claude Code dropped the hook (the request was settled some other way): drop the card too
     res?.on('close', () => { if (!res.writableEnded) done({}, 'dropped by Claude Code') })
     // "Yes, and don't ask again for …" — kept exactly as Claude Code sent them, and handed back unchanged when picked
@@ -424,7 +446,7 @@ function hookEvent(input, res) {
     pending.set(id, {
       id, sessionId, tool: String(input.tool_name || ''), ...approvalDetail(input.tool_name, input.tool_input),
       input: input.tool_name === 'AskUserQuestion' ? input.tool_input : null,
-      suggestions, options: suggestions.map(suggestionLabel), at: Date.now(), expiresAt: Date.now() + APPROVAL_WAIT_MS, done,
+      suggestions, options: suggestions.map(suggestionLabel), at: Date.now(), expiresAt: Date.now() + wait, managed: !!opts.managed, done,
     })
     notifyPages()
   })
@@ -637,7 +659,7 @@ function cleanUploads(all) {
 const safeName = (n) => String(n || 'file').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').replace(/^\.+/, '').slice(-120) || 'file'
 async function saveUpload(req, url) {
   const name = String(url.searchParams.get('session') || '')
-  const target = (await readRegistry()).find((x) => x.name === name)
+  const target = (await readRegistry()).find((x) => x.name === name) || agents?.sessions().find((x) => x.name === name)
   if (!target) return [404, {}]
   const chunks = []
   let size = 0
@@ -723,6 +745,12 @@ async function editBoard(body) {
   return 200
 }
 
+const agents = createAgents({
+  root: ROOT, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, attachedPaths,
+  askPage: (input, opts) => hookEvent(input, null, opts),
+  configPath: loadConfig().claudePath || '',
+})
+
 /* ── HTTP ─────────────────────────────────────── */
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
@@ -744,6 +772,8 @@ const server = http.createServer(async (req, res) => {
       if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
       if (url.pathname === '/api/upload') { const [code, o] = await saveUpload(req, url); json(code, o); return }
       const body = await readBody(req)
+      if (url.pathname === '/hook/prompt') { json(200, await agents.prompt(body)); return }
+      if (url.pathname.startsWith('/api/agents/')) { const [code, o] = await agents.handle(url, body); json(code, o); return }
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
       if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
@@ -752,6 +782,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404).end(); return
     }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }
+    if (url.pathname === '/api/agent-stream') {
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      agents.stream(req, res, url.searchParams.get('id') || '')
+      return
+    }
     if (url.pathname === '/api/live') {
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       await streamSession(req, res, url.searchParams.get('session') || '')
@@ -786,4 +821,4 @@ const server = http.createServer(async (req, res) => {
 cleanUploads(true)
 setInterval(() => cleanUploads(false), 60 * 60 * 1000).unref()
 server.listen(PORT, HOST, () => { writeRuntime(); console.log(`claude-agent-monitor → http://${HOST}:${PORT}`) })
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { removeRuntime(); process.exit(0) })
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { agents.shutdown(); removeRuntime(); process.exit(0) })

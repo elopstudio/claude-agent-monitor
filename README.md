@@ -89,6 +89,23 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 - Pending requests live in memory only. The command or file path is shown on the page so you can judge it,
   and is never written to disk or logged.
 
+## Agents the monitor runs itself
+
+**+ New agent** (in a project's header, or on the all-agents tab) starts an agent without VS Code, the way the
+VS Code extension does it: the monitor runs the installed `claude` program in headless mode
+(`claude -p --input-format stream-json --output-format stream-json --include-partial-messages`) in the folder you pick,
+on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conversation tab is the full chat:
+
+- replies stream in as they are written; tool calls open to show input and result;
+- permission prompts and questions arrive in the conversation through `hooks/permission-mcp.mjs`
+  (`--permission-prompt-tool`) and wait for your answer — there is no VS Code to fall back to;
+- **Stop** ends the current turn (the process is ended; the next message resumes the same session with `--resume`);
+  permission mode and model changes apply from the next message the same way;
+- attached images go into the message as images; other files by path;
+- **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
+
+The first reply takes a little longer while `claude` starts. Set `"claudePath"` in `config.json` if the program is not found.
+
 ## Board format
 
 See `boards/example.json`.
