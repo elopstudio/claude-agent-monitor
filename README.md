@@ -122,6 +122,17 @@ See `boards/example.json`.
 - `session` and the keys of `roles` may be a short name (`-0f`), a full session name or a nickname (`Tom`, `민준`).
 - `boards/*.json` and `config.json` are local state and are not committed.
 
+## Made by ELOP Studio
+
+<a href="https://elopstudio.com">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/elop-logo-white.png">
+    <img src="docs/elop-logo-black.png" alt="ELOP Studio" height="48">
+  </picture>
+</a>
+
+Built and maintained by [ELOP Studio](https://elopstudio.com) (이롭스튜디오).
+
 ## License
 
 [MIT](LICENSE)
