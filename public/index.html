@@ -116,6 +116,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .info .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .info .nm{display:flex;align-items:baseline;gap:6px;min-width:0}
 .info .short{font-family:var(--mono);font-weight:700;font-size:15px}
+.info .nick{font-weight:900;font-size:15px;white-space:nowrap}
 .info .full{font-family:var(--mono);font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .info .title{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .bubble{position:relative;background:var(--bubble);border:1px solid var(--line-strong);border-radius:10px;padding:7px 10px;font-size:13px;overflow-wrap:anywhere;margin-left:4px;display:flex;gap:7px;align-items:flex-start}
@@ -327,6 +328,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   const $ = (id) => document.getElementById(id);
   function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
+  const nickFor = (s) => str(lang === 'ko' && s.nickKo || s.nick);
   function dur(ms) {
     if (!ms) return '';
     const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
@@ -368,13 +370,14 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     const card = el('div', 'bot-card st-' + st + (s.isLeader ? ' leader' : ''));
     const stage = el('div', 'stage');
     stage.setAttribute('role', 'img');
-    stage.setAttribute('aria-label', str(s.name) + ' ' + t(st));
+    stage.setAttribute('aria-label', (nickFor(s) || str(s.name)) + ' ' + t(st));
     stage.append(el('span', 'shadow'), robotNode(str(s.name), st, s.isLeader, false));
     const info = el('div', 'info');
     const row = el('div', 'row');
     const nm = el('div', 'nm');
     nm.title = str(s.name);
-    nm.append(el('span', 'short', str(s.short) || str(s.name)));
+    if (s.nick) nm.append(el('span', 'nick', nickFor(s)), el('span', 'full', str(s.short) || str(s.name)));
+    else nm.append(el('span', 'short', str(s.short) || str(s.name)));
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
     row.append(nm, badge(st));
     info.append(row);
@@ -409,7 +412,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     for (const m of p.messages) {
       const li = el('li');
       const who = el('span', 'who');
-      who.append(robotNode(str(m.from), 'working', m.from === p.leader, true), document.createTextNode(shortOf(m.from)), el('span', 'arrow', '→'), document.createTextNode(shortOf(m.to)));
+      who.append(robotNode(str(m.from), 'working', m.from === p.leader, true), document.createTextNode(str(lang === 'ko' && m.fromNickKo || m.fromNick) || shortOf(m.from)), el('span', 'arrow', '→'), document.createTextNode(str(lang === 'ko' && m.toNickKo || m.toNick) || shortOf(m.to)));
       const body = el('div');
       body.append(el('div', 's', str(m.summary) || t('noSummary')), el('div', 't', ago(m.at)));
       li.append(who, body);
@@ -426,6 +429,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     if (b.updatedAt) h.append(el('span', 'n', t('boardUpdated', { t: dur(Date.parse(b.updatedAt)) })));
     panel.append(h);
     const tasks = Array.isArray(b.tasks) ? b.tasks : [];
+    // the leader writes "-0f" or a full session name — show the nickname when there is one
+    const nickOf = (v) => { const s = p.sessions.find((x) => x.short === v || x.name === v || x.nick === v || x.nickKo === v); return s ? nickFor(s) : v; };
     const box = el('div', 'bcols');
     const group = (title, items, withPos, limit) => {
       const g = el('div', 'bgroup');
@@ -437,7 +442,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
         const row = el('div', 'task' + (st === 'blocked' ? ' blocked' : '') + (st === 'done' ? ' done' : ''));
         if (withPos && st === 'queued') row.append(el('span', 'pos', String(++q)));
         row.append(el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title)));
-        if (it.session) row.append(el('span', 'ss', str(it.session)));
+        if (it.session) row.append(el('span', 'ss', nickOf(str(it.session))));
         g.append(row);
       }
       if (items.length > limit) g.append(el('div', 'more', t('more', { n: items.length - limit })));

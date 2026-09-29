@@ -16,6 +16,9 @@ The page is in English by default. Switch to Korean with the **EN / 한국어** 
   The selected tab is kept in the URL (`#project-name`) and in the browser.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
+- **Names.** Every agent also gets a person's name — Tom, Mark, … in English, 민준, 서연, … in Korean — so
+  `-7f` and `-74` are easy to tell apart. The name is derived from the session id, so it is the same in every
+  browser and on every poll, and no two agents in one project share one. Pin a name with `names` in `config.json`.
 - **Board** (optional). The project's tasks in progress, queued (numbered), done, and decisions waiting on a human.
 - **Team chat.** Who messaged whom, as one-line summaries.
 
@@ -58,4 +61,5 @@ See `boards/example.json`.
 
 - `status` is one of `running | queued | blocked | done`; `order` sets the queue position.
 - `roles` maps a session to a short role, e.g. `{ "-0f": "auth · simulation" }`.
+- `session` and the keys of `roles` may be a short name (`-0f`), a full session name or a nickname (`Tom`, `민준`).
 - `boards/*.json` and `config.json` are local state and are not committed.

@@ -163,6 +163,41 @@ async function transcriptInfo(sessionId) {
   return info
 }
 
+/* ── Nicknames ────────────────────────────────── */
+
+// "-7f" is hard to tell apart from "-74", so every session also gets a person's name.
+// The name comes from the session id, so it is the same on every page and every poll.
+// Names are unique within a project: the oldest session keeps its pick, a later one that
+// collides takes the next free name. config.json "names" overrides any of them.
+// Each slot is an English and a Korean name; the page shows the one for its language.
+const NAMES = [
+  ['Tom', '민준'], ['Mark', '서연'], ['Anna', '지호'], ['Leo', '하은'], ['Mia', '도윤'], ['Sam', '수아'],
+  ['Nora', '예준'], ['Jack', '지우'], ['Ella', '시우'], ['Max', '하린'], ['Ruby', '주원'], ['Owen', '서윤'],
+  ['Lily', '건우'], ['Finn', '지안'], ['Zoe', '우진'], ['Hugo', '채원'], ['Ivy', '현우'], ['Noah', '다은'],
+  ['Emma', '선우'], ['Theo', '유나'], ['Luna', '은호'], ['Ben', '소율'], ['Iris', '태오'], ['Kai', '나은'],
+  ['Rose', '준서'], ['Dan', '하윤'], ['Maya', '연우'], ['Eli', '예린'], ['June', '승민'], ['Axel', '수빈'],
+  ['Cleo', '민재'], ['Gus', '가은'], ['Hana', '도현'], ['Otto', '서아'], ['Vera', '재윤'], ['Rex', '아린'],
+  ['Lucy', '윤호'], ['Ray', '지원'], ['Nina', '시현'], ['Paul', '은서'], ['Sara', '태민'], ['Ted', '하영'],
+  ['Alma', '준호'], ['Joel', '미나'], ['Kate', '성민'], ['Milo', '보라'], ['Tara', '정우'], ['Ian', '혜진'],
+]
+function nameHash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h }
+function assignNicks(sessions, overrides = {}) {
+  const taken = new Set(Object.values(overrides).map((n) => String(n).toLowerCase()))
+  const free = (pair) => !pair.some((n) => taken.has(n.toLowerCase()))
+  for (const s of [...sessions].sort((a, b) => a.startedAt - b.startedAt || a.fullId.localeCompare(b.fullId))) {
+    const fixed = overrides[s.name] || overrides[s.short]
+    if (fixed) { s.nick = s.nickKo = String(fixed); continue }   // a chosen name is used in both languages
+    const start = nameHash(s.fullId) % NAMES.length
+    let pick = null
+    for (let i = 0; i < NAMES.length && !pick; i++) {
+      const pair = NAMES[(start + i) % NAMES.length]
+      if (free(pair)) pick = pair
+    }
+    ;[s.nick, s.nickKo] = pick || [s.short, s.short]
+    taken.add(s.nick.toLowerCase()); taken.add(s.nickKo.toLowerCase())
+  }
+}
+
 /* ── State ────────────────────────────────────── */
 
 function displayState(s, now) {
@@ -190,11 +225,10 @@ async function buildState() {
     const info = await transcriptInfo(s.sessionId).catch(() => null)
     const short = s.name.toLowerCase().startsWith(key + '-') ? s.name.slice(key.length) : s.name
     if (!boards.has(key)) boards.set(key, await readBoard(key))
-    const roles = boards.get(key)?.roles || {}
     const sess = {
-      id: s.sessionId.slice(0, 8), name: s.name, short, state: displayState(s, now),
+      id: s.sessionId.slice(0, 8), fullId: s.sessionId, name: s.name, short, nick: '', nickKo: '', state: displayState(s, now),
       statusSince: s.statusUpdatedAt, startedAt: s.startedAt, kind: s.kind,
-      role: String(roles[short] || roles[s.name] || ''), title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
+      role: '', title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
     }
     const p = projects.get(key)
@@ -210,6 +244,15 @@ async function buildState() {
   const out = []
   for (const p of projects.values()) {
     const cfg = config.projects?.[p.key] || {}
+    assignNicks(p.sessions, cfg.names || {})
+    const roles = boards.get(p.key)?.roles || {}
+    const nickOf = new Map(p.sessions.map((s) => [s.name, s]))
+    for (const s of p.sessions) {
+      // a board may address a session by its short name, full name or nickname
+      s.role = String(roles[s.short] || roles[s.name] || roles[s.nick] || roles[s.nickKo] || '')
+      delete s.fullId   // used only to pick the nickname — the full id stays on the server
+    }
+    for (const m of p.messages) { const f = nickOf.get(m.from), t = nickOf.get(m.to); m.fromNick = f?.nick || ''; m.fromNickKo = f?.nickKo || ''; m.toNick = t?.nick || ''; m.toNickKo = t?.nickKo || '' }
     // leader: config first, otherwise the session that sent the most messages (at least 3)
     let leader = cfg.leader && p.sessions.find((s) => s.name === cfg.leader) ? cfg.leader : null
     if (!leader) {

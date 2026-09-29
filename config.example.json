@@ -6,7 +6,11 @@
   "projects": {
     "my-app": {
       "label": "Display name",
-      "leader": "my-app-1a"
+      "leader": "my-app-1a",
+      "names": {
+        "-0f": "Tom",
+        "my-app-74": "민준"
+      }
     }
   }
 }
