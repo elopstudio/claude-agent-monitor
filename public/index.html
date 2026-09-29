@@ -201,6 +201,29 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   .kcols{grid-template-columns:minmax(0,1fr)}
 }
 
+/* Approvals — requests waiting for a click, above everything else */
+.approvals{display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
+.approvals:empty{display:none}
+.approval{background:var(--surface);border:2px solid var(--wait);border-radius:12px;padding:12px 14px;box-shadow:0 4px 14px var(--shadow);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:center}
+.approval .who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.approval .who svg{width:24px;height:24px}
+.approval .who b{font-weight:900}
+.approval .who .proj{font-family:var(--mono);color:var(--muted);font-size:12px}
+.approval .ask{font-size:11px;font-weight:900;letter-spacing:.04em;color:var(--wait);background:var(--wait-soft);border-radius:4px;padding:1px 7px}
+.approval .left{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.approval .what{margin:6px 0 0;font-size:13px}
+.approval pre{margin:6px 0 0;font:12px/1.5 var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:7px 9px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto}
+.approval .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.approval button{appearance:none;font:700 13px var(--sans);border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--line-strong);background:var(--surface);color:var(--text)}
+.approval button.allow{background:var(--run);border-color:var(--run);color:var(--surface)}
+.approval button.deny{color:var(--block);border-color:var(--block)}
+.approval button:disabled{opacity:.5;cursor:default}
+@media (max-width:640px){ .approval{grid-template-columns:1fr} .approval .acts{justify-content:stretch} .approval button{flex:1} }
+.tab .tc .a{color:var(--surface);background:var(--wait)}
+.info .marks{display:flex;align-items:center;gap:5px;flex:none}
+.mode{font-size:10px;font-weight:900;letter-spacing:.05em;border-radius:4px;padding:1px 6px;border:1px solid var(--line-strong);color:var(--muted);white-space:nowrap}
+.mode.m-auto,.mode.m-bypassPermissions,.mode.m-dontAsk{color:var(--block);border-color:var(--block)}
+
 /* Language switch */
 .top .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .lang{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;background:var(--surface)}
@@ -227,13 +250,15 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     </div>
   </header>
   <div class="notice" id="notice" hidden></div>
+  <section class="approvals" id="approvals" aria-live="polite"></section>
   <nav class="tabs" id="tabs" role="tablist"></nav>
   <main id="projects"></main>
 </div>
 
 <script>
 (() => {
-  const POLL_MS = 3000;
+  const POLL_MS = 3000, FAST_MS = 1000;
+  const TOKEN = '__MONITOR_TOKEN__';   // filled in by the server; needed for every answer sent back
 
   /* ── Wording ── English is the default; Korean is an option. */
   const I18N = {
@@ -245,6 +270,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
       board: 'Board', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
+      askTitle: 'NEEDS APPROVAL', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
+      failed: 'Could not send the answer — it may have timed out.',
+      modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
       noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
@@ -262,6 +290,9 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
       board: '작업판', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
+      askTitle: '승인 필요', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
+      failed: '답을 보내지 못했습니다 — 시간이 지났을 수 있습니다.',
+      modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
       noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
@@ -363,6 +394,7 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     lang = next;
     try { localStorage.setItem('am.lang', next); } catch (e) {}
     applyStatic();
+    $('approvals').dataset.ids = '';
     if (last) render(last);
   }
   function applyStatic() {
@@ -389,7 +421,14 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     if (s.nick) nm.append(el('span', 'nick', nickFor(s)), el('span', 'full', str(s.short) || str(s.name)));
     else nm.append(el('span', 'short', str(s.short) || str(s.name)));
     if (s.isLeader) nm.append(el('span', 'role-tag', t('leader')));
-    row.append(nm, badge(st));
+    const right = el('span', 'marks');
+    if (s.mode) {
+      const m = el('span', 'mode m-' + str(s.mode), (I18N[lang].modes || I18N.en.modes)[s.mode] || str(s.mode));
+      m.title = str(s.mode);
+      right.append(m);
+    }
+    right.append(badge(st));
+    row.append(nm, right);
     info.append(row);
     // the leader's role for this session, or else the session's own title
     if (s.role || s.title) info.append(el('div', 'title', str(s.role || s.title)));
@@ -510,7 +549,53 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
     return sec;
   }
 
+  const secsLeft = (a) => Math.max(0, Math.round((a.expiresAt - Date.now()) / 1000));
+  function approvalsNode(data) {
+    const box = $('approvals');
+    const list = data.approvals || [];
+    // rebuild only when the set of requests changes, so a click in progress is not thrown away
+    const ids = list.map((a) => a.id).join(',');
+    if (box.dataset.ids === ids) {
+      for (const a of list) { const n = box.querySelector('[data-id="' + a.id + '"] .left'); if (n) n.textContent = t('left', { n: secsLeft(a) }); }
+      return;
+    }
+    box.dataset.ids = ids;
+    box.replaceChildren();
+    for (const a of list) {
+      const card = el('div', 'approval');
+      card.dataset.id = a.id;
+      const main = el('div');
+      const who = el('div', 'who');
+      const name = str(lang === 'ko' && a.nickKo || a.nick) || str(a.session) || '?';
+      who.append(el('span', 'ask', t('askTitle')), robotNode(str(a.session) || name, 'working', false, true), el('b', null, name));
+      if (a.project) who.append(el('span', 'proj', str(a.project)));
+      who.append(el('span', 'proj', str(a.tool)), el('span', 'left', t('left', { n: secsLeft(a) })));
+      main.append(who);
+      if (a.what) main.append(el('div', 'what', str(a.what)));
+      if (a.code) main.append(el('pre', null, str(a.code)));
+      const acts = el('div', 'acts');
+      const btn = (cls, label, answer) => {
+        const b = el('button', cls, label);
+        b.type = 'button';
+        b.addEventListener('click', async () => {
+          for (const x of acts.querySelectorAll('button')) x.disabled = true;
+          try {
+            const r = await fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': TOKEN }, body: JSON.stringify({ id: a.id, answer }) });
+            if (!r.ok) throw new Error(String(r.status));
+            card.remove();
+          } catch (e) { notice(t('failed')); for (const x of acts.querySelectorAll('button')) x.disabled = false; }
+          clearTimeout(timer); tick();
+        });
+        return b;
+      };
+      acts.append(btn('allow', t('allow'), 'allow'), btn('deny', t('deny'), 'deny'), btn('', t('inEditor'), 'editor'));
+      card.append(main, acts);
+      box.append(card);
+    }
+  }
+
   function render(data) {
+    approvalsNode(data);
     last = data;
     const all = data.projects.flatMap((p) => p.sessions);
     const n = (st) => all.filter((s) => s.state === st).length;
@@ -538,6 +623,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
       if (p.counts.working) tc.append(el('span', 'r', '▶ ' + p.counts.working));
       if (p.counts.waiting) tc.append(el('span', 'w', '○ ' + p.counts.waiting));
       if (!p.counts.working && !p.counts.waiting) tc.append(el('span', 'z', '– ' + p.counts.resting));
+      const asks = (data.approvals || []).filter((a) => a.project === p.key).length;
+      if (asks) tc.prepend(el('span', 'a', '! ' + asks));
       tab.append(tc);
       tab.addEventListener('click', () => select(p.key));
       tabs.append(tab);
@@ -578,14 +665,14 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
   let timer = null;
   async function tick() {
     try {
-      const r = await fetch('/api/state', { cache: 'no-store' });
+      const r = await fetch('/api/state?visible=' + (document.hidden ? 0 : 1), { cache: 'no-store' });
       if (!r.ok) throw new Error(String(r.status));
       render(await r.json());
       setLive(true); notice('');
     } catch (e) {
       setLive(false); notice(t('noServer'));
     }
-    timer = setTimeout(tick, document.hidden ? POLL_MS * 5 : POLL_MS);
+    timer = setTimeout(tick, document.hidden ? POLL_MS * 5 : (last?.approvals?.length ? FAST_MS : POLL_MS));
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(timer); tick(); } });
   tick();

@@ -3,3 +3,4 @@ logs/
 config.json
 boards/*.json
 !boards/example.json
+.runtime/

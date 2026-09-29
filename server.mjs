@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
+import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))
@@ -217,6 +218,7 @@ async function buildState() {
   const bySocket = new Map(reg.filter((s) => s.socket).map((s) => [s.socket, s.name]))
   const projects = new Map()
   const boards = new Map()
+  const bySession = new Map()
 
   for (const s of reg) {
     const root = projectRoot(s.cwd)
@@ -230,9 +232,11 @@ async function buildState() {
       statusSince: s.statusUpdatedAt, startedAt: s.startedAt, kind: s.kind,
       role: '', title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
+      mode: modes.get(s.sessionId)?.mode || '',
     }
     const p = projects.get(key)
     p.sessions.push(sess)
+    bySession.set(s.sessionId, { sess, project: key })
     for (const m of info?.sent || []) {
       // replies are addressed to a socket — map it back to a name, never expose the address itself
       const sock = m.to.replace(/^uds:/, '')
@@ -279,8 +283,90 @@ async function buildState() {
     if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
     return b.counts.working - a.counts.working || a.key.localeCompare(b.key)
   })
-  return { now, projects: out }
+  // requests waiting for a click — oldest first; the session is named, never its id
+  const approvals = [...pending.values()].sort((a, b) => a.at - b.at).map((q) => {
+    const hit = bySession.get(q.sessionId)
+    return {
+      id: q.id, project: hit?.project || '', session: hit?.sess.name || '', nick: hit?.sess.nick || '', nickKo: hit?.sess.nickKo || '',
+      tool: q.tool, what: q.what, code: q.code, at: q.at, expiresAt: q.expiresAt,
+    }
+  })
+  return { now, projects: out, approvals, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null } }
 }
+
+/* ── Hooks: approvals and permission mode ─────── */
+
+// Claude Code runs hooks/bridge.mjs on PermissionRequest (and a few tool events). The bridge posts the hook
+// input here with the token below; for a permission request the page can answer allow / deny.
+// Pending requests live in memory only — they are never written to disk or logged.
+const TOKEN = crypto.randomBytes(24).toString('hex')
+const RUNTIME = path.join(ROOT, '.runtime')
+const APPROVAL_WAIT_MS = 60 * 1000     // after this the request goes back to VS Code / the terminal
+const VIEWER_MS = 12 * 1000            // "someone is looking at the page" = a visible poll this recent
+let lastViewAt = 0
+const modes = new Map()                // sessionId → { mode, at }
+const pending = new Map()              // id → { id, sessionId, tool, what, code, at, expiresAt, done }
+
+function writeRuntime() {
+  fs.mkdirSync(RUNTIME, { recursive: true })
+  fs.writeFileSync(path.join(RUNTIME, 'bridge.json'), JSON.stringify({ port: PORT, token: TOKEN }), { mode: 0o600 })
+}
+function removeRuntime() { try { fs.unlinkSync(path.join(RUNTIME, 'bridge.json')) } catch {} }
+
+// What a human needs to judge the request, and nothing more.
+function approvalDetail(tool, input = {}) {
+  switch (tool) {
+    case 'Bash': case 'PowerShell': return { what: clip(input.description || '', 120), code: clip(input.command || '', 600) }
+    case 'Edit': case 'Write': case 'Read': case 'NotebookEdit': return { what: '', code: clip(input.file_path || input.notebook_path || '', 300) }
+    case 'WebFetch': return { what: '', code: clip(input.url || '', 300) }
+    case 'WebSearch': return { what: '', code: clip(input.query || '', 200) }
+    default: return { what: '', code: clip(JSON.stringify(input), 400) }
+  }
+}
+
+// counts only — how many hook calls arrived and what became of permission requests, never their content
+const hookStats = { events: {}, permission: { shown: 0, skippedNoViewer: 0 }, lastAt: 0 }
+
+function hookEvent(input) {
+  const sessionId = String(input.session_id || '')
+  const event = String(input.hook_event_name || 'unknown')
+  hookStats.events[event] = (hookStats.events[event] || 0) + 1
+  hookStats.lastAt = Date.now()
+  if (sessionId && input.permission_mode) modes.set(sessionId, { mode: String(input.permission_mode), at: Date.now() })
+  if (event !== 'PermissionRequest') return Promise.resolve({})
+  // nobody is watching the page — hand the request straight back to the normal prompt
+  if (Date.now() - lastViewAt > VIEWER_MS) { hookStats.permission.skippedNoViewer++; return Promise.resolve({}) }
+  hookStats.permission.shown++
+  return new Promise((resolve) => {
+    const id = crypto.randomBytes(8).toString('hex')
+    const done = (decision) => { clearTimeout(timer); pending.delete(id); resolve(decision) }
+    const timer = setTimeout(() => done({}), APPROVAL_WAIT_MS)
+    pending.set(id, { id, sessionId, tool: String(input.tool_name || ''), ...approvalDetail(input.tool_name, input.tool_input), at: Date.now(), expiresAt: Date.now() + APPROVAL_WAIT_MS, done })
+  })
+}
+
+function decide(id, answer) {
+  const p = pending.get(id)
+  if (!p) return false
+  if (answer === 'allow' || answer === 'deny') {
+    p.done({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: answer === 'allow'
+      ? { behavior: 'allow' }
+      : { behavior: 'deny', message: 'Denied from the agent monitor' } } })
+  } else {
+    p.done({})   // "answer in VS Code" — the normal prompt appears right away
+  }
+  return true
+}
+
+function readBody(req, limit = 256 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0; const chunks = []
+    req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('too large')); req.destroy() } else chunks.push(c) })
+    req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')) } catch (e) { reject(e) } })
+    req.on('error', reject)
+  })
+}
+const sameToken = (v) => typeof v === 'string' && v.length === TOKEN.length && crypto.timingSafeEqual(Buffer.from(v), Buffer.from(TOKEN))
 
 /* ── HTTP ─────────────────────────────────────── */
 
@@ -296,15 +382,26 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost')
   try {
     if (!localHost(req.headers.host)) { res.writeHead(421).end(); return }
+    const json = (code, o) => res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }).end(JSON.stringify(o))
+    if (req.method === 'POST') {
+      // Every write needs the token in a custom header. Another web page cannot read the token, and a
+      // cross-origin request with a custom header needs a CORS preflight this server never answers.
+      if (!sameToken(req.headers['x-monitor-token'])) { res.writeHead(403).end(); return }
+      const body = await readBody(req)
+      if (url.pathname === '/hook') { json(200, await hookEvent(body)); return }
+      if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || '')) ? 200 : 404, {}); return }
+      res.writeHead(404).end(); return
+    }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }
     if (url.pathname === '/api/state') {
-      const body = JSON.stringify(await buildState())
-      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }).end(body)
+      if (url.searchParams.get('visible') === '1') lastViewAt = Date.now()
+      json(200, await buildState())
       return
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-      fs.createReadStream(INDEX).pipe(res)
+      // the page gets the token inline; only a same-origin page can read it
+      const html = (await fsp.readFile(INDEX, 'utf8')).replace('__MONITOR_TOKEN__', TOKEN)
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(html)
       return
     }
     res.writeHead(404).end()
@@ -314,4 +411,5 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-server.listen(PORT, HOST, () => console.log(`claude-agent-monitor → http://${HOST}:${PORT}`))
+server.listen(PORT, HOST, () => { writeRuntime(); console.log(`claude-agent-monitor → http://${HOST}:${PORT}`) })
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { removeRuntime(); process.exit(0) })

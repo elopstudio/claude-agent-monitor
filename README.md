@@ -55,6 +55,30 @@ named in `config.json`; without one, it is the session that sent the most messag
 
 State is never carried by colour alone: every state also has a symbol, a word, a face and a motion.
 
+## Approvals from the page (optional)
+
+Permission prompts can be answered from the monitor instead of VS Code. Claude Code runs `hooks/bridge.mjs`
+on every `PermissionRequest`; the request shows up at the top of the page with **Allow / Deny / Answer in VS Code**.
+The same hook, on `PostToolUse` and `Stop`, tells the page each session's permission mode (MANUAL, AUTO, …).
+
+Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
+
+```json
+"hooks": {
+  "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 90 }] }],
+  "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] }],
+  "Stop": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] }]
+}
+```
+
+- Nothing changes unless someone is looking at the page: with no visible page, or with the monitor not running,
+  the hook answers nothing and the normal VS Code prompt appears right away.
+- A request nobody answers goes back to VS Code after 60 seconds.
+- Answers need a token the server creates at every start (in the page, and in `.runtime/bridge.json` for the hook).
+  Another web page cannot read it, so it cannot approve anything.
+- Pending requests live in memory only. The command or file path is shown on the page so you can judge it,
+  and is never written to disk or logged.
+
 ## Board format
 
 See `boards/example.json`.
