@@ -110,15 +110,15 @@ const base = (p) => (typeof p === 'string' ? p.split(/[\\/]/).pop() : '')
 function describe(name, input = {}) {
   const a = (key, kind, arg = '') => ({ kind, key, arg })
   switch (name) {
-    case 'Bash': case 'PowerShell': return a('shell', 'shell', clip(input.description || ''))
+    case 'Bash': case 'PowerShell': return a('shell', 'shell', clip(input.description || '', 240))
     case 'Read': return a('read', 'read', base(input.file_path))
     case 'Edit': case 'NotebookEdit': return a('edit', 'edit', base(input.file_path || input.notebook_path))
     case 'Write': return a('write', 'edit', base(input.file_path))
     case 'Grep': return a('grep', 'search')
     case 'Glob': return a('glob', 'search')
-    case 'SendMessage': return a('message', 'talk', clip(input.summary || '', 60))
+    case 'SendMessage': return a('message', 'talk', clip(input.summary || '', 240))
     case 'ListAgents': return a('team', 'talk')
-    case 'Agent': return a('agent', 'agent', clip(input.description || '', 60))
+    case 'Agent': return a('agent', 'agent', clip(input.description || '', 240))
     case 'WebFetch': case 'WebSearch': return a('web', 'web')
     case 'Artifact': return a('publish', 'publish')
     case 'ArtifactData': return a('board', 'publish')
@@ -148,7 +148,7 @@ async function transcriptInfo(sessionId) {
     try { o = JSON.parse(lines[i]) } catch { continue }
     const ts = o.timestamp ? Date.parse(o.timestamp) : 0
     if (!info.lastEventAt && ts) info.lastEventAt = ts
-    if (!titleSeen && o.type === 'ai-title' && o.aiTitle) { info.title = clip(o.aiTitle, 70); titleSeen = true }
+    if (!titleSeen && o.type === 'ai-title' && o.aiTitle) { info.title = clip(o.aiTitle, 200); titleSeen = true }
     if (o.type !== 'assistant' || o.isSidechain || !Array.isArray(o.message?.content)) continue
     for (let j = o.message.content.length - 1; j >= 0; j--) {
       const c = o.message.content[j]
@@ -182,11 +182,13 @@ const NAMES = [
   ['Alma', '준호'], ['Joel', '미나'], ['Kate', '성민'], ['Milo', '보라'], ['Tara', '정우'], ['Ian', '혜진'],
 ]
 function nameHash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h }
-function assignNicks(sessions, overrides = {}) {
-  const taken = new Set(Object.values(overrides).map((n) => String(n).toLowerCase()))
+// Runs over every session on the machine at once, so no two agents share a name even across projects
+// (the page shows them side by side on the "all agents" tab). fixedFor(s) returns a name pinned in config.json.
+function assignNicks(sessions, fixedFor) {
+  const taken = new Set(sessions.map(fixedFor).filter(Boolean).map((n) => String(n).toLowerCase()))
   const free = (pair) => !pair.some((n) => taken.has(n.toLowerCase()))
   for (const s of [...sessions].sort((a, b) => a.startedAt - b.startedAt || a.fullId.localeCompare(b.fullId))) {
-    const fixed = overrides[s.name] || overrides[s.short]
+    const fixed = fixedFor(s)
     if (fixed) { s.nick = s.nickKo = String(fixed); continue }   // a chosen name is used in both languages
     const start = nameHash(s.fullId) % NAMES.length
     let pick = null
@@ -245,10 +247,13 @@ async function buildState() {
     }
   }
 
+  const allSessions = [...projects.values()].flatMap((p) => p.sessions.map((s) => ({ s, names: config.projects?.[p.key]?.names || {} })))
+  const pinned = new Map(allSessions.map(({ s, names }) => [s, names[s.name] || names[s.short] || '']))
+  assignNicks(allSessions.map((x) => x.s), (s) => pinned.get(s))
+
   const out = []
   for (const p of projects.values()) {
     const cfg = config.projects?.[p.key] || {}
-    assignNicks(p.sessions, cfg.names || {})
     const roles = boards.get(p.key)?.roles || {}
     const nickOf = new Map(p.sessions.map((s) => [s.name, s]))
     for (const s of p.sessions) {
@@ -294,7 +299,7 @@ async function buildState() {
   })
   // the token rides along so an open page keeps working across server restarts; like the inline copy,
   // only a same-origin page can read it (no CORS headers, and the Host check stops DNS rebinding)
-  return { now, projects: out, approvals, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null } }
+  return { now, projects: out, approvals, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
 }
 
 /* ── Hooks: approvals and permission mode ─────── */
@@ -305,7 +310,12 @@ async function buildState() {
 const TOKEN = crypto.randomBytes(24).toString('hex')
 const RUNTIME = path.join(ROOT, '.runtime')
 const APPROVAL_WAIT_MS = 60 * 1000     // after this the request goes back to VS Code / the terminal
-const VIEWER_MS = 12 * 1000            // "someone is looking at the page" = a visible poll this recent
+const VIEWER_MS = 20 * 1000            // a poll this recent also counts as an open page
+// Open pages keep an event stream (SSE) to the server. It is not throttled like a hidden tab's timers,
+// so it says reliably that a page is open, and it tells the page at once when a request comes or goes.
+const streams = new Set()
+function notifyPages() { for (const res of streams) { try { res.write('event: changed\ndata: {}\n\n') } catch {} } }
+const pageOpen = () => streams.size > 0 || Date.now() - lastViewAt < VIEWER_MS
 let lastViewAt = 0
 const modes = new Map()                // sessionId → { mode, at }
 const pending = new Map()              // id → { id, sessionId, tool, what, code, at, expiresAt, done }
@@ -346,13 +356,13 @@ function hookEvent(input) {
   if (sessionId && input.permission_mode) modes.set(sessionId, { mode: String(input.permission_mode), at: Date.now() })
   if (event !== 'PermissionRequest') return Promise.resolve({})
   // nobody is watching the page — hand the request straight back to the normal prompt
-  if (Date.now() - lastViewAt > VIEWER_MS) { hookStats.permission.skippedNoViewer++; return Promise.resolve({}) }
+  if (!pageOpen()) { hookStats.permission.skippedNoViewer++; return Promise.resolve({}) }
   hookStats.permission.shown++
   const toolName = String(input.tool_name || '')
   hookStats.permission.tools[toolName] = (hookStats.permission.tools[toolName] || 0) + 1
   return new Promise((resolve) => {
     const id = crypto.randomBytes(8).toString('hex')
-    const done = (decision) => { clearTimeout(timer); pending.delete(id); resolve(decision) }
+    const done = (decision) => { clearTimeout(timer); pending.delete(id); notifyPages(); resolve(decision) }
     const timer = setTimeout(() => done({}), APPROVAL_WAIT_MS)
     // "Yes, and don't ask again for …" — kept exactly as Claude Code sent them, and handed back unchanged when picked
     const suggestions = Array.isArray(input.permission_suggestions) ? input.permission_suggestions.slice(0, 4) : []
@@ -361,6 +371,7 @@ function hookEvent(input) {
       input: input.tool_name === 'AskUserQuestion' ? input.tool_input : null,
       suggestions, options: suggestions.map(suggestionLabel), at: Date.now(), expiresAt: Date.now() + APPROVAL_WAIT_MS, done,
     })
+    notifyPages()
   })
 }
 
@@ -431,6 +442,14 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404).end(); return
     }
     if (req.method !== 'GET') { res.writeHead(405).end(); return }
+    if (url.pathname === '/api/events') {
+      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' })
+      res.write('retry: 2000\n\n')
+      streams.add(res)
+      const ping = setInterval(() => { try { res.write(': ping\n\n') } catch {} }, 15000)
+      req.on('close', () => { clearInterval(ping); streams.delete(res) })
+      return
+    }
     if (url.pathname === '/api/state') {
       if (url.searchParams.get('visible') === '1') lastViewAt = Date.now()
       json(200, await buildState())
