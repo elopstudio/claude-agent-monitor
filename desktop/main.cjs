@@ -75,6 +75,7 @@ const STRIP = 36
 const DARK = { color: '#171b22', symbolColor: '#e8eaef', height: STRIP }, LIGHT = { color: '#ffffff', symbolColor: '#171a21', height: STRIP }
 const overlay = () => (nativeTheme.shouldUseDarkColors ? DARK : LIGHT)
 nativeTheme.on('updated', () => { if (win) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
+const LOGIN = { args: ['--hidden'] }   // started at login: stay in the tray
 const zoom = () => { const z = Number(readSettings().zoom); return z >= 0.5 && z <= 2 ? z : 1 }
 let win = null, page = null, strip = null
 function pageState() {
@@ -177,7 +178,7 @@ function showSettings() {
 }
 ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   const cur = readSettings()
-  if (action === 'set' && key === 'openAtLogin') app.setLoginItemSettings({ openAtLogin: !!value, args: ['--hidden'] })
+  if (action === 'set' && key === 'openAtLogin') app.setLoginItemSettings({ openAtLogin: !!value, ...LOGIN })
   if (action === 'set' && key === 'closeToTray') writeSettings({ ...cur, closeToTray: !!value })
   if (action === 'openData') shell.openPath(dataDir())
   if (action === 'openBrowser') shell.openExternal(URL)
@@ -194,7 +195,7 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   }
   const s2 = readSettings()
   return {
-    openAtLogin: app.getLoginItemSettings().openAtLogin, closeToTray: s2.closeToTray !== false,
+    openAtLogin: app.getLoginItemSettings(LOGIN).openAtLogin, closeToTray: s2.closeToTray !== false,
     dataDir: dataDir(), ownServer, hooks: hookState(), node: !!findNode(), version: app.getVersion(), url: URL,
   }
 })

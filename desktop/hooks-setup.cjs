@@ -38,8 +38,11 @@ function hookState() {
   for (const event of Object.keys(hookEntries())) {
     const mine = (cfg.hooks?.[event] || []).flatMap((m) => m.hooks || []).filter(ours)
     if (!mine.length) return 'missing'
-    const script = cmdText(mine[0]).match(/['"]?([^'"]*[\\/]hooks[\\/](?:bridge|inbox)\.mjs)/)
-    if (script && !fs.existsSync(script[1])) return 'missing'
+    // the script is the last argument of an exec-form hook, or the quoted path inside a shell command
+    const h = mine[0]
+    const quoted = String(h.command || '').match(/['"]([^'"]*[\\/]hooks[\\/](?:bridge|inbox)\.mjs)['"]/)
+    const script = Array.isArray(h.args) && h.args.length ? h.args[h.args.length - 1] : quoted ? quoted[1] : ''
+    if (!script || !fs.existsSync(script)) return 'missing'
   }
   return 'ok'
 }
