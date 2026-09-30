@@ -19,6 +19,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createAgents } from './agents.mjs'
 import { createAccount } from './account.mjs'
+import { createCloud } from './cloud.mjs'
 import { tokensToday } from './tokens.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))   // the code: public/, hooks/
@@ -1117,6 +1118,8 @@ const account = createAccount({ claudeExecutable: agents.claudeExecutable, dataD
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
 const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || '' } catch { return '' } })()
+// this PC linked to an account on cam.elopstudio.com
+const cloud = createCloud({ dataDir: DATA, version: VERSION, notifyPages })
 // the about dialog's files: the maker's logo for light and dark, and the licence
 const ABOUT_FILES = {
   '/brand/elop-logo-black.png': [path.join(ROOT, 'docs', 'elop-logo-black.png'), 'image/png'],
@@ -1143,6 +1146,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       if (url.pathname === '/hook/prompt') { json(200, await agents.prompt(body)); return }
       if (url.pathname.startsWith('/api/account/')) { const [code, o] = await account.handle(url); json(code, o); return }
+      if (url.pathname.startsWith('/api/cloud/')) { const [code, o] = await cloud.handle(url); json(code, o); return }
       if (url.pathname.startsWith('/api/agents/')) { const [code, o] = await agents.handle(url, body); json(code, o); return }
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
@@ -1165,6 +1169,12 @@ const server = http.createServer(async (req, res) => {
       // the account's email is private like the conversations: the token is needed to read it
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       json(200, await account.info(url.searchParams.get('fresh') === '1'))
+      return
+    }
+    if (url.pathname === '/api/cloud') {
+      // whose account this PC is linked to is private too
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      json(200, await cloud.info(url.searchParams.get('fresh') === '1'))
       return
     }
     if (url.pathname === '/api/upload-file') {
@@ -1218,4 +1228,4 @@ setInterval(() => cleanUploads(false), 60 * 60 * 1000).unref()
 server.listen(PORT, HOST, () => { writeRuntime(); console.log(`claude-agent-monitor → http://${HOST}:${PORT}`) })
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { agents.shutdown(); removeRuntime(); process.exit(0) })
 // a host that runs the server in its own process (the desktop app) stops it this way before quitting
-globalThis.agentMonitorShutdown = () => { agents.shutdown(); removeRuntime(); try { server.close() } catch {} }
+globalThis.agentMonitorShutdown = () => { agents.shutdown(); cloud.stop(); removeRuntime(); try { server.close() } catch {} }

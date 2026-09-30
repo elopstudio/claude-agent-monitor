@@ -188,6 +188,26 @@ An agent that has shown no sign of activity for 10 minutes while working is mark
 For the monitor's own agents the details offer **Stop and carry on**: the turn is stopped and the same session is asked
 to continue. A VS Code session has to be stopped in its panel (Esc).
 
+## Agent Monitor account (optional)
+
+The account dialog's lower half links this PC to an account on [cam.elopstudio.com](https://cam.elopstudio.com/account),
+so all your PCs are in one place; you sign in there with GitHub or Google. Each plan allows a number of PCs (Free 1).
+
+- **Link this PC** makes a new Ed25519 key pair and shows a code such as `KXQ4-7MTR`, and opens
+  `cam.elopstudio.com/activate` with it. Sign in, check the page shows the same code, and press **Link**. The monitor
+  notices within a few seconds. A code lasts ten minutes. Only link a code your own monitor is showing.
+- Once linked, every request to the server is signed with the private key. There is no password or token. The server
+  keeps only the public key.
+- **Unlink this PC** tells the server and deletes the key. A PC removed on the web account page finds out on its next
+  check (at least every ten minutes) and deletes its key too.
+
+`cloud.json` in the data folder keeps the server, the device id and the private key, and nothing about the person.
+Their name and plan are asked for when the dialog is open and kept in memory only. The server is told only what kind of PC
+it is ("Windows PC", "Mac"; not the hostname, which often carries a name, and you can rename it on the account page),
+the operating system and the monitor's version. Nothing about sessions or conversations is sent.
+Without a link the monitor never contacts cam.elopstudio.com. `CAM_URL` points it at another server (for development:
+`http://127.0.0.1:8790`).
+
 ## Agents the monitor runs itself
 
 **+ New agent** (in a project's header, or on the all-agents tab) starts an agent without VS Code, the way the

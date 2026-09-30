@@ -1,6 +1,7 @@
 node_modules/
 logs/
 config.json
+cloud.json
 boards/*.json
 !boards/example.json
 .runtime/
