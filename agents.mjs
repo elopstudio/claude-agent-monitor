@@ -10,6 +10,7 @@
 // What the page receives is normalised and masked like the conversation view: text arrives as the whole block
 // so far (so a pattern split across two chunks is still masked), tool calls and results as whole entries.
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawn, execFileSync } from 'node:child_process'
@@ -59,15 +60,67 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     notifyPages()
   }
 
+  // Where `claude` actually is.
+  //
+  // An app opened from Finder never goes through a login shell, so it gets
+  // launchd's bare PATH (/usr/bin:/bin:/usr/sbin:/sbin) and nothing that .zshrc
+  // adds: nvm, Homebrew on Apple silicon, ~/.local/bin. Started from a terminal
+  // the same code finds claude straight away, which is why this only ever breaks
+  // for the packaged app.
+  //
+  // So: the configured path wins, then the known install locations, then the
+  // login shell is asked once. The answer is kept for the life of the process;
+  // an agent that starts and stops all day must not pay for a shell each time.
+  let foundClaude = null
+  function runnable(p) {
+    try { fs.accessSync(p, fs.constants.X_OK); return fs.statSync(p).isFile() } catch { return false }
+  }
   function claudeExecutable() {
     if (configPath) return configPath
+    if (foundClaude) return foundClaude
+    if (process.platform === 'win32') {
+      try {
+        for (const line of execFileSync('where.exe', ['claude'], { encoding: 'utf8' }).split(/\r?\n/)) {
+          const exe = path.join(path.dirname(line.trim()), 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe')
+          if (line.trim() && fs.existsSync(exe)) return exe
+        }
+      } catch {}
+      return 'claude.exe'
+    }
+
+    // 1. the usual places, cheapest first. nvm keeps one bin dir per node version,
+    //    so that one is a glob rather than a fixed path.
+    const home = os.homedir()
+    const fixed = [
+      path.join(home, '.claude', 'local', 'claude'),
+      '/usr/local/bin/claude',
+      '/opt/homebrew/bin/claude',
+      path.join(home, '.local', 'bin', 'claude'),
+      path.join(home, '.bun', 'bin', 'claude'),
+    ]
+    for (const c of fixed) if (runnable(c)) return (foundClaude = c)
     try {
-      for (const line of execFileSync('where.exe', ['claude'], { encoding: 'utf8' }).split(/\r?\n/)) {
-        const exe = path.join(path.dirname(line.trim()), 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe')
-        if (line.trim() && fs.existsSync(exe)) return exe
+      const vers = path.join(home, '.nvm', 'versions', 'node')
+      // newest version first, so a machine with several keeps using the current one
+      for (const v of fs.readdirSync(vers).sort().reverse()) {
+        const c = path.join(vers, v, 'bin', 'claude')
+        if (runnable(c)) return (foundClaude = c)
       }
     } catch {}
-    return process.platform === 'win32' ? 'claude.exe' : 'claude'
+
+    // 2. ask the login shell. -i so interactive-only rc files are read too, which
+    //    is where nvm usually lands. Bounded, and a failure just falls through.
+    try {
+      const sh = process.env.SHELL || '/bin/zsh'
+      const out = execFileSync(sh, ['-ilc', 'command -v claude'], {
+        encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim().split('\n').pop().trim()
+      if (out && runnable(out)) return (foundClaude = out)
+    } catch {}
+
+    // Nothing found. Return the bare name so spawn fails with ENOENT and the
+    // dialog shows 'could not start claude', rather than failing silently.
+    return 'claude'
   }
 
   function emit(a, ev) {
