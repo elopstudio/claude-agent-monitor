@@ -17,6 +17,9 @@ const RELEASES = 'https://github.com/elopstudio/claude-agent-monitor/releases/la
 /* ── settings: where the monitor keeps config.json, boards/ and its agent list ── */
 // read before startServer sets it for the server
 const GIVEN_HOME = process.env.MONITOR_HOME || ''
+// `npm run try`: a test app beside the installed one — no notifications, global shortcut or hook installs of its own
+const TRY = process.env.MONITOR_TRY === '1'
+const NAME = TRY ? 'Agent Monitor (테스트)' : 'Agent Monitor'
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 function readSettings() { try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) } catch { return {} } }
 function writeSettings(s) { fs.mkdirSync(path.dirname(settingsFile()), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2)) }
@@ -46,6 +49,7 @@ function ask(opts) {
 }
 
 async function offerHooks(always) {
+  if (TRY && !always) return   // the hooks belong to the installed app
   const state = hookState()
   if (state === 'ok' && !always) return
   const settings = readSettings()
@@ -160,7 +164,7 @@ function showWindow() {
   win.contentView.addChildView(strip)
   strip.webContents.loadFile(path.join(__dirname, 'strip.html'), { query: { platform: process.platform } })
   strip.webContents.on('did-finish-load', () => { if (strip) strip.webContents.send('monitor-app-usage', usage) })
-  page.webContents.loadURL(URL + '?app=1&v=' + encodeURIComponent(app.getVersion()))
+  page.webContents.loadURL(URL + '?app=1&v=' + encodeURIComponent(app.getVersion()) + (TRY ? '&try=1' : ''))
   layout()
   win.on('resize', layout)
   win.on('maximize', layout)
@@ -221,13 +225,13 @@ function paintBadge() {
     overlayDot = nativeImage.createFromBitmap(dot(16, 7, 8, 8), { width: 16, height: 16 })
   }
   const n = waitingCount
-  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip(['Agent Monitor', usageLine(), n ? '답을 기다리는 요청 ' + n + '건' : ''].filter(Boolean).join('\n')) }
+  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip([NAME, usageLine(), n ? '답을 기다리는 요청 ' + n + '건' : ''].filter(Boolean).join('\n')) }
   if (MAC) { if (app.dock) app.dock.setBadge(n ? String(n) : '') }
   else if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? '요청 ' + n + '건' : '') } catch (e) { console.error('overlay icon:', e.message) } }
 }
 const shown = new Set()   // a notification that is garbage-collected no longer answers its click
 function notify(title, body, onClick) {
-  if (!Notification.isSupported()) return
+  if (TRY || !Notification.isSupported()) return   // the installed app already says it
   const n = new Notification({ title, body, icon: ICON, silent: false })
   shown.add(n)
   n.on('click', () => { shown.delete(n); showWindow(); if (onClick) onClick() })
@@ -300,6 +304,7 @@ function toggleWindow() {
 }
 function registerHotkey() {
   globalShortcut.unregisterAll()
+  if (TRY) { hotkeyOk = true; hotkeyNow = 'off'; return }   // the installed app has the key
   const k = picked()
   if (k) { hotkeyNow = k; hotkeyOk = k === 'off' || globalShortcut.register(k, toggleWindow); return }   // false: another program has it
   hotkeyOk = false
@@ -414,7 +419,7 @@ else {
       else writeSettings({ ...readSettings(), moveDeclined: true })
     }
     tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }))
-    tray.setToolTip('Agent Monitor')
+    tray.setToolTip(NAME)
     tray.setContextMenu(trayMenu())
     tray.on('click', showWindow)
     // started at login: stay in the tray until opened (macOS says so itself; Windows passes --hidden)

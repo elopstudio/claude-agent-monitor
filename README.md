@@ -250,9 +250,15 @@ Build it yourself:
 cd desktop
 npm install          # Electron and electron-builder, only for the app — the monitor itself stays dependency-free
 npm start            # run it from source
+npm run try          # this checkout beside the installed app, to test before a release (below)
 npm run dist         # dist/Agent Monitor Setup <version>.exe
 npm run dist:mac     # on a Mac: dist/Agent-Monitor-<version>-{arm64,x64}.{dmg,zip}
 ```
+
+`npm run try` opens a **test app** next to the installed one: its own port (4799), profile and data folder, marked
+**TEST** in the header and the tray. It starts from a copy of the installed app's names, looks, tab order, boards and last
+usage numbers, but not its agent list, and it sends no notifications, takes no global shortcut, installs no hooks and
+does not ask Anthropic for usage. Approvals and page messages keep going to the installed app, whose hooks are untouched.
 
 The Windows installer is built on Windows and the Mac app on a Mac.
 

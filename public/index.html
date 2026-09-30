@@ -2360,6 +2360,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     [...$('tabs').children].find((b) => b.dataset.key === next.dataset.key)?.focus();
   });
   $('logo').append(robotNode('leader', 'working', true, false));
+  // the test app (`npm run try`) says so next to the title, so it is not taken for the installed one
+  if (new URLSearchParams(location.search).has('try')) { const b = el('span', 'for-claude', lang === 'ko' ? '테스트' : 'TEST'); b.style.borderColor = 'var(--wait)'; b.style.color = 'var(--wait)'; document.querySelector('.top .name').append(b); }
   // the head-only robot is wider than tall; a square viewBox keeps it full size in the tab
   $('favicon').href = 'data:image/svg+xml,' + encodeURIComponent(robotSvg('leader', 'working', true, true).replace('viewBox="1 0 62 46"', 'viewBox="1 -8 62 62"'));
   function bell() {

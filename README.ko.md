@@ -233,9 +233,14 @@ Claude Code hook(상태, 설치/갱신) · 업데이트(확인, 설치) · 버�
 cd desktop
 npm install          # 앱에만 필요한 Electron 과 electron-builder — 모니터 본체는 계속 의존성이 없습니다
 npm start            # 소스에서 바로 실행
+npm run try          # 설치된 앱과 따로, 이 저장소 코드로 띄워 릴리스 전에 확인(아래)
 npm run dist         # dist/Agent Monitor Setup <버전>.exe
 npm run dist:mac     # Mac 에서: dist/Agent-Monitor-<버전>-{arm64,x64}.{dmg,zip}
 ```
+
+`npm run try` 는 설치된 앱 옆에 **테스트 앱**을 띄웁니다. 포트(4799), 프로필, 데이터 폴더가 따로이고, 헤더와 트레이에 **테스트** 라고
+나옵니다. 설치된 앱의 이름·모습·탭 순서·작업판·마지막 사용량을 복사해 시작하지만 에이전트 목록은 가져오지 않고, 알림·전역 단축키·
+hook 설치·Anthropic 사용량 조회도 하지 않습니다. 승인과 화면 메시지는 계속 설치된 앱으로 가고, 그 hook 은 그대로입니다.
 
 윈도우 설치 파일은 윈도우에서, Mac 앱은 Mac 에서 만듭니다.
 

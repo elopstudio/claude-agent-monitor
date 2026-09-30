@@ -9,6 +9,7 @@
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
+    "try": "node try.cjs",
     "dist": "electron-builder --win nsis --publish never",
     "dist:mac": "electron-builder --mac --publish never",
     "release": "node release.cjs win",

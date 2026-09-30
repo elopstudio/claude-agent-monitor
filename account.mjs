@@ -82,6 +82,8 @@ export function createAccount({ claudeExecutable, dataDir }) {
       const limits = (best.limits || []).map((x) => (x.resetsAt && Date.parse(x.resetsAt) <= now ? { ...x, percent: 0, resetsAt: null, sinceReset: true } : x))
       return keep({ ...best, limits, why, nextAt: Math.max(blockedUntil, askedAt + USAGE_EVERY) })
     }
+    // a test app (`npm run try`) never asks, so it cannot add to the requests Anthropic counts; it shows what it was given
+    if (process.env.MONITOR_USAGE === 'off') return known('off')
     if (!oauth?.accessToken) return known('noToken')
     // an expired token is Claude Code's to refresh; this only reads it
     if (oauth.expiresAt && oauth.expiresAt < now + 30 * 1000) return known('expired')
