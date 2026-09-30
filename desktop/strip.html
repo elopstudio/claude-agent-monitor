@@ -5,8 +5,8 @@
 <title>Agent Monitor</title>
 <style>
 /* The window's title strip: its own view above the page, so zooming the page never touches it. */
-:root{--bg:#ffffff;--line:#e0e3ea;--muted:#5b6372;--text:#171a21;--hover:#f2f3f7}
-@media (prefers-color-scheme: dark){:root{--bg:#171b22;--line:#2a303b;--muted:#a3abb8;--text:#e8eaef;--hover:#232830}}
+:root{--bg:#ffffff;--line:#e0e3ea;--muted:#5b6372;--text:#171a21;--hover:#f2f3f7;--wait:#8c6a10;--wait-soft:#f7f0dc;--block:#b0341f;--block-soft:#fae8e3}
+@media (prefers-color-scheme: dark){:root{--bg:#171b22;--line:#2a303b;--muted:#a3abb8;--text:#e8eaef;--hover:#232830;--wait:#e0bc5e;--wait-soft:#2f2816;--block:#f0907d;--block-soft:#3b201b}}
 html,body{margin:0;height:100%;background:var(--bg);overflow:hidden}
 body{display:flex;align-items:center;gap:10px;padding:0 150px 0 10px;border-bottom:1px solid var(--line);box-sizing:border-box;
   font:700 12px system-ui,"Segoe UI",sans-serif;color:var(--muted);-webkit-app-region:drag;user-select:none}
@@ -18,10 +18,16 @@ button:hover:not(:disabled){background:var(--hover);color:var(--text)}
 button:disabled{opacity:.3;cursor:default}
 button.pct{width:auto;padding:0 6px;font:700 11.5px ui-monospace,Consolas,monospace}
 .sep{width:1px;height:18px;background:var(--line);margin:0 6px}
+/* the plan's limits: yellow past 80 %, red past 95 % */
+button.usage{width:auto;padding:0 9px;height:22px;border:1px solid var(--line);border-radius:999px;font:700 11.5px system-ui,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;-webkit-app-region:no-drag}
+button.usage.warn{color:var(--wait);border-color:var(--wait);background:var(--wait-soft)}
+button.usage.full{color:var(--block);border-color:var(--block);background:var(--block-soft)}
+button.usage[hidden]{display:none}
 </style>
 </head>
 <body>
 <span class="name"><img src="icon.png" alt=""> Agent Monitor</span>
+<button id="usage" class="usage" hidden></button>
 <div class="bar">
   <button id="back" title="Back (Alt+←)" aria-label="Back">←</button>
   <button id="forward" title="Forward (Alt+→)" aria-label="Forward">→</button>
@@ -41,6 +47,21 @@ for (const [id, fn] of Object.entries(wire)) $(id).addEventListener('click', () 
 const show = (s) => { if (!s) return; $('pct').textContent = Math.round(s.zoom * 100) + '%'; $('back').disabled = !s.canBack; $('forward').disabled = !s.canForward }
 app.onChange(show)
 app.state().then(show)
+// the session and the week, as on Claude Code's /usage; the other limits in the tooltip
+const NAMES = { session: '현재 세션 (5시간)', weekly_all: '주간 · 전체 모델' }
+const level = (x) => (x.percent >= 95 || /exceed|critical|block/.test(String(x.severity || '')) ? 2 : x.percent >= 80 || x.severity === 'warning' ? 1 : 0)
+function left(at) { const ms = Date.parse(at) - Date.now(); if (!(ms > 0)) return ''; const m = Math.round(ms / 60000); return m < 60 ? m + '분' : m < 1440 ? Math.floor(m / 60) + '시간' + (m % 60 ? ' ' + (m % 60) + '분' : '') : Math.floor(m / 1440) + '일' }
+function usage(u) {
+  const b = $('usage'), lim = (u && u.limits) || []
+  const ses = lim.find((x) => x.kind === 'session'), week = lim.find((x) => x.kind === 'weekly_all')
+  b.hidden = !ses && !week
+  if (b.hidden) return
+  b.textContent = [ses && '세션 ' + Math.round(ses.percent) + '%', week && '주간 ' + Math.round(week.percent) + '%'].filter(Boolean).join(' · ')
+  b.className = 'usage' + ['', ' warn', ' full'][Math.max(0, ...lim.map(level))]
+  b.title = lim.map((x) => (NAMES[x.kind] || (x.kind === 'weekly_scoped' ? '주간 · ' + (x.model || '') : x.kind)) + ' ' + Math.round(x.percent) + '%' + (left(x.resetsAt) ? ' · ' + left(x.resetsAt) + ' 후 초기화' : '')).join('\n') + '\n누르면 계정 창을 엽니다'
+}
+app.onUsage(usage)
+$('usage').addEventListener('click', () => app.account())
 </script>
 </body>
 </html>

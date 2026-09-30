@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('monitorApp', {
   zoomReset: () => call('zoom-reset'),
   state: () => call('state'),
   settings: () => call('settings'),
+  account: () => call('account'),
   // the app reports zoom and history changes (keyboard shortcuts included)
   onChange: (fn) => ipcRenderer.on('monitor-app-state', (_e, s) => fn(s)),
+  // the plan's limits, as the monitor last heard them
+  onUsage: (fn) => ipcRenderer.on('monitor-app-usage', (_e, u) => fn(u)),
 })

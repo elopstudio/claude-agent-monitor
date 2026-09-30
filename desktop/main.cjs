@@ -101,7 +101,13 @@ function appAction(action) {
   }
   setTimeout(report, 50)
 }
-ipcMain.handle('monitor-app', (_e, action) => { if (action === 'settings') { showSettings(); return pageState() } if (action !== 'state') appAction(String(action)); return pageState() })
+ipcMain.handle('monitor-app', (_e, action) => {
+  if (action === 'settings') { showSettings(); return pageState() }
+  // the usage in the strip opens the page's account dialog
+  if (action === 'account') { if (page) page.webContents.executeJavaScript("document.getElementById('acct-btn')?.click()").catch(() => {}); return pageState() }
+  if (action !== 'state') appAction(String(action))
+  return pageState()
+})
 function layout() {
   if (!win) return
   const { width, height } = win.getContentBounds()
@@ -135,6 +141,7 @@ function showWindow() {
   win.contentView.addChildView(page)
   win.contentView.addChildView(strip)
   strip.webContents.loadFile(path.join(__dirname, 'strip.html'))
+  strip.webContents.on('did-finish-load', () => { if (strip) strip.webContents.send('monitor-app-usage', usage) })
   page.webContents.loadURL(URL + '?app=1')
   layout()
   win.on('resize', layout)
@@ -180,7 +187,8 @@ function dot(size, r, cx, cy, into) {
   }
   return buf
 }
-let trayPlain = null, trayDot = null, overlayDot = null, waitingCount = 0
+let trayPlain = null, trayDot = null, overlayDot = null, waitingCount = 0, usage = null
+const usageLine = () => { const l = usage?.limits || [], s = l.find((x) => x.kind === 'session'), w = l.find((x) => x.kind === 'weekly_all'); return [s && '세션 ' + Math.round(s.percent) + '%', w && '주간 ' + Math.round(w.percent) + '%'].filter(Boolean).join(' · ') }
 function paintBadge() {
   if (!trayPlain) {
     trayPlain = nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 })
@@ -188,7 +196,7 @@ function paintBadge() {
     overlayDot = nativeImage.createFromBitmap(dot(16, 7, 8, 8), { width: 16, height: 16 })
   }
   const n = waitingCount
-  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip(n ? 'Agent Monitor — 답을 기다리는 요청 ' + n + '건' : 'Agent Monitor') }
+  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip(['Agent Monitor', usageLine(), n ? '답을 기다리는 요청 ' + n + '건' : ''].filter(Boolean).join('\n')) }
   if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? '요청 ' + n + '건' : '') } catch (e) { console.error('overlay icon:', e.message) } }
 }
 const shown = new Set()   // a notification that is garbage-collected no longer answers its click
@@ -209,7 +217,10 @@ let seenAsks = null, seenStalls = null
 function watch(data) {
   const approvals = data.approvals || [], inEditor = data.inEditor || []
   const count = approvals.length + inEditor.length
-  if (count !== waitingCount) { waitingCount = count; paintBadge() }
+  const u = data.usage || null
+  const usageChanged = JSON.stringify(u) !== JSON.stringify(usage)
+  if (usageChanged) { usage = u; if (strip) strip.webContents.send('monitor-app-usage', usage) }
+  if (count !== waitingCount || usageChanged) { waitingCount = count; paintBadge() }
   // a request that has just arrived: flash the taskbar and say who is asking (not on the first look)
   const fresh = seenAsks ? approvals.filter((a) => !seenAsks.has(a.id)) : []
   seenAsks = new Set(approvals.map((a) => a.id))
@@ -352,7 +363,6 @@ function quit() {
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', showWindow)
-  app.setAppUserModelId('studio.elop.agent-monitor')   // notifications carry the app's name and icon
   app.whenReady().then(async () => {
     try { await startServer() } catch (e) {
       dialog.showErrorBox('Agent Monitor', '모니터 서버를 시작하지 못했습니다.\n\n' + (e && e.message || e))

@@ -119,8 +119,8 @@ numbers Claude Code last saved are shown and marked as such.
 
 Claude Code keeps its own credentials: the monitor stores no account, e-mail or token of its own.
 
-The same numbers sit in the top bar (**Session 45% · Week 29%**), yellow past 80 % and red past 95 %, and a desktop
-notification says so once at 80 % and once at 95 % for each limit, until it resets. Each card shows the tokens that
+In the desktop app the same numbers sit in the title strip (**세션 45% · 주간 29%**, a click opens this dialog) and the tray
+tooltip, yellow past 80 % and red past 95 %; a desktop notification says so once at 80 % and once at 95 % for each limit, until it resets. Each card shows the tokens that
 session and its subagents used today (**⚡ 11M**; the breakdown on hover and in the details), and the account dialog lists
 the agents that used the most.
 
