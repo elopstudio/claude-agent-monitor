@@ -18,7 +18,8 @@ export function createAccount({ claudeExecutable }) {
   const stateFile = process.env.CLAUDE_CONFIG_DIR ? path.join(configDir, '.claude.json') : path.join(os.homedir(), '.claude.json')
   const credFile = path.join(configDir, '.credentials.json')
   const readJson = async (f) => { try { return JSON.parse(await fsp.readFile(f, 'utf8')) } catch { return null } }
-  let usageMemo = null   // { key, at, value }
+  let usageMemo = null   // { key, at, value } — any answer, live or not, is kept for a minute
+  let refreshing = null, triedAt = 0
   let busy = null        // 'login' | 'logout' while `claude auth` runs
 
   // the limits as a list the page can draw as it is: newer answers have `limits`, older ones only the named windows
@@ -45,24 +46,30 @@ export function createAccount({ claudeExecutable }) {
 
   async function usage(oauth, state, fresh) {
     const cached = state?.cachedUsageUtilization
-    const fromCache = (why) => cached?.utilization
+    const key = oauth?.accessToken ? oauth.accessToken.slice(-12) : 'none'   // a new sign-in must not see the last account's numbers
+    if (!fresh && usageMemo && usageMemo.key === key && Date.now() - usageMemo.at < USAGE_TTL) return usageMemo.value
+    const keep = (value) => { usageMemo = { key, at: Date.now(), value }; return value }
+    const fromCache = (why) => keep(cached?.utilization
       ? { source: 'cache', at: cached.fetchedAtMs || null, limits: limitsOf(cached.utilization), extra: extraOf(cached.utilization), why }
-      : { source: 'none', at: null, limits: [], extra: null, why }
+      : { source: 'none', at: null, limits: [], extra: null, why })
     if (!oauth?.accessToken) return fromCache('noToken')
     // an expired token is Claude Code's to refresh; this only reads it
     if (oauth.expiresAt && oauth.expiresAt < Date.now() + 30 * 1000) return fromCache('expired')
-    const key = oauth.accessToken.slice(-12)   // a new sign-in must not see the last account's numbers
-    if (!fresh && usageMemo && usageMemo.key === key && Date.now() - usageMemo.at < USAGE_TTL) return usageMemo.value
     try {
       const r = await fetch(USAGE_URL, { headers: { authorization: 'Bearer ' + oauth.accessToken, 'anthropic-beta': 'oauth-2025-04-20' }, signal: AbortSignal.timeout(8000) })
       if (!r.ok) return fromCache('http' + r.status)
       const u = await r.json()
-      const value = { source: 'live', at: Date.now(), limits: limitsOf(u), extra: extraOf(u), why: null }
-      usageMemo = { key, at: Date.now(), value }
-      return value
+      return keep({ source: 'live', at: Date.now(), limits: limitsOf(u), extra: extraOf(u), why: null })
     } catch {
       return fromCache('offline')
     }
+  }
+
+  // for the page's header and the app's alerts: the numbers only, never whose they are; asked again in the background
+  function usageNow() {
+    if (Date.now() - triedAt >= USAGE_TTL && !refreshing) { triedAt = Date.now(); refreshing = info(false).catch(() => null).finally(() => { refreshing = null }) }
+    const v = usageMemo?.value
+    return v && v.limits.length ? { source: v.source, at: v.at, limits: v.limits } : null
   }
 
   async function info(fresh) {
@@ -110,5 +117,5 @@ export function createAccount({ claudeExecutable }) {
     return [404, {}]
   }
 
-  return { info, handle }
+  return { info, handle, usageNow }
 }

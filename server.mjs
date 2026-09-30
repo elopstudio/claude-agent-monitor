@@ -18,6 +18,7 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { createAgents } from './agents.mjs'
 import { createAccount } from './account.mjs'
+import { tokensToday } from './tokens.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))   // the code: public/, hooks/
 // the data: config.json, boards/, .runtime/ — the code's own folder unless MONITOR_HOME says otherwise
@@ -291,6 +292,16 @@ function assignNicks(sessions, fixedFor) {
 // Kept to the recent ones; each file is re-read only when it changed.
 const SUB_RUNNING_MS = 45 * 1000, SUB_RECENT_MS = 3 * 60 * 60 * 1000, SUB_MAX = 12
 const subCache = new Map()   // file → { mtimeMs, size, info }
+// tokens used today by a session and its subagents
+async function todayOf(sessionId) {
+  const file = await findTranscript(sessionId)
+  if (!file) return null
+  const dir = path.join(file.replace(/.jsonl$/, ''), 'subagents')
+  let subs = []
+  try { subs = (await fsp.readdir(dir)).filter((n) => /^agent-[a-z0-9]+.jsonl$/.test(n)).map((n) => path.join(dir, n)) } catch {}
+  return tokensToday([file, ...subs])
+}
+
 async function subagentsOf(sessionId) {
   const file = await findTranscript(sessionId)
   if (!file) return []
@@ -367,7 +378,7 @@ async function buildState() {
       context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
       // a hook call is a sign of life too, and arrives even while the transcript is quiet
       lastSignAt: Math.max(info?.lastEventAt || 0, modes.get(s.sessionId)?.at || 0),
-      subagents: await subagentsOf(s.sessionId).catch(() => []),
+      subagents: await subagentsOf(s.sessionId).catch(() => []), today: await todayOf(s.sessionId).catch(() => null),
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     const p = projects.get(key)
@@ -392,8 +403,9 @@ async function buildState() {
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model,
       listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
-      lastSignAt: m.lastEventAt || 0, stalledFor: 0, subagents: await subagentsOf(m.sessionId).catch(() => []),
+      lastSignAt: m.lastEventAt || 0, subagents: await subagentsOf(m.sessionId).catch(() => []), today: await todayOf(m.sessionId).catch(() => null),
     }
+    sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     projects.get(m.key).sessions.push(sess)
     bySession.set(m.sessionId, { sess, project: m.key })
   }
@@ -457,7 +469,7 @@ async function buildState() {
     return { project: hit.project, session: hit.sess.name, short: hit.sess.short, nick: hit.sess.nick, nickKo: hit.sess.nickKo, isLeader: !!hit.sess.isLeader, type: w.type, message: w.message, at: w.at }
   }).sort((a, b) => a.at - b.at)
   const recent = outcomes.map((o) => { const hit = bySession.get(o.sessionId); return { at: o.at, agent: hit ? (hit.sess.nickKo || hit.sess.name) : '(other)', tool: o.tool, how: o.how, ms: o.ms } })
-  return { now, projects: out, approvals, inEditor, recent, token: TOKEN, hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
+  return { now, projects: out, approvals, inEditor, recent, token: TOKEN, usage: account.usageNow(), hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
 }
 
 /* ── Hooks: approvals and permission mode ─────── */

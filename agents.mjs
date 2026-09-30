@@ -239,6 +239,14 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       return send(a, text, files) ? [200, {}] : [500, {}]
     }
     if (url.pathname === '/api/agents/stop') { stop(a); return [200, {}] }
+    // looks stuck: stop it, wait until claude is really gone, then ask it to carry on in the same session
+    if (url.pathname === '/api/agents/nudge') {
+      const proc = a.proc, text = clip(body.text, 2000)
+      if (!text) return [400, {}]
+      stop(a)
+      if (proc) await new Promise((r) => { if (proc.exitCode !== null) return r(); proc.once('exit', r); setTimeout(r, 5000) })
+      return send(a, text, []) ? [200, {}] : [500, {}]
+    }
     // the dialog of a stopped agent was opened: get claude ready in the background
     if (url.pathname === '/api/agents/warm') { if (!a.proc) { spawnAgent(a); setState(a, 'idle') } return [200, {}] }
     if (url.pathname === '/api/agents/settings') {

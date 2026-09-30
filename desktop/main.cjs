@@ -1,6 +1,6 @@
 // Agent Monitor as a desktop app: runs the monitor server inside the app, shows it in its own window,
 // and lives in the tray — so it no longer depends on a terminal or on VS Code staying open.
-const { app, BaseWindow, BrowserWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain } = require('electron')
+const { app, BaseWindow, BrowserWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain, Notification, globalShortcut } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -135,7 +135,7 @@ function showWindow() {
   win.contentView.addChildView(page)
   win.contentView.addChildView(strip)
   strip.webContents.loadFile(path.join(__dirname, 'strip.html'))
-  page.webContents.loadURL(URL)
+  page.webContents.loadURL(URL + '?app=1')
   layout()
   win.on('resize', layout)
   win.on('maximize', layout)
@@ -153,14 +153,153 @@ function showWindow() {
   // closing the window keeps the monitor running in the tray
   win.on('close', (e) => { if (quitting) return; if (readSettings().closeToTray === false) { quit(); return } e.preventDefault(); win.hide() })
   win.on('closed', () => { win = page = strip = null })
+  win.on('focus', () => { try { win.flashFrame(false) } catch {} })
+  paintBadge()
 }
 function trayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Agent Monitor 열기', click: showWindow },
     { label: '설정…', click: showSettings },
+    ...(update.status === 'ready' ? [{ label: '업데이트 ' + update.version + ' 설치하고 다시 시작', click: installUpdate }] : []),
     { type: 'separator' },
     { label: ownServer ? '종료 (모니터 에이전트도 멈춤)' : '종료', click: quit },
   ])
+}
+
+/* ── attention: requests waiting, agents that look stuck, limits running out ── */
+// The app reads the same state the page does, so it can badge the taskbar and the tray and send desktop
+// notifications while the window is hidden. The page leaves notifications to the app (?app=1).
+const ORANGE = [0x1f, 0x8c, 0xf5]   // BGR of the "waiting" colour
+function dot(size, r, cx, cy, into) {
+  const buf = into || Buffer.alloc(size * size * 4)
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy)
+    if (d > r + 0.5) continue
+    const i = (y * size + x) * 4, edge = d > r - 1.2   // a light rim keeps the dot readable on the icon
+    buf[i] = edge ? 0xff : ORANGE[0]; buf[i + 1] = edge ? 0xff : ORANGE[1]; buf[i + 2] = edge ? 0xff : ORANGE[2]; buf[i + 3] = 0xff
+  }
+  return buf
+}
+let trayPlain = null, trayDot = null, overlayDot = null, waitingCount = 0
+function paintBadge() {
+  if (!trayPlain) {
+    trayPlain = nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 })
+    trayDot = nativeImage.createFromBitmap(dot(16, 4.5, 11, 11, Buffer.from(trayPlain.toBitmap())), { width: 16, height: 16 })
+    overlayDot = nativeImage.createFromBitmap(dot(16, 7, 8, 8), { width: 16, height: 16 })
+  }
+  const n = waitingCount
+  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip(n ? 'Agent Monitor — 답을 기다리는 요청 ' + n + '건' : 'Agent Monitor') }
+  if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? '요청 ' + n + '건' : '') } catch (e) { console.error('overlay icon:', e.message) } }
+}
+const shown = new Set()   // a notification that is garbage-collected no longer answers its click
+function notify(title, body, onClick) {
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title, body, icon: ICON, silent: false })
+  shown.add(n)
+  n.on('click', () => { shown.delete(n); showWindow(); if (onClick) onClick() })
+  n.on('close', () => shown.delete(n))
+  n.show()
+}
+const focused = () => !!(win && win.isVisible() && win.isFocused())
+const usageLevel = (x) => (x.percent >= 95 || /exceed|critical|block/.test(String(x.severity || '')) ? 2 : x.percent >= 80 || x.severity === 'warning' ? 1 : 0)
+const LIMIT_NAMES = { session: '현재 세션 (5시간)', weekly_all: '주간 · 전체 모델', weekly_scoped: '주간 · ' }
+const limitName = (x) => x.kind === 'weekly_scoped' ? LIMIT_NAMES.weekly_scoped + (x.model || '') : LIMIT_NAMES[x.kind] || x.kind
+const who = (a) => a.nickKo || a.nick || a.session || '에이전트'
+let seenAsks = null, seenStalls = null
+function watch(data) {
+  const approvals = data.approvals || [], inEditor = data.inEditor || []
+  const count = approvals.length + inEditor.length
+  if (count !== waitingCount) { waitingCount = count; paintBadge() }
+  // a request that has just arrived: flash the taskbar and say who is asking (not on the first look)
+  const fresh = seenAsks ? approvals.filter((a) => !seenAsks.has(a.id)) : []
+  seenAsks = new Set(approvals.map((a) => a.id))
+  if (fresh.length && !focused()) {
+    if (win) { try { win.flashFrame(true) } catch {} }
+    for (const a of fresh.slice(0, 3)) notify((a.questions ? '질문' : a.plan ? '계획 승인' : '승인 요청') + ' · ' + who(a), [a.tool, a.what].filter(Boolean).join(' — ') || '답을 기다립니다')
+  }
+  // an agent that starts to look stuck: once, until it moves again
+  const sessions = (data.projects || []).flatMap((p) => p.sessions || [])
+  const stalled = sessions.filter((x) => x.stalledFor)
+  if (seenStalls && !focused()) for (const x of stalled.filter((x) => !seenStalls.has(x.name))) notify(who(x) + ' 멈춘 듯합니다', Math.round(x.stalledFor / 60000) + '분째 아무 활동이 없습니다')
+  seenStalls = new Set(stalled.map((x) => x.name))
+  // limits: once past 80 % and again past 95 %, remembered until that limit resets
+  const limits = data.usage?.limits || []
+  if (limits.length) {
+    const cur = readSettings(), told = cur.usageTold || {}, next = {}
+    let changed = false
+    for (const x of limits) {
+      const k = x.kind + '|' + (x.model || '') + '|' + String(x.resetsAt || '').slice(0, 16), lv = usageLevel(x)
+      next[k] = Math.max(lv, told[k] || 0)
+      if (lv > (told[k] || 0)) {
+        changed = true
+        const at = Date.parse(x.resetsAt), left = at - Date.now()
+        const when = left > 0 ? (left < 3600e3 ? Math.round(left / 60000) + '분' : left < 86400e3 ? Math.round(left / 3600e3) + '시간' : Math.round(left / 86400e3) + '일') + ' 후 초기화' : ''
+        notify('Claude 사용량 ' + Math.round(x.percent) + '% — ' + limitName(x), when)
+      }
+    }
+    if (changed || Object.keys(next).length !== Object.keys(told).length) writeSettings({ ...readSettings(), usageTold: next })
+  }
+}
+async function watchLoop() {
+  try {
+    const r = await fetch(URL + 'api/state', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+    if (r.ok) watch(await r.json())
+  } catch {}
+  setTimeout(watchLoop, 2000)
+}
+
+/* ── a global shortcut: bring the window up from anywhere, and back down ── */
+// Ctrl+Alt ones: VS Code and the browsers hardly use them. Until one is picked, the first one no other program has.
+const HOTKEYS = ['Control+Alt+J', 'Control+Alt+M', 'Control+Alt+Space', 'Control+Alt+K', 'off']
+let hotkeyOk = true, hotkeyNow = HOTKEYS[0]
+const picked = () => { const k = readSettings().hotkey; return HOTKEYS.includes(k) ? k : null }
+function hotkey() { return hotkeyNow }
+function toggleWindow() {
+  if (focused()) { win.hide(); return }
+  showWindow()
+  // the keys go to the page, so the number keys answer the first request straight away
+  if (page) page.webContents.focus()
+}
+function registerHotkey() {
+  globalShortcut.unregisterAll()
+  const k = picked()
+  if (k) { hotkeyNow = k; hotkeyOk = k === 'off' || globalShortcut.register(k, toggleWindow); return }   // false: another program has it
+  hotkeyOk = false
+  for (const c of HOTKEYS.filter((x) => x !== 'off')) if (globalShortcut.register(c, toggleWindow)) { hotkeyNow = c; hotkeyOk = true; return }
+  hotkeyNow = HOTKEYS[0]
+}
+
+/* ── updates from GitHub Releases ── */
+// An installed app checks at start and every six hours, downloads in the background and installs on the next
+// restart (or at once from the tray or the settings). While developing there is nothing to update.
+let updater = null
+const update = { status: app.isPackaged ? 'idle' : 'dev', version: null, percent: 0 }
+function setUpdate(status, extra) {
+  Object.assign(update, { status }, extra || {})
+  if (tray) tray.setContextMenu(trayMenu())
+  if (settingsWin) settingsWin.webContents.send('monitor-settings-changed')
+}
+function checkUpdates() { if (updater) updater.checkForUpdates().catch(() => setUpdate('error')) }
+function setupUpdates() {
+  if (!app.isPackaged) return
+  try { updater = require('electron-updater').autoUpdater } catch { return }
+  updater.autoDownload = true
+  updater.autoInstallOnAppQuit = true
+  updater.on('checking-for-update', () => setUpdate('checking'))
+  updater.on('update-available', (i) => setUpdate('downloading', { version: i.version, percent: 0 }))
+  updater.on('update-not-available', () => setUpdate('latest'))
+  updater.on('download-progress', (p) => { update.percent = Math.round(p.percent || 0); if (settingsWin) settingsWin.webContents.send('monitor-settings-changed') })
+  updater.on('update-downloaded', (i) => { setUpdate('ready', { version: i.version }); notify('Agent Monitor ' + i.version + ' 받음', '트레이 메뉴나 설정에서 다시 시작하면 바로 적용됩니다. 앱을 끌 때도 적용됩니다.') })
+  // no release published yet is not a failure
+  updater.on('error', (e) => setUpdate(/404|No published versions|Unable to find latest/i.test(String(e && e.message)) ? 'none' : 'error'))
+  checkUpdates()
+  setInterval(checkUpdates, 6 * 3600e3).unref()
+}
+function installUpdate() {
+  if (!updater || update.status !== 'ready') return
+  quitting = true
+  if (ownServer && typeof globalThis.agentMonitorShutdown === 'function') globalThis.agentMonitorShutdown()
+  updater.quitAndInstall(true, true)
 }
 
 /* ── settings window: start at login, close to tray, data folder, hooks, about ── */
@@ -168,7 +307,7 @@ let settingsWin = null
 function showSettings() {
   if (settingsWin) { settingsWin.show(); settingsWin.focus(); return }
   settingsWin = new BrowserWindow({
-    width: 620, height: 640, resizable: false, minimizable: false, maximizable: false, title: 'Agent Monitor 설정', icon: ICON,
+    width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: 'Agent Monitor 설정', icon: ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
     titleBarStyle: 'hidden', titleBarOverlay: overlay(),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'settings-preload.cjs') },
@@ -180,6 +319,9 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   const cur = readSettings()
   if (action === 'set' && key === 'openAtLogin') app.setLoginItemSettings({ openAtLogin: !!value, ...LOGIN })
   if (action === 'set' && key === 'closeToTray') writeSettings({ ...cur, closeToTray: !!value })
+  if (action === 'set' && key === 'hotkey' && HOTKEYS.includes(value)) { writeSettings({ ...cur, hotkey: value }); registerHotkey() }
+  if (action === 'checkUpdates') checkUpdates()
+  if (action === 'installUpdate') installUpdate()
   if (action === 'openData') shell.openPath(dataDir())
   if (action === 'openBrowser') shell.openExternal(URL)
   if (action === 'installHooks') {
@@ -197,6 +339,7 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   return {
     openAtLogin: app.getLoginItemSettings(LOGIN).openAtLogin, closeToTray: s2.closeToTray !== false,
     dataDir: dataDir(), ownServer, hooks: hookState(), node: !!findNode(), version: app.getVersion(), url: URL,
+    hotkey: hotkey(), hotkeys: HOTKEYS, hotkeyOk, update: { ...update },
   }
 })
 function quit() {
@@ -209,6 +352,7 @@ function quit() {
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', showWindow)
+  app.setAppUserModelId('studio.elop.agent-monitor')   // notifications carry the app's name and icon
   app.whenReady().then(async () => {
     try { await startServer() } catch (e) {
       dialog.showErrorBox('Agent Monitor', '모니터 서버를 시작하지 못했습니다.\n\n' + (e && e.message || e))
@@ -223,7 +367,12 @@ else {
     if (!process.argv.includes('--hidden')) showWindow()
     // a PC where the monitor's hooks are not registered yet: offer to register them
     offerHooks(false)
+    paintBadge()
+    watchLoop()
+    registerHotkey()
+    setupUpdates()
   })
   app.on('window-all-closed', () => { /* the tray keeps the app alive */ })
   app.on('before-quit', () => { quitting = true })
+  app.on('will-quit', () => globalShortcut.unregisterAll())
 }

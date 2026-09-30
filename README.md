@@ -41,6 +41,7 @@ The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 |---|---|
 | `~/.claude/sessions/<pid>.json` | Session name, working directory, busy/idle, start time. Entries whose process is gone are dropped |
 | `~/.claude/projects/*/<sessionId>.jsonl` | **Only the last 768 KB** — the latest tool action and the summary line of messages sent to other sessions |
+| the same transcripts, and their subagents' | Read through once a day, then only what is appended — **the token counts of replies and nothing else**, for “tokens today” |
 | `boards/<project>.json` | The task board and per-session roles, written by the project's leader — optional |
 | `config.json` | Project labels, leader assignment, tab order — optional (see `config.example.json`) |
 | `~/.claude.json` | The signed-in account (name, e-mail, organisation) and the usage Claude Code last saved — only while the account dialog is open |
@@ -118,6 +119,15 @@ numbers Claude Code last saved are shown and marked as such.
 
 Claude Code keeps its own credentials: the monitor stores no account, e-mail or token of its own.
 
+The same numbers sit in the top bar (**Session 45% · Week 29%**), yellow past 80 % and red past 95 %, and a desktop
+notification says so once at 80 % and once at 95 % for each limit, until it resets. Each card shows the tokens that
+session and its subagents used today (**⚡ 11M**; the breakdown on hover and in the details), and the account dialog lists
+the agents that used the most.
+
+An agent that has shown no sign of activity for 10 minutes while working is marked **STUCK?** and notified once.
+For the monitor's own agents the details offer **Stop and carry on**: the turn is stopped and the same session is asked
+to continue. A VS Code session has to be stopped in its panel (Esc).
+
 ## Agents the monitor runs itself
 
 **+ New agent** (in a project's header, or on the all-agents tab) starts an agent without VS Code, the way the
@@ -162,9 +172,18 @@ itself. So a new PC needs only **Claude Code**, installed and signed in.
   drag it to move the window. Zooming (buttons, **Ctrl + wheel**, **Ctrl + − / 0 / =**) scales the page only — the strip
   stays put — and is remembered. **Alt + ← / →** and **F5** work too; project tabs are history entries.
 - Closing the window keeps the monitor in the tray, with its agents running (or quits, if you turn that off).
+- **Something waiting for you:** while requests wait, the taskbar button and the tray icon carry an orange dot and the
+  tray tooltip counts them. A new request flashes the taskbar and sends a desktop notification if the window is not in
+  front; so do an agent that looks stuck and a limit passing 80 % or 95 %. Clicking a notification opens the window.
+- **A shortcut from anywhere** (**Ctrl + Alt + J** by default) brings the window up with the keys on the page, so the number
+  keys answer the first request at once; pressing it again hides the window. If another program has it, the app takes
+  the next free one — pick another in the settings.
+- **Updates:** an installed app checks GitHub Releases at start and every six hours, downloads a new version in the
+  background and installs it on the next restart — or at once, from the tray or the settings.
 
-**Settings** (⚙ in the strip, or the tray): start at login · close to the tray · the data folder (open or change it) ·
-the Claude Code hooks (state, install / update) · version, and open the page in the browser.
+**Settings** (⚙ in the strip, or the tray): start at login · close to the tray · the window shortcut · the data folder
+(open or change it) · the Claude Code hooks (state, install / update) · updates (check, install) · version, and open the
+page in the browser.
 
 **Tray:** open · settings · quit (quitting also stops the monitor agents).
 
@@ -182,6 +201,10 @@ npm install          # Electron and electron-builder, only for the app — the m
 npm start            # run it from source
 npm run dist         # dist/Agent Monitor Setup <version>.exe
 ```
+
+To release a version the installed apps pick up: raise `version` in `desktop/package.json`, then
+`GH_TOKEN=<a token that may write releases> npm run release`. It builds the installer and uploads it with `latest.yml`
+to a GitHub release of that version; the apps find it within six hours, or at once with **Check now** in the settings.
 
 ## Board format
 
