@@ -388,11 +388,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 @media (max-width:640px){ .newagent .other-dir,.newagent .dirs{padding-left:0;margin-left:0} }
 .newagent .row{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;align-items:center;font-size:13px;color:var(--muted)}
 .newagent .row input{width:100%}
-.newagent textarea{width:100%;resize:vertical;font:13.5px/1.5 var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
 .newagent .hint{font-size:12px;color:var(--muted)}
 .newagent .status{font-size:12.5px;font-weight:700}
 .newagent .status.bad{color:var(--block)}
-.newagent .send{justify-self:end;appearance:none;border:1px solid var(--run);background:var(--run);color:var(--surface);border-radius:8px;padding:7px 16px;font:700 13px var(--sans);cursor:pointer}
 .newagent-btn{appearance:none;border:1px dashed var(--line-strong);background:transparent;color:var(--muted);border-radius:999px;padding:3px 12px;font:700 12px var(--sans);cursor:pointer}
 .newagent-btn:hover{color:var(--text);border-color:var(--text)}
 .info .away-tag{font-size:10px;font-weight:900;font-family:var(--mono);color:var(--wait);background:var(--wait-soft);border:1px solid var(--wait);border-radius:4px;padding:0 6px;white-space:nowrap}
@@ -512,27 +510,47 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .detail dt{color:var(--faint);font-size:12px;white-space:nowrap}
 .detail dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
 .detail form.msg{border-top:1px solid var(--line);padding:12px 16px 16px;display:grid;gap:8px}
-.detail form.msg textarea{width:100%;resize:vertical;font:13.5px/1.5 var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
 .detail form.msg .hint{font-size:12px;color:var(--muted)}
 .detail form.msg .status{font-size:12.5px;font-weight:700}
 .detail form.msg .status.good{color:var(--run)}
 .detail form.msg .status.bad{color:var(--block)}
 .detail form.msg .status:empty{display:none}
 .detail form.msg.drop{outline:2px dashed var(--accent);outline-offset:-6px}
-.detail form.msg .sendrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.detail form.msg .attach{appearance:none;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--muted);border-radius:8px;padding:6px 12px;font:700 12.5px var(--sans);cursor:pointer}
-.detail form.msg .attach:hover{color:var(--text);border-color:var(--text)}
 .detail form.msg .chips{display:flex;flex-wrap:wrap;gap:6px}
 .detail form.msg .chips:empty{display:none}
 .detail form.msg .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:2px 4px 2px 10px}
 .detail form.msg .chip.up{opacity:.6}
 .detail form.msg .chip.bad{border-color:var(--block);color:var(--block)}
 .detail form.msg .chip .x{appearance:none;border:0;background:none;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:0 4px}
-.detail form.msg .send{justify-self:end;appearance:none;border:1px solid var(--run);background:var(--run);color:var(--surface);border-radius:8px;padding:7px 16px;font:700 13px var(--sans);cursor:pointer}
-.detail form.msg .send.run{border-color:var(--text);background:var(--text)}
 .detail form.msg .runout{margin:0;max-height:260px;overflow:auto;font:11.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text)}
 .detail form.msg .runout.err{border-color:var(--block)}
 .detail form.msg .runout[hidden]{display:none}
+/* the composer: a rounded box that grows with the text, its buttons on a row inside */
+.composer{border:1px solid var(--line-strong);border-radius:18px;background:var(--surface-2);padding:8px 10px 8px 12px;display:grid;gap:6px;cursor:text;transition:border-color .15s,box-shadow .15s}
+.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.detail form.msg.drop .composer{border-style:dashed;border-color:var(--accent)}
+.composer textarea{display:block;width:100%;border:0;outline:0;background:transparent;resize:none;padding:4px 2px 2px;margin:0;font:14px/1.55 var(--sans);color:var(--text);max-height:220px;overflow-y:auto;min-height:26px}
+.composer textarea::placeholder{color:var(--faint)}
+.composer .chips{display:flex;flex-wrap:wrap;gap:6px}
+.composer .chips:empty{display:none}
+.composer .ctools{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:default}
+.composer .cleft{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.composer .cicon{appearance:none;width:32px;height:32px;flex:none;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center;padding:0}
+.composer .cicon:hover{color:var(--text);border-color:var(--text)}
+.composer .cicon svg{width:16px;height:16px}
+.composer select{appearance:none;border:1px solid var(--line-strong);background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 1l4 4 4-4%27 fill=%27none%27 stroke=%27%238d95a3%27 stroke-width=%271.6%27 stroke-linecap=%27round%27/%3E%3C/svg%3E") no-repeat right 10px center/9px 6px;color:var(--text);border-radius:999px;padding:5px 26px 5px 12px;font:700 12px var(--sans);cursor:pointer;max-width:190px}   /* a pill with a small ▾ */
+.composer select:hover{border-color:var(--text)}
+.composer .modelpick{gap:6px}
+.composer .modelpick input{border:1px solid var(--line-strong);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 12px;font:12px var(--mono);width:190px}
+.composer .csend{appearance:none;width:34px;height:34px;flex:none;border-radius:50%;border:0;background:var(--text);color:var(--surface);cursor:pointer;display:grid;place-items:center;padding:0;transition:opacity .15s}
+.composer .csend svg{width:17px;height:17px}
+.composer .csend.empty{opacity:.28;cursor:default}
+.composer .csend.run{background:var(--run)}
+.composer .csend:disabled{opacity:.45;cursor:default}
+.dock .dchip{cursor:grab}
+.dock .dchip.dragging{opacity:.45}
+.dock .dchip.drop-before{box-shadow:inset 3px 0 0 var(--accent)}
+.dock .dchip.drop-after{box-shadow:inset -3px 0 0 var(--accent)}
 .info .when{align-items:center}
 .tab .tc .a{color:var(--surface);background:var(--wait)}
 .info .marks{display:flex;align-items:center;gap:5px;flex:none}
@@ -652,10 +670,10 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
       didAllow: '✓ Allowed', didAlways: '✓ Allowed — won’t ask again', didDeny: '✕ Denied', didStop: '■ Denied and stopped', always: 'Always allow: {x}', stop: 'Deny and stop', didEditor: '↩ Sent back to VS Code',
       keysTool: 'Keys: press the number · Alt+number while typing', keysQ: 'Keys: number picks · Enter sends · Alt with them while typing', keysQs: 'Keys: number picks · ↑↓ question · Enter sends · Alt with them while typing',
-      acct: 'Account', acctTitle: 'Claude account', acctOut: 'Claude Code on this PC is not signed in.', acctUsage: 'Usage', lim_session: 'Current session (5 h)', lim_weekly_all: 'Week · all models', lim_weekly_scoped: 'Week · {x}', resetsIn: 'resets in {t} · {at}', extraUsage: 'Extra usage', srcLive: 'Checked {t} · asked again every 5 minutes', srcCache: 'Could not reach Anthropic — these are the numbers from {t}', srcBusy: 'Anthropic is turning requests away for now (asked too often) — these are the numbers from {t}; asked again in {n}', limReset: 'reset since then — the new number is not in yet', srcExpired: 'The sign-in has expired for now — these are the numbers from {t}; using Claude Code renews it', srcNone: 'No usage numbers yet', refresh: 'Refresh', switchAcct: 'Switch account', logout: 'Sign out', login: 'Sign in', acctWarn: 'Signing out stops every Claude Code session on this PC — in VS Code and the monitor’s agents — until you sign in again.', switchConfirm: 'Sign out and sign in with another account?', logoutConfirm: 'Sign out of Claude Code?', loginWait: 'Finish signing in in the browser — a window with the steps opened as well. This page updates by itself.', acctFailed: 'That did not work — try again.', about: 'About', aboutTitle: 'About Agent Monitor', aboutWhat: 'A local dashboard for every Claude Code session on this PC, grouped as project → leader → agents. Answer approvals and questions, message the agents, run agents of its own, and keep an eye on your plan’s usage.', aboutPrivacy: 'It runs only on this PC (127.0.0.1). Conversations, e-mail addresses and tokens are never stored. The only requests that leave the PC are the usage question to api.anthropic.com and, in the desktop app, the update check on GitHub.', aVersion: 'Version', aApp: 'desktop app {v}', aMaker: 'Made by', aRepo: 'Source code', aIssues: 'Report a problem', aLicense: 'License', aLicenseText: 'PolyForm Noncommercial 1.0.0 — free for personal and other noncommercial use. Commercial use needs a separate licence from ELOP Studio.', aShowLicense: 'Full text', aHideLicense: 'Hide', aTabAbout: 'About', aTabKeys: 'Shortcuts', kgAsk: 'Approvals and questions', kPick: 'Pick an answer on the highlighted request — Allow, Deny, an option', kPickTyping: 'The same while typing in a text box', kSendAnswers: 'Send the answers to a question', kMoveQ: 'Move between the questions of one request', kgAgent: 'Agent dialog', kSendMsg: 'Send the message', kDock: 'Open or fold the minimised agent with that number, even while typing', kEsc: 'Close the dialog (a minimised agent stays on the bar)', kRun: 'Start a message with ! to run it as a command on this PC; the agent gets the output', kgTabs: 'Project tabs (with a tab focused)', kTabMove: 'Previous / next project', kTabEnds: 'First / last project', kTabReorder: 'Move the project itself', kgApp: 'Desktop app', kHotkey: 'Show or hide the window from anywhere (the default; change it in the settings)', kZoom: 'Zoom in / out', kZoomReset: 'Actual size', kReload: 'Reload the page', kBackFwd: 'Back / forward', dragTab: 'Drag to reorder (or Ctrl+Shift+← →)',
+      acct: 'Account', acctTitle: 'Claude account', acctOut: 'Claude Code on this PC is not signed in.', acctUsage: 'Usage', lim_session: 'Current session (5 h)', lim_weekly_all: 'Week · all models', lim_weekly_scoped: 'Week · {x}', resetsIn: 'resets in {t} · {at}', extraUsage: 'Extra usage', srcLive: 'Checked {t} · asked again every 5 minutes', srcCache: 'Could not reach Anthropic — these are the numbers from {t}', srcBusy: 'Anthropic is turning requests away for now (asked too often) — these are the numbers from {t}; asked again in {n}', limReset: 'reset since then — the new number is not in yet', srcExpired: 'The sign-in has expired for now — these are the numbers from {t}; using Claude Code renews it', srcNone: 'No usage numbers yet', refresh: 'Refresh', switchAcct: 'Switch account', logout: 'Sign out', login: 'Sign in', acctWarn: 'Signing out stops every Claude Code session on this PC — in VS Code and the monitor’s agents — until you sign in again.', switchConfirm: 'Sign out and sign in with another account?', logoutConfirm: 'Sign out of Claude Code?', loginWait: 'Finish signing in in the browser — a window with the steps opened as well. This page updates by itself.', acctFailed: 'That did not work — try again.', about: 'About', aboutTitle: 'About Agent Monitor', aboutWhat: 'A local dashboard for every Claude Code session on this PC, grouped as project → leader → agents. Answer approvals and questions, message the agents, run agents of its own, and keep an eye on your plan’s usage.', aboutPrivacy: 'It runs only on this PC (127.0.0.1). Conversations, e-mail addresses and tokens are never stored. The only requests that leave the PC are the usage question to api.anthropic.com and, in the desktop app, the update check on GitHub.', aVersion: 'Version', aApp: 'desktop app {v}', aMaker: 'Made by', aRepo: 'Source code', aIssues: 'Report a problem', aLicense: 'License', aLicenseText: 'PolyForm Noncommercial 1.0.0 — free for personal and other noncommercial use. Commercial use needs a separate licence from ELOP Studio.', aShowLicense: 'Full text', aHideLicense: 'Hide', aTabAbout: 'About', aTabKeys: 'Shortcuts', kgAsk: 'Approvals and questions', kPick: 'Pick an answer on the highlighted request — Allow, Deny, an option', kPickTyping: 'The same while typing in a text box', kSendAnswers: 'Send the answers to a question', kMoveQ: 'Move between the questions of one request', kgAgent: 'Agent dialog', kSendMsg: 'Send the message', kNewLine: 'A new line in the message', kDockReorder: 'Move the minimised agent on the bar (on a focused chip; or drag it)', dockDrag: 'drag to reorder', kDock: 'Open or fold the minimised agent with that number, even while typing', kEsc: 'Close the dialog (a minimised agent stays on the bar)', kRun: 'Start a message with ! to run it as a command on this PC; the agent gets the output', kgTabs: 'Project tabs (with a tab focused)', kTabMove: 'Previous / next project', kTabEnds: 'First / last project', kTabReorder: 'Move the project itself', kgApp: 'Desktop app', kHotkey: 'Show or hide the window from anywhere (the default; change it in the settings)', kZoom: 'Zoom in / out', kZoomReset: 'Actual size', kReload: 'Reload the page', kBackFwd: 'Back / forward', dragTab: 'Drag to reorder (or Ctrl+Shift+← →)',
       usageAlert: 'Claude usage at {p}% — {x}', usageAlertBody: 'Resets in {t} ({at})', dToday: 'Tokens today', dAway: 'Also working in', awayRow: '{x} — changed a file there {t}', awayTitle: 'Changing files in {x} · {t}', guestsTitle: 'Working here from other projects', guestTitle: 'Belongs to {x} · changed a file here {t}', todayOf: 'input {i} · cache reads {r} · cache writes {c} · output {o}', topToday: 'Most tokens today', noneToday: 'No agent has used tokens today yet', stallNotify: '{x} may be stuck', nudge: 'Stop and carry on', nudgeText: 'It looked like you were stuck, so you were stopped. Please carry on with what you were doing.', nudgeVs: 'This one runs in VS Code: press Esc in its panel, then ask it to carry on.', nudged: '✓ Stopped and asked to carry on',
       modes: { default: 'MANUAL', auto: 'AUTO', acceptEdits: 'EDITS OK', plan: 'PLAN', bypassPermissions: 'ALL OK', dontAsk: 'NO ASK' },
-      forClaude: 'for Claude Code', noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', lookTitle: 'Name and look', saveLook: 'Save', saved: '✓ Saved', fastStart: 'Quick start — without your MCP servers and connectors', nickLabel: 'Name', nickAuto: 'Leave empty for an automatic name', avatarLabel: 'Look', colour: 'Colour', acc_ball: 'Antenna', acc_twin: 'Twin', acc_phones: 'Headphones', acc_sprout: 'Sprout', acc_bolt: 'Bolt', acc_crown: 'Crown', projectLabel: 'Project', otherFolder: 'Other folder…', browse: 'Browse', up2: 'Up', pickThis: 'Use this folder', drives: 'Drives', noFolders: 'No folders here', tabSubs: 'Subagents ({n})', subTools: '{n} tool calls', subBack: 'All subagents', subsRunning: '{n} subagent(s) running', newAgent: 'New agent', folder: 'Folder', modelLabel: 'Model', modelDefault: 'Default', modelLatest: 'Latest (always the newest)', modelPinned: 'This version', modelOther: 'Other…', modelOtherPh: 'model name, e.g. claude-opus-4-1', firstMsg: 'First message (optional)', newAgentHint: 'Runs the claude program here, on your own Claude Code login — no VS Code needed. Approvals and questions come to this page.', startAgent: 'Start', startFailed: 'Could not start — check the folder.', stopAgent: 'Stop', endAgent: 'End agent', endConfirm: 'End this agent? Its conversation stays in the transcript.', monTag: 'MONITOR', msgAgent: 'Goes straight to the agent.', barStopped: 'Stopped — send a message to continue', turnDone: 'turn done · {t}s', newBelow: 'New below ↓', attach: 'Attach', remove: 'Remove', tooMany: 'Up to 5 files per message', tooBig: '{x} is over 20 MB', uploadFailed: 'Could not upload {x}', stillUploading: 'Still uploading — wait a moment', sec: '{n}s', barThink: 'Thinking… {t}', barTool: '{x} — running for {t}', barAsk: 'Waiting for your answer below', barVs: 'Waiting for an answer in VS Code', barWaiting: 'Done — waiting for input', barResting: 'Resting', barGone: 'This session has ended', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} (Ctrl+Enter to send · drop or paste files · start with ! to run a command)', runCmd: 'Run', runHint: 'Runs on this PC in the agent’s folder, as you — no permission check — and the agent gets what it printed.', running: 'Running…', runFailed: 'Could not run it.', runNoStart: 'Could not start', runTimeout: 'Stopped after 2 minutes', runExit: 'Exit code {n}', runSent: 'sent to the agent', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', minimise: 'Minimise', dockLabel: 'Minimised agents', dockOpen: 'Open {x} (Ctrl+{n})', dockFold: 'Fold {x} away (Ctrl+{n})', dockRemove: 'Take {x} off the bar', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
+      forClaude: 'for Claude Code', noServer: 'Cannot reach the monitor server — start it again with npm start.', tabsLabel: 'Projects', lookTitle: 'Name and look', saveLook: 'Save', saved: '✓ Saved', fastStart: 'Quick start — without your MCP servers and connectors', nickLabel: 'Name', nickAuto: 'Leave empty for an automatic name', avatarLabel: 'Look', colour: 'Colour', acc_ball: 'Antenna', acc_twin: 'Twin', acc_phones: 'Headphones', acc_sprout: 'Sprout', acc_bolt: 'Bolt', acc_crown: 'Crown', projectLabel: 'Project', otherFolder: 'Other folder…', browse: 'Browse', up2: 'Up', pickThis: 'Use this folder', drives: 'Drives', noFolders: 'No folders here', tabSubs: 'Subagents ({n})', subTools: '{n} tool calls', subBack: 'All subagents', subsRunning: '{n} subagent(s) running', newAgent: 'New agent', folder: 'Folder', modelLabel: 'Model', modelDefault: 'Default model', modelLatest: 'Latest (always the newest)', modelPinned: 'This version', modelOther: 'Other…', modelOtherPh: 'model name, e.g. claude-opus-4-1', firstMsg: 'First message (optional)', newAgentHint: 'Runs the claude program here, on your own Claude Code login — no VS Code needed. Approvals and questions come to this page.', startAgent: 'Start', startFailed: 'Could not start — check the folder.', stopAgent: 'Stop', endAgent: 'End agent', endConfirm: 'End this agent? Its conversation stays in the transcript.', monTag: 'MONITOR', msgAgent: 'Goes straight to the agent.', barStopped: 'Stopped — send a message to continue', turnDone: 'turn done · {t}s', newBelow: 'New below ↓', attach: 'Attach', remove: 'Remove', tooMany: 'Up to 5 files per message', tooBig: '{x} is over 20 MB', uploadFailed: 'Could not upload {x}', stillUploading: 'Still uploading — wait a moment', sec: '{n}s', barThink: 'Thinking… {t}', barTool: '{x} — running for {t}', barAsk: 'Waiting for your answer below', barVs: 'Waiting for an answer in VS Code', barWaiting: 'Done — waiting for input', barResting: 'Resting', barGone: 'This session has ended', tabInfo: 'Info', tabConv: 'Conversation', fromPage: '✉ FROM THE MONITOR', liveTitle: 'Conversation', liveConnecting: 'connecting…', liveOn: 'live', liveOff: 'disconnected — reconnecting', liveMasked: 'e-mails, phone and ID numbers, keys and tokens are masked; nothing is stored', msgTo: 'Message {x}', msgPh: 'Message to {x} — Enter sends, Shift+Enter for a new line · drop or paste files · start with ! to run a command', runCmd: 'Run', runHint: 'Runs on this PC in the agent’s folder, as you — no permission check — and the agent gets what it printed.', running: 'Running…', runFailed: 'Could not run it.', runNoStart: 'Could not start', runTimeout: 'Stopped after 2 minutes', runExit: 'Exit code {n}', runSent: 'sent to the agent', msgNow: 'Delivered right away — the agent is listening.', msgAfterTurn: 'Delivered when the agent finishes its current turn.', msgNotListening: 'Delivered once the agent next finishes a turn (it is not listening yet).', msgSent: '✓ Sent', answer: 'Answer', reanswer: 'Change', answerPh: 'Your answer', send: 'Send', cancel: 'Cancel', addTask: 'Add a task', taskPh: 'What needs doing', assignee: 'Assign to', nobody: 'Anyone', moveUp: 'Move up', moveDown: 'Move down', boardChanged: 'The board changed meanwhile — reloaded, try again.', stallTag: 'STUCK? {t}', stallLong: 'Working, but no sign of activity for {t}', dStall: 'Possibly stuck', dCtx: 'Context size', tok: 'tokens', dErr: 'Tool errors', errOf: '{e} of the last {n} tool results failed', lastErr: 'last one {t}', vsTitle: 'ANSWER IN VS CODE', vsTag: 'IN VS CODE', vsHint: 'This prompt can only be answered in VS Code.', close: 'Close', minimise: 'Minimise', dockLabel: 'Minimised agents', dockOpen: 'Open {x} (Ctrl+{n})', dockFold: 'Fold {x} away (Ctrl+{n})', dockRemove: 'Take {x} off the bar', dProject: 'Project', dRole: 'Role', dTitle: 'Session', dNow: 'Doing now', dLast: 'Last action', dState: 'State', dMode: 'Mode', dUp: 'Running for', dAsk: 'Waiting for you', notifyOn: 'Notify me', allTab: 'All agents',
       m: '{n}m', h: '{n}h', hm: '{h}h {m}m', d: '{n}d',
       act: {
         shell: 'Running a command', read: 'Reading · {x}', edit: 'Editing · {x}', write: 'Writing · {x}', grep: 'Searching code',
@@ -676,10 +694,10 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
       didAllow: '✓ 허용함', didAlways: '✓ 허용함 — 다음부터 묻지 않음', didDeny: '✕ 거부함', didStop: '■ 거부하고 멈춤', always: '항상 허용: {x}', stop: '거부하고 멈추기', didEditor: '↩ VS Code로 넘김',
       keysTool: '단축키: 숫자 키 · 입력 중에는 Alt+숫자', keysQ: '단축키: 숫자로 고르기 · Enter 보내기 · 입력 중에는 Alt와 함께', keysQs: '단축키: 숫자로 고르기 · ↑↓ 질문 이동 · Enter 보내기 · 입력 중에는 Alt와 함께',
-      acct: '계정', acctTitle: 'Claude 계정', acctOut: '이 PC의 Claude Code에 로그인돼 있지 않습니다.', acctUsage: '사용량', lim_session: '현재 세션 (5시간)', lim_weekly_all: '주간 · 전체 모델', lim_weekly_scoped: '주간 · {x}', resetsIn: '{t} 후 초기화 · {at}', extraUsage: '추가 사용량', srcLive: '{t} 확인 · 5분마다 다시 물어봅니다', srcCache: 'Anthropic에 물어보지 못해 {t} 확인한 값을 보여 줍니다', srcBusy: 'Anthropic이 잠시 조회를 막아서(너무 자주 물음) {t} 확인한 값을 보여 줍니다. {n} 뒤 다시 물어봅니다', limReset: '그사이 초기화됨 — 새 값 확인 전', srcExpired: '로그인이 잠시 만료돼 {t} 확인한 값을 보여 줍니다 — Claude Code를 쓰면 다시 이어집니다', srcNone: '아직 사용량 정보가 없습니다', refresh: '새로 고침', switchAcct: '계정 바꾸기', logout: '로그아웃', login: '로그인', acctWarn: '로그아웃하면 다시 로그인할 때까지 이 PC의 모든 Claude Code 세션(VS Code, 모니터 에이전트)이 멈춥니다.', switchConfirm: '로그아웃하고 다른 계정으로 로그인할까요?', logoutConfirm: 'Claude Code에서 로그아웃할까요?', loginWait: '브라우저에서 로그인을 마쳐 주세요. 안내 창도 하나 열렸습니다. 끝나면 이 화면이 저절로 바뀝니다.', acctFailed: '실패했습니다 — 다시 해 주세요.', about: '정보', aboutTitle: '에이전트 관제 정보', aboutWhat: '이 PC에서 도는 모든 Claude Code 세션을 프로젝트 → 리더 → 에이전트로 묶어 보여 주는 로컬 대시보드입니다. 승인과 질문에 답하고, 에이전트에게 메시지를 보내고, 에이전트를 직접 띄우고, 요금제 사용량도 볼 수 있습니다.', aboutPrivacy: '이 PC 안에서만 돕니다(127.0.0.1). 대화, 이메일, 토큰은 저장하지 않습니다. PC 밖으로 나가는 요청은 api.anthropic.com 에 사용량을 묻는 것과, 데스크톱 앱에서 GitHub 에 업데이트를 확인하는 것뿐입니다.', aVersion: '버전', aApp: '데스크톱 앱 {v}', aMaker: '만든 곳', aRepo: '소스 코드', aIssues: '문제 알리기', aLicense: '라이선스', aLicenseText: 'PolyForm Noncommercial 1.0.0 — 개인 용도와 비상업적 용도로는 무료입니다. 상업적으로 쓰려면 이롭스튜디오의 별도 라이선스가 필요합니다.', aShowLicense: '전문 보기', aHideLicense: '접기', aTabAbout: '정보', aTabKeys: '단축키', kgAsk: '승인·질문', kPick: '강조된 요청에서 답 고르기 — 허용, 거부, 선택지', kPickTyping: '입력창에 쓰는 중에 같은 동작', kSendAnswers: '질문의 답 보내기', kMoveQ: '한 요청 안의 질문 사이 이동', kgAgent: '에이전트 창', kSendMsg: '메시지 보내기', kDock: '그 번호의 최소화한 에이전트 열기·접기 (입력 중에도)', kEsc: '창 닫기 (최소화한 에이전트는 막대에 남음)', kRun: '메시지를 !로 시작하면 이 PC에서 명령으로 실행하고 출력을 에이전트에게 전달', kgTabs: '프로젝트 탭 (탭에 초점이 있을 때)', kTabMove: '이전·다음 프로젝트', kTabEnds: '처음·마지막 프로젝트', kTabReorder: '프로젝트 순서 옮기기', kgApp: '데스크톱 앱', kHotkey: '어디서든 창 보이기·숨기기 (기본값, 설정에서 바꿀 수 있음)', kZoom: '확대·축소', kZoomReset: '원래 크기', kReload: '페이지 새로 고침', kBackFwd: '뒤로·앞으로', dragTab: '끌어서 순서 바꾸기 (또는 Ctrl+Shift+← →)',
+      acct: '계정', acctTitle: 'Claude 계정', acctOut: '이 PC의 Claude Code에 로그인돼 있지 않습니다.', acctUsage: '사용량', lim_session: '현재 세션 (5시간)', lim_weekly_all: '주간 · 전체 모델', lim_weekly_scoped: '주간 · {x}', resetsIn: '{t} 후 초기화 · {at}', extraUsage: '추가 사용량', srcLive: '{t} 확인 · 5분마다 다시 물어봅니다', srcCache: 'Anthropic에 물어보지 못해 {t} 확인한 값을 보여 줍니다', srcBusy: 'Anthropic이 잠시 조회를 막아서(너무 자주 물음) {t} 확인한 값을 보여 줍니다. {n} 뒤 다시 물어봅니다', limReset: '그사이 초기화됨 — 새 값 확인 전', srcExpired: '로그인이 잠시 만료돼 {t} 확인한 값을 보여 줍니다 — Claude Code를 쓰면 다시 이어집니다', srcNone: '아직 사용량 정보가 없습니다', refresh: '새로 고침', switchAcct: '계정 바꾸기', logout: '로그아웃', login: '로그인', acctWarn: '로그아웃하면 다시 로그인할 때까지 이 PC의 모든 Claude Code 세션(VS Code, 모니터 에이전트)이 멈춥니다.', switchConfirm: '로그아웃하고 다른 계정으로 로그인할까요?', logoutConfirm: 'Claude Code에서 로그아웃할까요?', loginWait: '브라우저에서 로그인을 마쳐 주세요. 안내 창도 하나 열렸습니다. 끝나면 이 화면이 저절로 바뀝니다.', acctFailed: '실패했습니다 — 다시 해 주세요.', about: '정보', aboutTitle: '에이전트 관제 정보', aboutWhat: '이 PC에서 도는 모든 Claude Code 세션을 프로젝트 → 리더 → 에이전트로 묶어 보여 주는 로컬 대시보드입니다. 승인과 질문에 답하고, 에이전트에게 메시지를 보내고, 에이전트를 직접 띄우고, 요금제 사용량도 볼 수 있습니다.', aboutPrivacy: '이 PC 안에서만 돕니다(127.0.0.1). 대화, 이메일, 토큰은 저장하지 않습니다. PC 밖으로 나가는 요청은 api.anthropic.com 에 사용량을 묻는 것과, 데스크톱 앱에서 GitHub 에 업데이트를 확인하는 것뿐입니다.', aVersion: '버전', aApp: '데스크톱 앱 {v}', aMaker: '만든 곳', aRepo: '소스 코드', aIssues: '문제 알리기', aLicense: '라이선스', aLicenseText: 'PolyForm Noncommercial 1.0.0 — 개인 용도와 비상업적 용도로는 무료입니다. 상업적으로 쓰려면 이롭스튜디오의 별도 라이선스가 필요합니다.', aShowLicense: '전문 보기', aHideLicense: '접기', aTabAbout: '정보', aTabKeys: '단축키', kgAsk: '승인·질문', kPick: '강조된 요청에서 답 고르기 — 허용, 거부, 선택지', kPickTyping: '입력창에 쓰는 중에 같은 동작', kSendAnswers: '질문의 답 보내기', kMoveQ: '한 요청 안의 질문 사이 이동', kgAgent: '에이전트 창', kSendMsg: '메시지 보내기', kNewLine: '메시지 안에서 줄바꿈', kDockReorder: '막대의 최소화한 에이전트 순서 옮기기 (칩에 초점을 두고, 또는 끌어서)', dockDrag: '끌어서 순서 바꾸기', kDock: '그 번호의 최소화한 에이전트 열기·접기 (입력 중에도)', kEsc: '창 닫기 (최소화한 에이전트는 막대에 남음)', kRun: '메시지를 !로 시작하면 이 PC에서 명령으로 실행하고 출력을 에이전트에게 전달', kgTabs: '프로젝트 탭 (탭에 초점이 있을 때)', kTabMove: '이전·다음 프로젝트', kTabEnds: '처음·마지막 프로젝트', kTabReorder: '프로젝트 순서 옮기기', kgApp: '데스크톱 앱', kHotkey: '어디서든 창 보이기·숨기기 (기본값, 설정에서 바꿀 수 있음)', kZoom: '확대·축소', kZoomReset: '원래 크기', kReload: '페이지 새로 고침', kBackFwd: '뒤로·앞으로', dragTab: '끌어서 순서 바꾸기 (또는 Ctrl+Shift+← →)',
       usageAlert: 'Claude 사용량 {p}% — {x}', usageAlertBody: '{t} 후 초기화 ({at})', dToday: '오늘 쓴 토큰', dAway: '다른 프로젝트 작업', awayRow: '{x} — {t} 그쪽 파일을 고침', awayTitle: '{x} 프로젝트 파일을 고치는 중 · {t}', guestsTitle: '다른 프로젝트에서 와서 작업 중', guestTitle: '{x} 프로젝트 에이전트 · {t} 여기 파일을 고침', todayOf: '입력 {i} · 캐시 읽기 {r} · 캐시 쓰기 {c} · 출력 {o}', topToday: '오늘 토큰을 많이 쓴 에이전트', noneToday: '오늘은 아직 토큰을 쓴 에이전트가 없습니다', stallNotify: '{x} 멈춘 듯합니다', nudge: '멈추고 이어서 하기', nudgeText: '멈춘 것 같아서 중단했습니다. 하던 작업을 이어서 해 주세요.', nudgeVs: 'VS Code에서 도는 세션입니다. 그 패널에서 Esc를 누른 뒤 이어서 하라고 보내 주세요.', nudged: '✓ 멈추고 이어서 하라고 보냈습니다',
       modes: { default: '수동', auto: 'AUTO', acceptEdits: '편집 자동', plan: '계획', bypassPermissions: '전부 허용', dontAsk: '묻지 않음' },
-      forClaude: 'Claude Code 전용', noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', lookTitle: '이름·모습', saveLook: '저장', saved: '✓ 저장했습니다', fastStart: '빠른 시작 — 연결 도구(MCP·커넥터) 없이', nickLabel: '이름', nickAuto: '비워 두면 자동으로 붙습니다', avatarLabel: '모습', colour: '색', acc_ball: '안테나', acc_twin: '쌍안테나', acc_phones: '헤드폰', acc_sprout: '새싹', acc_bolt: '번개', acc_crown: '왕관', projectLabel: '프로젝트', otherFolder: '다른 폴더…', browse: '찾아보기', up2: '위로', pickThis: '이 폴더 선택', drives: '드라이브', noFolders: '하위 폴더 없음', tabSubs: '서브에이전트 ({n})', subTools: '도구 {n}회', subBack: '목록', subsRunning: '서브에이전트 {n}개 실행 중', newAgent: '새 에이전트', folder: '폴더', modelLabel: '모델', modelDefault: '기본', modelLatest: '최신 (늘 새 버전)', modelPinned: '버전 고정', modelOther: '직접 입력…', modelOtherPh: '모델 이름 (예: claude-opus-4-1)', firstMsg: '첫 메시지 (선택)', newAgentHint: '이 폴더에서 claude 프로그램을 직접 실행합니다 — 지금 로그인된 Claude Code 그대로, VS Code 없이. 승인과 질문은 이 페이지로 옵니다.', startAgent: '시작', startFailed: '시작하지 못했습니다 — 폴더를 확인해 주세요.', stopAgent: '중단', endAgent: '에이전트 종료', endConfirm: '이 에이전트를 종료할까요? 대화 기록은 남습니다.', monTag: '모니터', msgAgent: '에이전트에게 바로 전달됩니다.', barStopped: '멈춤 — 메시지를 보내면 이어서 합니다', turnDone: '턴 완료 · {t}초', newBelow: '새 내용 ↓', attach: '파일 첨부', remove: '빼기', tooMany: '한 번에 5개까지 첨부할 수 있습니다', tooBig: '{x} 파일이 20MB를 넘습니다', uploadFailed: '{x} 파일을 올리지 못했습니다', stillUploading: '아직 올리는 중입니다 — 잠시만요', sec: '{n}초', barThink: '생각 중… {t}', barTool: '{x} — {t}째 실행 중', barAsk: '아래에서 답을 기다리는 중', barVs: 'VS Code에서 답을 기다리는 중', barWaiting: '끝남 — 입력을 기다리는 중', barResting: '쉬는 중', barGone: '이 세션은 종료됐습니다', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 (Ctrl+Enter로 보내기 · 파일은 끌어다 놓거나 붙여넣기 · !로 시작하면 명령 실행)', runCmd: '실행', runHint: '이 PC에서 에이전트 폴더를 기준으로 내 권한으로 실행합니다 — 권한 검사 없음 — 출력은 에이전트에게 전달됩니다.', running: '실행 중…', runFailed: '실행하지 못했습니다.', runNoStart: '시작하지 못함', runTimeout: '2분이 지나 멈춤', runExit: '종료 코드 {n}', runSent: '에이전트에게 보냄', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', minimise: '최소화', dockLabel: '최소화한 에이전트', dockOpen: '{x} 열기 (Ctrl+{n})', dockFold: '{x} 접기 (Ctrl+{n})', dockRemove: '{x} 막대에서 빼기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
+      forClaude: 'Claude Code 전용', noServer: '모니터 서버에 연결할 수 없습니다 — npm start 로 다시 띄우세요.', tabsLabel: '프로젝트', lookTitle: '이름·모습', saveLook: '저장', saved: '✓ 저장했습니다', fastStart: '빠른 시작 — 연결 도구(MCP·커넥터) 없이', nickLabel: '이름', nickAuto: '비워 두면 자동으로 붙습니다', avatarLabel: '모습', colour: '색', acc_ball: '안테나', acc_twin: '쌍안테나', acc_phones: '헤드폰', acc_sprout: '새싹', acc_bolt: '번개', acc_crown: '왕관', projectLabel: '프로젝트', otherFolder: '다른 폴더…', browse: '찾아보기', up2: '위로', pickThis: '이 폴더 선택', drives: '드라이브', noFolders: '하위 폴더 없음', tabSubs: '서브에이전트 ({n})', subTools: '도구 {n}회', subBack: '목록', subsRunning: '서브에이전트 {n}개 실행 중', newAgent: '새 에이전트', folder: '폴더', modelLabel: '모델', modelDefault: '기본 모델', modelLatest: '최신 (늘 새 버전)', modelPinned: '버전 고정', modelOther: '직접 입력…', modelOtherPh: '모델 이름 (예: claude-opus-4-1)', firstMsg: '첫 메시지 (선택)', newAgentHint: '이 폴더에서 claude 프로그램을 직접 실행합니다 — 지금 로그인된 Claude Code 그대로, VS Code 없이. 승인과 질문은 이 페이지로 옵니다.', startAgent: '시작', startFailed: '시작하지 못했습니다 — 폴더를 확인해 주세요.', stopAgent: '중단', endAgent: '에이전트 종료', endConfirm: '이 에이전트를 종료할까요? 대화 기록은 남습니다.', monTag: '모니터', msgAgent: '에이전트에게 바로 전달됩니다.', barStopped: '멈춤 — 메시지를 보내면 이어서 합니다', turnDone: '턴 완료 · {t}초', newBelow: '새 내용 ↓', attach: '파일 첨부', remove: '빼기', tooMany: '한 번에 5개까지 첨부할 수 있습니다', tooBig: '{x} 파일이 20MB를 넘습니다', uploadFailed: '{x} 파일을 올리지 못했습니다', stillUploading: '아직 올리는 중입니다 — 잠시만요', sec: '{n}초', barThink: '생각 중… {t}', barTool: '{x} — {t}째 실행 중', barAsk: '아래에서 답을 기다리는 중', barVs: 'VS Code에서 답을 기다리는 중', barWaiting: '끝남 — 입력을 기다리는 중', barResting: '쉬는 중', barGone: '이 세션은 종료됐습니다', tabInfo: '정보', tabConv: '대화', fromPage: '✉ 모니터에서', liveTitle: '대화', liveConnecting: '연결 중…', liveOn: '실시간', liveOff: '끊김 — 다시 연결 중', liveMasked: '이메일·전화·주민/카드번호·키·토큰은 가려집니다 · 저장하지 않습니다', msgTo: '{x}에게 메시지', msgPh: '{x}에게 보낼 메시지 — Enter 보내기, Shift+Enter 줄바꿈 · 파일은 끌어다 놓거나 붙여넣기 · !로 시작하면 명령 실행', runCmd: '실행', runHint: '이 PC에서 에이전트 폴더를 기준으로 내 권한으로 실행합니다 — 권한 검사 없음 — 출력은 에이전트에게 전달됩니다.', running: '실행 중…', runFailed: '실행하지 못했습니다.', runNoStart: '시작하지 못함', runTimeout: '2분이 지나 멈춤', runExit: '종료 코드 {n}', runSent: '에이전트에게 보냄', msgNow: '바로 전달됩니다 — 에이전트가 듣고 있습니다.', msgAfterTurn: '지금 하는 턴이 끝나면 전달됩니다.', msgNotListening: '에이전트가 다음 턴을 마치면 전달됩니다 (아직 듣고 있지 않음).', msgSent: '✓ 보냈습니다', answer: '답하기', reanswer: '바꾸기', answerPh: '답을 입력', send: '보내기', cancel: '취소', addTask: '작업 추가', taskPh: '할 일', assignee: '담당', nobody: '미정', moveUp: '위로', moveDown: '아래로', boardChanged: '그사이 작업판이 바뀌었습니다 — 새로 불러왔으니 다시 해 주세요.', stallTag: '멈춘 듯 {t}', stallLong: '작업 중인데 {t} 동안 아무 활동이 없습니다', dStall: '멈춤 의심', dCtx: '컨텍스트 크기', tok: '토큰', dErr: '도구 오류', errOf: '최근 도구 결과 {n}개 중 {e}개 실패', lastErr: '마지막 {t}', vsTitle: 'VS Code에서 답하기', vsTag: 'VS Code 대기', vsHint: '이 창은 VS Code에서만 답할 수 있습니다.', close: '닫기', minimise: '최소화', dockLabel: '최소화한 에이전트', dockOpen: '{x} 열기 (Ctrl+{n})', dockFold: '{x} 접기 (Ctrl+{n})', dockRemove: '{x} 막대에서 빼기', dProject: '프로젝트', dRole: '역할', dTitle: '세션', dNow: '지금 하는 일', dLast: '마지막 동작', dState: '상태', dMode: '모드', dUp: '켜진 지', dAsk: '승인 대기', notifyOn: '알림 켜기', allTab: '전체 에이전트',
       m: '{n}분', h: '{n}시간', hm: '{h}시간 {m}분', d: '{n}일',
       act: {
         shell: '명령 실행', read: '읽기 · {x}', edit: '수정 · {x}', write: '쓰기 · {x}', grep: '코드 검색',
@@ -767,7 +785,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
   // what a dialog shows under its header and tabs: only this part scrolls
   function dbody(...nodes) { const b = el('div', 'dbody'); b.append(...nodes); return b; }
   // a square button with a drawn icon (minimise, close); its name is the tooltip and what screen readers say
-  const ICONS = { min: '<path d="M4 12.5h8"/>', close: '<path d="M4 4l8 8M12 4l-8 8"/>' };
+  const ICONS = { min: '<path d="M4 12.5h8"/>', close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+    clip: '<path d="M10.5 5.5l-4.3 4.3a1.3 1.3 0 0 0 1.8 1.8l4.6-4.6a2.6 2.6 0 0 0-3.7-3.7L4.3 8a3.9 3.9 0 0 0 5.5 5.5l3.2-3.2"/>',
+    up: '<path d="M8 13V3.5M3.8 7.6L8 3.4l4.2 4.2"/>', run: '<path d="M5 3.5l7 4.5-7 4.5z" fill="currentColor"/>' };
   function iconButton(kind, label) {
     const b = el('button', 'close icon');
     b.type = 'button';
@@ -1129,22 +1149,60 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     wrap.append(sel, other);
     return wrap;
   }
-  // stop, permission mode, model, close — above a monitor agent's conversation
+  // a chat box like the AI apps': the text grows with what is written (to about eight lines, then it scrolls), and the
+  // attachments sit above it and the buttons — attach, mode, model, send — on a row inside the same box
+  function composer(ta, chips, left, send) {
+    const box = el('div', 'composer');
+    const tools = el('div', 'ctools'), l = el('div', 'cleft');
+    l.append(...left);
+    tools.append(l, send);
+    ta.rows = 1;
+    box.append(chips, ta, tools);
+    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px'; };
+    ta.addEventListener('input', grow);
+    requestAnimationFrame(grow);   // a draft brought back from the dock
+    // a click on the box's empty space goes to the text
+    box.addEventListener('mousedown', (e) => { if (e.target === box || e.target === tools || e.target === l) { e.preventDefault(); ta.focus(); } });
+    return { box, grow };
+  }
+  // Enter sends and Shift+Enter starts a new line (Ctrl or ⌘+Enter sends too) — not the Enter an IME uses to end a
+  // syllable, which a Korean or Japanese IME on the Mac hands over as its own keydown
+  function enterSends(ta, form) {
+    ta.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.shiftKey || e.altKey || e.isComposing || e.keyCode === 229) return;
+      e.preventDefault();
+      form.requestSubmit();
+    });
+  }
+  function roundButton(kind, label, cls) {
+    const b = el('button', cls);
+    b.type = 'button';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[kind] + '</svg>';   // static shapes only
+    return b;
+  }
+  // a monitor agent's permission mode and model, as pills for the composer; a change reaches the running agent at once
+  function agentSettings(s) {
+    const mode = modeSelect(s.mode);
+    const model = modelSelect(s.model);
+    mode.title = t('dMode'); mode.setAttribute('aria-label', t('dMode'));
+    model.title = t('modelLabel');
+    const apply = () => agentCall('/api/agents/settings', { id: s.agentId, mode: mode.value, model: model.value });
+    mode.addEventListener('change', apply);
+    model.addEventListener('change', apply);
+    return [mode, model];
+  }
+  // stop and end — above a monitor agent's conversation (mode and model are in the composer)
   function agentControls(s, lp) {
     const bar = el('div', 'actl');
     const stop = el('button', 'stop', '■ ' + t('stopAgent'));
     stop.type = 'button';
     stop.addEventListener('click', () => agentCall('/api/agents/stop', { id: s.agentId }));
-    const mode = modeSelect(s.mode);
-    const model = modelSelect(s.model);
-    const apply = () => agentCall('/api/agents/settings', { id: s.agentId, mode: mode.value, model: model.value });
-    mode.addEventListener('change', apply);
-    model.addEventListener('change', apply);
     const close = el('button', 'end', t('endAgent'));
     close.type = 'button';
     close.addEventListener('click', async () => { if (!confirm(t('endConfirm'))) return; await agentCall('/api/agents/close', { id: s.agentId }); undock(s.name); $('detail').close(); });
-    const lab = (text, node) => { const l = el('label'); l.append(document.createTextNode(text + ' '), node); return l; };
-    bar.append(stop, lab(t('dMode'), mode), lab(t('modelLabel'), model), close);
+    bar.append(stop, close);
     stop.disabled = true;
     lp.onAgentState((st) => { stop.disabled = st !== 'working'; });
     return bar;
@@ -1245,13 +1303,17 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const fastLabel = el('label', 'fast');
     fastLabel.append(fast, document.createTextNode(' ' + t('fastStart')));
     const ta = document.createElement('textarea');
-    ta.rows = 4;
     ta.placeholder = t('firstMsg');
+    ta.setAttribute('aria-label', t('firstMsg'));
     const status = el('div', 'status');
-    const go = el('button', 'send', t('startAgent'));
+    const go = roundButton('up', t('startAgent'), 'csend');
     go.type = 'submit';
+    mode.title = t('dMode'); mode.setAttribute('aria-label', t('dMode'));
+    model.title = t('modelLabel');
+    const first = composer(ta, el('div', 'chips'), [mode, model], go);
+    enterSends(ta, form);
     const row = (label, node) => { const l = el('label', 'row'); l.append(el('span', null, label), node); return l; };
-    form.append(row(t('projectLabel'), project), other, picker, row(t('nickLabel'), nick), row(t('avatarLabel'), avatarBox), row(t('dMode'), mode), row(t('modelLabel'), model), fastLabel, ta, el('div', 'hint', t('newAgentHint')), status, go);
+    form.append(row(t('projectLabel'), project), other, picker, row(t('nickLabel'), nick), row(t('avatarLabel'), avatarBox), fastLabel, first.box, el('div', 'hint', t('newAgentHint')), status);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       go.disabled = true;
@@ -1368,21 +1430,19 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     }
     const form = el('form', 'msg');
     const ta = document.createElement('textarea');
-    ta.rows = 3;
     ta.value = kept?.draft || '';   // what was being written when it was minimised
     ta.placeholder = t('msgPh', { x: nickFor(s) || str(s.name) });
     ta.setAttribute('aria-label', ta.placeholder);
     const hint = el('div', 'hint', s.managed ? t('msgAgent') : s.listening ? t('msgNow') : st === 'working' ? t('msgAfterTurn') : t('msgNotListening'));
     const status = el('div', 'status');
-    const send = el('button', 'send', t('send'));
+    const send = roundButton('up', t('send'), 'csend empty');
     send.type = 'submit';
     // attachments: picked, dropped or pasted files are uploaded at once; the message carries their paths
     const files = [];   // { name, size, path | null (uploading), el }
     const chips = el('div', 'chips');
     const picker = document.createElement('input');
     picker.type = 'file'; picker.multiple = true; picker.hidden = true;
-    const attachBtn = el('button', 'attach', '📎 ' + t('attach'));
-    attachBtn.type = 'button';
+    const attachBtn = roundButton('clip', t('attach'), 'cicon');
     attachBtn.addEventListener('click', () => picker.click());
     const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
     async function addFiles(list) {
@@ -1391,9 +1451,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
         if (file.size > 20 * 1048576) { status.textContent = t('tooBig', { x: file.name }); status.className = 'status bad'; continue; }
         const item = { name: file.name || 'pasted.png', size: file.size, path: null, el: el('span', 'chip up') };
         const x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', t('remove'));
-        x.addEventListener('click', () => { files.splice(files.indexOf(item), 1); item.el.remove(); });
+        x.addEventListener('click', () => { files.splice(files.indexOf(item), 1); item.el.remove(); ready(); });
         item.el.append(document.createTextNode(item.name + ' · ' + kb(item.size)), x);
-        files.push(item); chips.append(item.el);
+        files.push(item); chips.append(item.el); ready();
         const put = () => fetch('/api/upload?session=' + encodeURIComponent(str(s.name)) + '&name=' + encodeURIComponent(item.name), { method: 'POST', headers: { 'content-type': 'application/octet-stream', 'x-monitor-token': token }, body: file });
         try {
           let r = await put();
@@ -1413,13 +1473,20 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     form.addEventListener('dragleave', () => form.classList.remove('drop'));
     form.addEventListener('drop', (e) => { e.preventDefault(); form.classList.remove('drop'); addFiles([...e.dataTransfer.files]); });
     ta.addEventListener('paste', (e) => { const fl = [...(e.clipboardData?.files || [])]; if (fl.length) { e.preventDefault(); addFiles(fl); } });
-    const sendRow = el('div', 'sendrow');
-    sendRow.append(attachBtn, send);
+    // the send button is faint while there is nothing to send
+    const ready = () => send.classList.toggle('empty', !ta.value.trim() && !files.length);
+    ta.addEventListener('input', ready);
+    const box = composer(ta, chips, [attachBtn, ...(s.managed ? agentSettings(s) : [])], send);
     // "!command": run it here, in the agent's folder, as the person at this PC; the agent gets what it printed
     const runOut = el('pre', 'runout');
     runOut.hidden = true;
     const hintText = hint.textContent;
-    const asCommand = () => { const c = ta.value.trimStart().startsWith('!'); send.textContent = c ? '▶ ' + t('runCmd') : t('send'); send.classList.toggle('run', c); hint.textContent = c ? t('runHint') : hintText; };
+    let asRun = false;
+    const asCommand = () => {
+      const c = ta.value.trimStart().startsWith('!');
+      if (c !== asRun) { asRun = c; const b = roundButton(c ? 'run' : 'up', c ? t('runCmd') : t('send'), 'x'); send.innerHTML = b.innerHTML; send.title = b.title; send.setAttribute('aria-label', b.title); }
+      send.classList.toggle('run', c); hint.textContent = c ? t('runHint') : hintText;
+    };
     ta.addEventListener('input', asCommand);
     async function runCmd(command) {
       if (!command) return;
@@ -1430,7 +1497,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       try { r = await post(); if (r.status === 403) { await refreshToken(); r = await post(); } r = r.ok ? await r.json() : null; } catch (e2) { r = null; }
       send.disabled = false;
       if (!r) { status.textContent = t('runFailed'); status.className = 'status bad'; return; }
-      ta.value = ''; asCommand();
+      ta.value = ''; asCommand(); box.grow(); ready();
       runOut.hidden = false;
       runOut.classList.toggle('err', !!r.error || r.timedOut || r.code !== 0);
       runOut.textContent = '$ ' + command + '\n' + (r.error ? r.error : r.stdout + (r.stderr ? (r.stdout && !r.stdout.endsWith('\n') ? '\n' : '') + r.stderr : ''));
@@ -1439,7 +1506,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       status.className = 'status ' + (r.delivered ? 'good' : 'bad');
       clearTimeout(timer); tick();
     }
-    form.append(ta, chips, picker, hint, runOut, status, sendRow);
+    form.append(box.box, picker, hint, runOut, status);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = ta.value.trim();
@@ -1455,11 +1522,11 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       let r;
       try { r = await post(); if (r.status === 403) { await refreshToken(); r = await post(); } } catch (e2) { r = null; }
       send.disabled = false;
-      if (r && r.ok) { ta.value = ''; files.length = 0; chips.replaceChildren(); status.textContent = t('msgSent'); status.className = 'status good'; clearTimeout(timer); tick(); }
+      if (r && r.ok) { ta.value = ''; files.length = 0; chips.replaceChildren(); box.grow(); ready(); status.textContent = t('msgSent'); status.className = 'status good'; clearTimeout(timer); tick(); }
       else { status.textContent = t('failed'); status.className = 'status bad'; }
     });
-    // a Korean or Japanese IME on the Mac hands over the Enter that ends a syllable as its own keydown
-    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing && e.keyCode !== 229) form.requestSubmit(); });
+    enterSends(ta, form);
+    requestAnimationFrame(ready);
     const tabs = el('div', 'dtabs');
     tabs.setAttribute('role', 'tablist');
     const info = el('div', 'dpanel'); info.append(dl, lookEditor(s));
@@ -1538,8 +1605,20 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     if (d.open && current) { const s = (last?.projects || []).flatMap((p) => p.sessions).find((x) => x.name === current.name); if (s) dock(s); }
     showDetail(k.s, false, k.tab);
   }
-  let dockSig = null, dockItems = [];
+  let dockSig = null, dockItems = [], dockDrag = null;
+  // a chip moved: the bar, Ctrl+1 … 9 and the saved list follow the new order
+  function moveDocked(name, target, after) {
+    const from = docked.findIndex((k) => k.name === name);
+    if (from < 0 || name === target) return;
+    const [k] = docked.splice(from, 1);
+    const to = docked.findIndex((x) => x.name === target);
+    docked.splice(to < 0 ? docked.length : to + (after ? 1 : 0), 0, k);
+    saveDock();
+    dockSig = null;
+    renderDock();
+  }
   function renderDock() {
+    if (dockDrag) return;   // a chip is being dragged: redrawing now would drop it
     const all = (last?.projects || []).flatMap((p) => p.sessions);
     // an agent whose session has ended leaves the bar (one minimised a moment ago may not be on the list yet)
     for (let i = docked.length - 1; i >= 0; i--) {
@@ -1564,7 +1643,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       const chip = el('div', 'dchip st-' + x.st + (x.asking ? ' asking' : '') + (x.on ? ' on' : ''));
       const b = el('button', 'dopen');
       b.type = 'button';
-      b.title = i < 9 ? t(x.on ? 'dockFold' : 'dockOpen', { x: x.name, n: i + 1 }) : x.name;
+      b.title = (i < 9 ? t(x.on ? 'dockFold' : 'dockOpen', { x: x.name, n: i + 1 }) : x.name) + ' · ' + t('dockDrag');
       b.setAttribute('aria-pressed', String(x.on));
       if (i < 9) b.append(el('span', 'n', String(i + 1)));
       b.append(robotNode(str(x.k.name), x.asking ? 'asking' : x.st, x.k.s.isLeader, true), el('span', 'nm', x.name), el('span', 'g', x.asking ? '!' : STATE[x.st].glyph));
@@ -1575,6 +1654,30 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       rm.setAttribute('aria-label', rm.title);
       rm.addEventListener('click', () => undock(x.k.name));
       chip.append(b, rm);
+      chip.draggable = true;
+      chip.addEventListener('dragstart', (e) => { dockDrag = x.k.name; chip.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', x.k.name); });
+      chip.addEventListener('dragend', () => { dockDrag = null; dockSig = null; renderDock(); });
+      chip.addEventListener('dragover', (e) => {
+        if (!dockDrag || dockDrag === x.k.name) return;
+        e.preventDefault();
+        const r = chip.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+        for (const c of dockBox.children) c.classList.remove('drop-before', 'drop-after');
+        chip.classList.add(after ? 'drop-after' : 'drop-before');
+      });
+      chip.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const name = dockDrag, r = chip.getBoundingClientRect();
+        dockDrag = null;
+        if (name) moveDocked(name, x.k.name, e.clientX > r.left + r.width / 2);
+      });
+      b.addEventListener('keydown', (e) => {
+        if (!e.ctrlKey || !e.shiftKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+        e.preventDefault();
+        const nb = items[i + (e.key === 'ArrowLeft' ? -1 : 1)];
+        if (!nb) return;
+        moveDocked(x.k.name, nb.k.name, e.key === 'ArrowRight');
+        [...dockBox.querySelectorAll('.dopen')][items.indexOf(nb)]?.focus();
+      });
       dockBox.append(chip);
     });
   }
@@ -1931,7 +2034,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const mac = /Mac/.test(navigator.platform), mod = mac ? '⌘' : 'Ctrl';
     const groups = [
       ['kgAsk', [['1…9', 'kPick'], ['Alt+1…9', 'kPickTyping'], ['Enter', 'kSendAnswers'], ['↑ / ↓', 'kMoveQ']]],
-      ['kgAgent', [[mod + '+Enter', 'kSendMsg'], ['Ctrl+1…9', 'kDock'], ['Esc', 'kEsc'], ['!', 'kRun']]],
+      ['kgAgent', [['Enter', 'kSendMsg'], ['Shift+Enter', 'kNewLine'], ['Ctrl+1…9', 'kDock'], ['Ctrl+Shift+← / →', 'kDockReorder'], ['Esc', 'kEsc'], ['!', 'kRun']]],
       ['kgTabs', [['← / →', 'kTabMove'], ['Home / End', 'kTabEnds'], ['Ctrl+Shift+← / →', 'kTabReorder']]],
       ...(inApp ? [['kgApp', [[mac ? 'Control+Option+J' : 'Ctrl+Alt+J', 'kHotkey'], [mod + '+= / ' + mod + '+-', 'kZoom'], [mod + '+0', 'kZoomReset'], ['F5 / ' + mod + '+R', 'kReload'], ['Alt+← / →', 'kBackFwd']]]] : []),
     ];

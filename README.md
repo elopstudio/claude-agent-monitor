@@ -49,8 +49,13 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   with the message you had started still in the box; a click on the open one folds it away. Switching from one chip to
   another puts the agent you leave on the bar too. **Ctrl + 1 … 9** does the same as a click on the chip with that number,
   even while you are typing (the approval keys use Alt, so the two never clash). **×** takes an agent off the bar,
-  **✕** in its dialog does the same, and an agent whose session ends drops off by itself. The bar lists session names
-  only; unsent messages stay in the page and are never saved.
+  **✕** in its dialog does the same, and an agent whose session ends drops off by itself. **Drag a chip** to change the
+  order (or **Ctrl + Shift + ← / →** on a focused chip); the numbers follow, and the order is kept in the browser. The
+  bar lists session names only; unsent messages stay in the page and are never saved.
+- **Message box.** Like the AI chat apps: it starts one line high and grows with the text (up to about eight lines, then
+  it scrolls). **Enter** sends, **Shift + Enter** starts a new line (Ctrl + Enter sends too). Inside the box sit the
+  attachments, **📎** to attach files, the monitor agent's **mode** and **model**, and the round **↑** send button, faint
+  while there is nothing to send. The new-agent dialog takes its first message in the same box.
 - **Run a command.** A message that starts with `!` is run as a command, like `!` in Claude Code — for what an agent
   cannot do itself (a permission check blocks it, or a VS Code session whose mode the page cannot change). It runs on
   this PC in the agent's folder, as you, with no permission check: Git Bash on Windows (PowerShell if there is none),
@@ -180,7 +185,7 @@ on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conv
 - permission prompts and questions arrive in the conversation through `hooks/permission-mcp.mjs`
   (`--permission-prompt-tool`) and wait for your answer — there is no VS Code to fall back to;
 - **Stop** ends the current turn (the process is ended; the next message resumes the same session with `--resume`);
-- **Mode** and **Model** change the running agent at once, even in the middle of a turn. **ALL OK**
+- **Mode** and **Model** (the pills in the message box) change the running agent at once, even in the middle of a turn. **ALL OK**
   (`bypassPermissions`) works too: agents start with `--allow-dangerously-skip-permissions`, which makes that mode
   available without turning it on. Models: the default, the newest of a family (**Fable**, **Opus**, **Sonnet**,
   **Haiku**), a fixed version (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 4.5), or **Other…** for any model name;
