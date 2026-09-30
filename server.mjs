@@ -949,7 +949,7 @@ const agents = createAgents({
     return out.slice(-300)
   },
 })
-const account = createAccount({ claudeExecutable: agents.claudeExecutable })
+const account = createAccount({ claudeExecutable: agents.claudeExecutable, dataDir: DATA })
 
 /* ── HTTP ─────────────────────────────────────── */
 

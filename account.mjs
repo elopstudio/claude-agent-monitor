@@ -5,11 +5,15 @@
 // nothing here writes them to disk or logs them. The usage numbers come from the endpoint Claude Code's
 // /usage uses. It turns callers away (429) when asked often, so it is asked every five minutes, and less often
 // after a refusal; in between, and when it cannot be reached, the newest numbers known are shown with their time.
+// The last numbers Anthropic sent are kept in .runtime/usage.json so a restart does not lose them: percentages,
+// reset times and when they were checked, tied to the account only by a one-way hash of its id.
 
+import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { spawn, execFile } from 'node:child_process'
+import crypto from 'node:crypto'
 
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
 const USAGE_TTL = 60 * 1000             // the page may ask every few seconds; the files are read at most once a minute
@@ -17,7 +21,7 @@ const USAGE_EVERY = 5 * 60 * 1000       // Anthropic is asked at most this often
 const FRESH_EVERY = 60 * 1000           // and at most this often when the dialog's Refresh is pressed
 const BACKOFF_MAX = 30 * 60 * 1000      // after refusals, the wait doubles up to this
 
-export function createAccount({ claudeExecutable }) {
+export function createAccount({ claudeExecutable, dataDir }) {
   const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
   const stateFile = process.env.CLAUDE_CONFIG_DIR ? path.join(configDir, '.claude.json') : path.join(os.homedir(), '.claude.json')
   const credFile = path.join(configDir, '.credentials.json')
@@ -25,6 +29,18 @@ export function createAccount({ claudeExecutable }) {
   let usageMemo = null   // { key, at, value } — the last answer given, live or not
   let lastLive = null    // { key, value } — the last numbers Anthropic actually sent
   let askedAt = 0, blockedUntil = 0, backoff = USAGE_EVERY
+  const KEEP_FILE = dataDir ? path.join(dataDir, '.runtime', 'usage.json') : null
+  // the last numbers survive a restart; only numbers and times are written, and the account as a hash
+  try { const k = KEEP_FILE && JSON.parse(fs.readFileSync(KEEP_FILE, 'utf8')); if (k?.key && k.value?.limits) lastLive = { key: k.key, value: k.value } } catch {}
+  function keepLive() {
+    if (!KEEP_FILE) return
+    try {
+      fs.mkdirSync(path.dirname(KEEP_FILE), { recursive: true })
+      if (!lastLive) { fs.rmSync(KEEP_FILE, { force: true }); return }
+      const { source, at, limits, extra } = lastLive.value
+      fs.writeFileSync(KEEP_FILE, JSON.stringify({ key: lastLive.key, value: { source, at, limits, extra } }))
+    } catch {}
+  }
   let refreshing = null, triedAt = 0
   let busy = null        // 'login' | 'logout' while `claude auth` runs
 
@@ -52,15 +68,19 @@ export function createAccount({ claudeExecutable }) {
 
   async function usage(oauth, state, fresh) {
     const cached = state?.cachedUsageUtilization
-    const key = oauth?.accessToken ? oauth.accessToken.slice(-12) : 'none'   // a new sign-in must not see the last account's numbers
-    if (lastLive && lastLive.key !== key) { lastLive = null; usageMemo = null; askedAt = 0; blockedUntil = 0; backoff = USAGE_EVERY }
+    // whose numbers: the account (a hash of its id), so a renewed token keeps them and another sign-in does not see them
+    const who = state?.oauthAccount?.accountUuid || oauth?.accessToken || ''
+    const key = who ? crypto.createHash('sha256').update('agent-monitor:' + who).digest('hex').slice(0, 16) : 'none'
+    if (lastLive && lastLive.key !== key) { lastLive = null; keepLive(); usageMemo = null; askedAt = 0; blockedUntil = 0; backoff = USAGE_EVERY }
     const now = Date.now()
     const keep = (value) => { usageMemo = { key, at: now, value }; return value }
     // not asking now: the newest numbers known — this monitor's own last answer, or what Claude Code saved
     const known = (why) => {
       const mine = lastLive?.value, cc = cached?.utilization ? { at: cached.fetchedAtMs || 0, limits: limitsOf(cached.utilization), extra: extraOf(cached.utilization) } : null
       const best = mine && (!cc || mine.at >= cc.at) ? { ...mine, source: 'stale' } : cc ? { ...cc, source: 'cache' } : { source: 'none', at: null, limits: [], extra: null }
-      return keep({ ...best, why, nextAt: Math.max(blockedUntil, askedAt + USAGE_EVERY) })
+      // a limit whose reset time has passed since then started again from zero; its new number is not known yet
+      const limits = (best.limits || []).map((x) => (x.resetsAt && Date.parse(x.resetsAt) <= now ? { ...x, percent: 0, resetsAt: null, sinceReset: true } : x))
+      return keep({ ...best, limits, why, nextAt: Math.max(blockedUntil, askedAt + USAGE_EVERY) })
     }
     if (!oauth?.accessToken) return known('noToken')
     // an expired token is Claude Code's to refresh; this only reads it
@@ -81,6 +101,7 @@ export function createAccount({ claudeExecutable }) {
       backoff = USAGE_EVERY; blockedUntil = 0
       const value = { source: 'live', at: now, limits: limitsOf(u), extra: extraOf(u), why: null, nextAt: now + USAGE_EVERY }
       lastLive = { key, value }
+      keepLive()
       return keep(value)
     } catch {
       blockedUntil = now + USAGE_EVERY
@@ -126,7 +147,7 @@ export function createAccount({ claudeExecutable }) {
     if (url.pathname === '/api/account/logout') {
       busy = 'logout'
       const ok = await run(['auth', 'logout'])
-      busy = null; usageMemo = null
+      busy = null; usageMemo = null; lastLive = null; keepLive()
       return [ok ? 200 : 500, {}]
     }
     if (url.pathname === '/api/account/login') { openLogin(); return [200, {}] }

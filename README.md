@@ -124,7 +124,10 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 is used: the current 5-hour session and the week, with when each resets. The numbers come from the same place as
 Claude Code's `/usage`. Anthropic turns callers away when that is asked often, so the monitor asks at most every five
 minutes (Refresh: once a minute), and after a refusal it waits longer each time, up to 30 minutes. Meanwhile — and
-whenever Anthropic cannot be reached — it shows the newest numbers it has, with the time they are from.
+whenever Anthropic cannot be reached — it shows the newest numbers it has, with the time they are from. Those survive a
+restart: `.runtime/usage.json` in the data folder keeps the percentages, reset times and when they were checked, tied to
+the account by a one-way hash of its id — no e-mail, no token. A limit whose reset time has passed shows 0 % until the
+new number comes in.
 
 - **Switch account** signs out and opens `claude auth login` in a window of its own; finish in the browser.
 - **Sign out** runs `claude auth logout`. Every Claude Code session on the PC — VS Code and the monitor's
