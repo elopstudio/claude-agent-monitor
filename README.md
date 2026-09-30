@@ -19,7 +19,9 @@ The page is in English by default. Switch to Korean with the **EN / 한국어** 
 (remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
 
 **ⓘ About** in the header says what the program is, its version, who makes it (ELOP Studio), where the source code
-lives, where to report a problem, and its licence (PolyForm Noncommercial, with the full text).
+lives, where to report a problem, and its licence (PolyForm Noncommercial, with the full text). Its **Shortcuts** tab
+lists every key the page answers to — approvals and questions, the agent dialog, the project tabs — and, in the desktop
+app, the app's own (show or hide the window, zoom, reload, back and forward).
 
 ## What you see
 
