@@ -285,7 +285,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     if (!a.proc) return false
     const msg = userMessage(text, files)
     try { a.proc.stdin.write(JSON.stringify(msg) + '\n') } catch { return false }
-    emit(a, { kind: 'user', text: mask(clip2(text, 4000)), files: files.map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, '')) })
+    // the files' names for the chips, and their place in the uploads folder ("<dir>/<stored name>") for the preview
+    emit(a, { kind: 'user', text: mask(clip2(text, 4000)), files: files.map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, '')), refs: files.map((p) => p.split('/').slice(-2).join('/')) })
     setState(a, 'working')
     return true
   }

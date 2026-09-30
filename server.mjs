@@ -760,16 +760,23 @@ function liveEntries(o, sidechain = false) {
 // What Claude Code writes into the user side besides what a person typed — reminders, task notices, hook
 // feedback, slash-command echoes — is reduced to a short note, or dropped, so the view reads like the chat.
 const tagText = (text, tag) => { const m = String(text).match(new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>')); return m ? m[1].trim() : '' }
+// an attachment this server saved, as the page may name it: "<session dir>/<stored name>"; anything else is not one
+const uploadRef = (p) => { const m = String(p).replace(/\\/g, '/').match(/\/uploads\/([0-9a-z]{8})\/([^/]+)$/i); return m ? m[1] + '/' + m[2] : null }
+// the list the monitor appends to a message it delivers: the text before it, and the files' names and references
+function withAttached(text) {
+  const [body, list = ''] = String(text).split(/\n?Attached files \(open them with the Read tool\):\n/)
+  const paths = list.split('\n').map((l) => l.trim()).filter(Boolean)
+  return { body, files: paths.map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, '')), refs: paths.map(uploadRef) }
+}
 function userEntry(raw, at) {
   let text = String(raw ?? '')
   // a message sent from this page, delivered by hooks/inbox.mjs
   const fromPage = text.match(/Message\(s\) the user typed on the agent monitor page[^\n]*\n([\s\S]*?)(?:<\/system-reminder>|$)/)
   if (fromPage) {
     // the paths of attached files become their names; the view shows them as chips
-    const [body, list = ''] = fromPage[1].split(/Attached files \(open them with the Read tool\):\n/)
-    const files = list.split('\n').map((l) => l.trim()).filter(Boolean).map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, ''))
+    const { body, files, refs } = withAttached(fromPage[1])
     const lines = body.split('\n').map((l) => l.replace(/^- /, '').trim()).filter(Boolean)
-    return lines.length || files.length ? { role: 'monitor', text: lines.join('\n'), files, at } : null
+    return lines.length || files.length ? { role: 'monitor', text: lines.join('\n'), files, refs, at } : null
   }
   if (text.includes('<task-notification>')) {
     const summary = tagText(text, 'summary') || tagText(text, 'status')
@@ -786,6 +793,8 @@ function userEntry(raw, at) {
   if (!text) return null
   // "[Request interrupted by user]" and similar stay, as notes
   if (/^\[[^\]]{3,80}\]$/.test(text)) return { role: 'note', text, at }
+  // a monitor agent's message keeps its attachments in the transcript as that same list
+  if (/Attached files \(open them with the Read tool\):/.test(text)) { const { body, files, refs } = withAttached(text); return { role: 'user', text: body.trim(), files, refs, at } }
   return { role: 'user', text, at }
 }
 
@@ -897,6 +906,23 @@ async function saveUpload(req, url) {
   const file = path.join(dir, Date.now().toString(36) + '-' + safeName(url.searchParams.get('name')))
   await fsp.writeFile(file, Buffer.concat(chunks))
   return [200, { path: file.replace(/\\/g, '/'), size }]
+}
+// an attachment read back for the page's preview: only a file this server saved, never anything that could run as a page
+const UPLOAD_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp', '.pdf': 'application/pdf' }
+const TEXT_EXT = /\.(txt|md|markdown|json|jsonl|js|mjs|cjs|ts|tsx|jsx|vue|py|rb|go|rs|java|kt|c|h|cpp|hpp|cs|swift|php|sh|ps1|bat|sql|csv|tsv|log|ya?ml|toml|ini|cfg|conf|env|xml|html?|css|scss|less|svg|diff|patch)$/i
+function readUpload(res, ref) {
+  const m = /^([0-9a-z]{8})\/([^/\\]+)$/i.exec(String(ref || ''))
+  const file = m && path.resolve(UPLOADS, m[1], m[2])
+  if (!file || !file.startsWith(path.resolve(UPLOADS) + path.sep) || !fs.existsSync(file)) { res.writeHead(404).end(); return }
+  const ext = path.extname(file).toLowerCase()
+  const type = UPLOAD_TYPES[ext] || (TEXT_EXT.test(file) ? 'text/plain; charset=utf-8' : 'application/octet-stream')
+  res.writeHead(200, {
+    'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
+    // opened on its own it still cannot run anything (an SVG or HTML file is sent as text anyway)
+    'content-security-policy': "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+    'content-disposition': "inline; filename*=UTF-8''" + encodeURIComponent(m[2].replace(/^[0-9a-z]+-/, '')),
+  })
+  fs.createReadStream(file).pipe(res)
 }
 // only files this server saved can be named in a message
 function attachedPaths(list) {
@@ -1076,7 +1102,7 @@ const agents = createAgents({
       try { o = JSON.parse(l) } catch { continue }
       for (const e of liveEntries(o)) {
         if (e.role === 'assistant') out.push({ kind: 'block', msg: 'h' + n++, index: 0, type: 'text', text: e.text, done: true, at: e.at })
-        else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], at: e.at })
+        else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], refs: e.refs || [], at: e.at })
         else if (e.role === 'tool') out.push({ kind: 'tool', id: e.id, name: e.name, action: e.action, input: e.input, at: e.at })
         else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, at: e.at })
         else if (e.role === 'note') out.push({ kind: 'note', text: e.text, at: e.at })
@@ -1139,6 +1165,11 @@ const server = http.createServer(async (req, res) => {
       // the account's email is private like the conversations: the token is needed to read it
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       json(200, await account.info(url.searchParams.get('fresh') === '1'))
+      return
+    }
+    if (url.pathname === '/api/upload-file') {
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      readUpload(res, url.searchParams.get('ref'))
       return
     }
     if (url.pathname === '/api/agent-stream') {
