@@ -485,7 +485,7 @@ async function buildState() {
     return { project: hit.project, session: hit.sess.name, short: hit.sess.short, nick: hit.sess.nick, nickKo: hit.sess.nickKo, isLeader: !!hit.sess.isLeader, type: w.type, message: w.message, at: w.at }
   }).sort((a, b) => a.at - b.at)
   const recent = outcomes.map((o) => { const hit = bySession.get(o.sessionId); return { at: o.at, agent: hit ? (hit.sess.nickKo || hit.sess.name) : '(other)', tool: o.tool, how: o.how, ms: o.ms } })
-  return { now, projects: out, approvals, inEditor, recent, token: TOKEN, usage: account.usageNow(), hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
+  return { now, version: VERSION, projects: out, approvals, inEditor, recent, token: TOKEN, usage: account.usageNow(), hooks: { ...hookStats, viewerSeenAgo: lastViewAt ? now - lastViewAt : null, openPages: streams.size } }
 }
 
 /* ── Hooks: approvals and permission mode ─────── */
@@ -954,6 +954,13 @@ const account = createAccount({ claudeExecutable: agents.claudeExecutable })
 /* ── HTTP ─────────────────────────────────────── */
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
+const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || '' } catch { return '' } })()
+// the about dialog's files: the maker's logo for light and dark, and the licence
+const ABOUT_FILES = {
+  '/brand/elop-logo-black.png': [path.join(ROOT, 'docs', 'elop-logo-black.png'), 'image/png'],
+  '/brand/elop-logo-white.png': [path.join(ROOT, 'docs', 'elop-logo-white.png'), 'image/png'],
+  '/license.txt': [path.join(ROOT, 'LICENSE'), 'text/plain; charset=utf-8'],
+}
 // Listening on 127.0.0.1 is not enough: a web page can rebind its own domain to 127.0.0.1 (DNS rebinding)
 // and read the API. Only answer requests addressed to this machine by a loopback name.
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
@@ -1018,6 +1025,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/state') {
       if (url.searchParams.get('visible') === '1') lastViewAt = Date.now()
       json(200, await cachedState())
+      return
+    }
+    if (ABOUT_FILES[url.pathname]) {
+      const [file, type] = ABOUT_FILES[url.pathname]
+      try { res.writeHead(200, { 'content-type': type, 'cache-control': 'max-age=3600' }).end(await fsp.readFile(file)) } catch { res.writeHead(404).end() }
       return
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {

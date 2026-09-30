@@ -67,7 +67,7 @@ select{font:13px inherit;font-family:inherit;color:var(--text);background:var(--
   <section>
     <h2>정보</h2>
     <div class="row"><span class="t">버전 <span id="version"></span><small id="url"></small></span>
-      <span class="btns"><button id="openBrowser">브라우저에서 열기</button></span></div>
+      <span class="btns"><button id="about">프로그램 정보</button><button id="openBrowser">브라우저에서 열기</button></span></div>
   </section>
 </main>
 <script>
@@ -101,6 +101,7 @@ $('openData').addEventListener('click', () => api.do('openData'))
 $('pickData').addEventListener('click', () => api.do('pickData').then(load))
 $('installHooks').addEventListener('click', () => api.do('installHooks').then(load))
 $('openBrowser').addEventListener('click', () => api.do('openBrowser'))
+$('about').addEventListener('click', () => api.do('about'))
 $('hotkey').addEventListener('change', (e) => api.set('hotkey', e.target.value).then(load))
 $('checkUpdates').addEventListener('click', () => api.do('checkUpdates').then(load))
 $('installUpdate').addEventListener('click', () => api.do('installUpdate'))

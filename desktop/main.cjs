@@ -142,7 +142,7 @@ function showWindow() {
   win.contentView.addChildView(strip)
   strip.webContents.loadFile(path.join(__dirname, 'strip.html'))
   strip.webContents.on('did-finish-load', () => { if (strip) strip.webContents.send('monitor-app-usage', usage) })
-  page.webContents.loadURL(URL + '?app=1')
+  page.webContents.loadURL(URL + '?app=1&v=' + encodeURIComponent(app.getVersion()))
   layout()
   win.on('resize', layout)
   win.on('maximize', layout)
@@ -163,10 +163,16 @@ function showWindow() {
   win.on('focus', () => { try { win.flashFrame(false) } catch {} })
   paintBadge()
 }
+// the page's about dialog, from the settings or the tray
+function showAbout() {
+  showWindow()
+  if (page) page.webContents.executeJavaScript("document.getElementById('about-btn')?.click()").catch(() => {})
+}
 function trayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Agent Monitor 열기', click: showWindow },
     { label: '설정…', click: showSettings },
+    { label: '프로그램 정보', click: showAbout },
     ...(update.status === 'ready' ? [{ label: '업데이트 ' + update.version + ' 설치하고 다시 시작', click: installUpdate }] : []),
     { type: 'separator' },
     { label: ownServer ? '종료 (모니터 에이전트도 멈춤)' : '종료', click: quit },
@@ -335,6 +341,7 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   if (action === 'installUpdate') installUpdate()
   if (action === 'openData') shell.openPath(dataDir())
   if (action === 'openBrowser') shell.openExternal(URL)
+  if (action === 'about') showAbout()
   if (action === 'installHooks') {
     try { installHooks() } catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
   }

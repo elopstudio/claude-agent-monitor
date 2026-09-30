@@ -18,6 +18,9 @@ Or install the [desktop app](#desktop-app): a window of its own and the tray, no
 The page is in English by default. Switch to Korean with the **EN / 한국어** toggle in the header
 (remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
 
+**ⓘ About** in the header says what the program is, its version, who makes it (ELOP Studio), where the source code
+lives, where to report a problem, and its licence (MIT, with the full text).
+
 ## What you see
 
 - **One tab per project.** Each tab shows the leader's robot and how many sessions are working (▶) or waiting (○).
@@ -185,10 +188,10 @@ itself. So a new PC needs only **Claude Code**, installed and signed in.
   background and installs it on the next restart — or at once, from the tray or the settings.
 
 **Settings** (⚙ in the strip, or the tray): start at login · close to the tray · the window shortcut · the data folder
-(open or change it) · the Claude Code hooks (state, install / update) · updates (check, install) · version, and open the
-page in the browser.
+(open or change it) · the Claude Code hooks (state, install / update) · updates (check, install) · version, the about dialog,
+and open the page in the browser.
 
-**Tray:** open · settings · quit (quitting also stops the monitor agents).
+**Tray:** open · settings · about · quit (quitting also stops the monitor agents).
 
 - The server runs inside the app. If a monitor is already answering on the port (`npm start` in a terminal), the app
   shows that one instead of starting another.
