@@ -129,6 +129,9 @@ on every `PermissionRequest`; the request shows up at the top of the page, namin
 - **Questions** (`AskUserQuestion`) — pick the options or type your own answer, then send.
 - **Plans** (`ExitPlanMode`) — Approve plan or Keep planning.
 - **Answer in VS Code** hands any of them back to the normal prompt.
+- A card stays as you left it while other requests come and go or it moves into an agent's open dialog and back: the
+  options you picked and what you typed are kept. A VS Code session's request goes back to VS Code after 60 seconds;
+  if you had started answering it here, its card says so for a few seconds instead of vanishing.
 - **Keys** — the first open request shows a number on each button; press it (Alt+number while typing a message).
   In a question, numbers pick options, ↑↓ moves between questions, and Enter sends.
 The same hook, on `PostToolUse` and `Stop`, tells the page each session's permission mode (MANUAL, AUTO, …); on
