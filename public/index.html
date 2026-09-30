@@ -2483,9 +2483,20 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const box = $('projects');
     const cur = data.projects.find((p) => p.key === selected);
     const keep = box0Key === selected ? box.querySelector('.kanban [data-editing]')?.closest('.kanban') : null;
-    box.replaceChildren(...(selected === ALL ? (data.projects.length ? [allNode(data)] : []) : cur ? [projectNode(cur)] : []));
+    const next = selected === ALL ? (data.projects.length ? [allNode(data)] : []) : cur ? [projectNode(cur)] : [];
+    const home = keep?.parentElement, fresh = next[0]?.querySelector(':scope > .kanban');
+    if (keep && fresh && home?.parentElement === box && next.length === 1 && home.className === next[0].className) {
+      // a board form is open: everything around the board is redrawn, but the board itself never leaves the page —
+      // taking it out even for a moment would drop the focus, the cursor and a Korean syllable still being typed
+      for (const c of [...home.children]) if (c !== keep) c.remove();
+      let before = true;
+      for (const c of [...next[0].children]) {
+        if (c === fresh) { before = false; continue; }
+        if (before) home.insertBefore(c, keep); else home.append(c);
+      }
+      for (const c of [...box.children]) if (c !== home) c.remove();
+    } else box.replaceChildren(...next);
     if (!data.projects.length) box.append(el('div', 'notice', t('noSessions')));
-    if (keep) box.querySelector('.kanban')?.replaceWith(keep);
     const feed = document.querySelector('.feed'); if (feed) feed.scrollTop = feedTop;
 
     const d = new Date(data.now), p2 = (x) => String(x).padStart(2, '0');
