@@ -1394,6 +1394,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       const text = ta.value.trim();
       if (files.some((x) => !x.path)) { status.textContent = t('stillUploading'); status.className = 'status bad'; return; }
       if (!text && !files.length) return;
+      // requestSubmit goes through even with the button disabled, so a second Enter would send it again
+      if (send.disabled) return;
       send.disabled = true;
       const post = () => s.managed
         ? fetch('/api/agents/send', { method: 'POST', headers: { 'content-type': 'application/json', 'x-monitor-token': token }, body: JSON.stringify({ id: s.agentId, text, files: files.map((x) => x.path) }) })
@@ -1404,7 +1406,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (r && r.ok) { ta.value = ''; files.length = 0; chips.replaceChildren(); status.textContent = t('msgSent'); status.className = 'status good'; clearTimeout(timer); tick(); }
       else { status.textContent = t('failed'); status.className = 'status bad'; }
     });
-    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) form.requestSubmit(); });
+    // a Korean or Japanese IME on the Mac hands over the Enter that ends a syllable as its own keydown
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing && e.keyCode !== 229) form.requestSubmit(); });
     const tabs = el('div', 'dtabs');
     tabs.setAttribute('role', 'tablist');
     const info = el('div', 'dpanel'); info.append(dl, lookEditor(s));
