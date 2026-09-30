@@ -6,8 +6,9 @@
 // Claude Code wake the session with that text. On anything else — a newer waiter for the same session, the session
 // gone, the day over — it exits 0 quietly and nothing happens.
 //
-// It waits for most of a day, so a session that has been resting for hours can still be woken from the page:
-// the monitor answers empty after 25 minutes and it simply asks again. The hook's own timeout is 24 hours.
+// It waits for most of a week, so a session that has been resting for days can still be woken from the page:
+// the monitor answers empty after 25 minutes and it simply asks again. The hook's own timeout is 7 days
+// (installs from before gave it 24 hours; it gives up at whichever comes first).
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
@@ -18,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 // looked up on every try: the monitor may not be running yet when this starts waiting
 const linkFile = () => [path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json'), path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')]
   .find((p) => fs.existsSync(p)) || ''
-const WAIT_MS = (23 * 60 + 50) * 60 * 1000   // just under the hook's 24-hour timeout
+const WAIT_MS = (7 * 24 * 60 - 10) * 60 * 1000   // just under the hook's 7-day timeout
 const POLL_MS = 26 * 60 * 1000               // one wait at the monitor, a little longer than its own 25 minutes
 // the session that started this: when it is gone (VS Code closed), nobody is left to wake
 function parentAlive() { try { process.kill(process.ppid, 0); return true } catch (e) { return e.code === 'EPERM' } }

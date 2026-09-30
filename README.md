@@ -151,15 +151,17 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
   "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 10 }] }],
   "Stop": [
     { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] },
-    { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/inbox.mjs\"", "asyncRewake": true, "timeout": 86400 }] }
+    { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/inbox.mjs\"", "asyncRewake": true, "timeout": 604800 }] }
   ]
 }
 ```
 
 - The second `Stop` hook (`inbox.mjs`) delivers messages typed on the page. After each turn it waits in the background
-  for up to a day, so even a session resting for hours wakes up when a message arrives; it stops when the session
-  ends. Installs from before 0.2.9 used a 30-minute timeout, after which a resting session could not be reached — the
-  desktop app offers to update them.
+  for up to a week, so even a session resting for days wakes up when a message arrives; it stops when the session
+  ends. Earlier installs waited 30 minutes (before 0.2.9) or a day (before 0.2.12), after which a resting session
+  could not be reached — the desktop app offers to update them. A session with nobody waiting (its last turn ended
+  under an older hook, or before the wait ran out) only gets the message when it next ends a turn: the message box
+  says so, and saying something to it once in VS Code makes it reachable again.
 - Nothing changes unless someone is looking at the page: with no visible page, or with the monitor not running,
   the hook answers nothing and the normal VS Code prompt appears right away.
 - A request nobody answers goes back to VS Code after 60 seconds.

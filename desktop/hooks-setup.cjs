@@ -36,7 +36,9 @@ function hookCmd(script, extra) {
   const q = (p) => "'" + p.replace(/'/g, "'\\''") + "'"
   return { type: 'command', command: 'ELECTRON_RUN_AS_NODE=1 ' + q(execPath) + ' ' + q(file), ...extra }
 }
-const INBOX_TIMEOUT = 86400   // seconds; older installs had 1800, which left resting sessions unreachable
+// seconds. 1800 at first, then a day; either left a session resting longer than that unreachable from the page.
+// A week costs one small waiting process per resting session.
+const INBOX_TIMEOUT = 7 * 86400
 function hookEntries() {
   return {
     PermissionRequest: [{ matcher: '*', hooks: [hookCmd('bridge.mjs', { timeout: 90 })] }],
@@ -44,7 +46,7 @@ function hookEntries() {
     Notification: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }],
     // a project's leader is told who its team is (only when that changed); everyone else gets nothing added
     UserPromptSubmit: [{ hooks: [hookCmd('bridge.mjs', { timeout: 10 })] }],
-    // the inbox waits up to a day, so a session resting for hours can still be woken by a message from the page
+    // the inbox waits up to a week, so a session resting for days can still be woken by a message from the page
     Stop: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }, { hooks: [hookCmd('inbox.mjs', { asyncRewake: true, timeout: INBOX_TIMEOUT })] }],
   }
 }

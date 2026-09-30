@@ -143,14 +143,16 @@ VS Code 가 띄운 창을 알아채며, `UserPromptSubmit` 에서는 리더에�
   "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 10 }] }],
   "Stop": [
     { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] },
-    { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/inbox.mjs\"", "asyncRewake": true, "timeout": 86400 }] }
+    { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/inbox.mjs\"", "asyncRewake": true, "timeout": 604800 }] }
   ]
 }
 ```
 
-- 두 번째 `Stop` 훅(`inbox.mjs`)은 화면에서 보낸 메시지를 전달합니다. 턴이 끝날 때마다 뒤에서 최대 하루 동안 기다리므로,
-  몇 시간째 쉬는 세션도 메시지가 오면 깨어납니다. 세션이 끝나면 함께 멈춥니다. 0.2.9 이전에 설치한 훅은 30분만 기다려서
-  그 뒤로는 쉬는 세션에 메시지가 닿지 않았습니다. 데스크톱 앱이 갱신을 권합니다.
+- 두 번째 `Stop` 훅(`inbox.mjs`)은 화면에서 보낸 메시지를 전달합니다. 턴이 끝날 때마다 뒤에서 최대 일주일 동안 기다리므로,
+  며칠째 쉬는 세션도 메시지가 오면 깨어납니다. 세션이 끝나면 함께 멈춥니다. 예전 훅은 30분(0.2.9 이전)이나 하루(0.2.12 이전)만
+  기다려서 그 뒤로는 쉬는 세션에 메시지가 닿지 않았습니다. 데스크톱 앱이 갱신을 권합니다. 기다리는 쪽이 없는 세션(예전 훅으로
+  턴이 끝났거나 기다림이 끝난 세션)은 다음 턴이 끝나야 메시지를 받습니다. 이 경우 입력창이 그렇게 알려 주고, VS Code에서 한 번
+  말을 걸면 다시 여기서 깨울 수 있습니다.
 - 누군가 화면을 보고 있을 때만 동작합니다. 보이는 화면이 없거나 모니터가 꺼져 있으면
   훅은 아무 답도 하지 않고, 평소의 VS Code 요청 창이 바로 뜹니다.
 - 60초 동안 아무도 답하지 않으면 요청은 VS Code 로 돌아갑니다.

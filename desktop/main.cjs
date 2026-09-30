@@ -49,7 +49,7 @@ function ask(opts) {
 }
 
 // raised whenever the hooks gain something: a "later" to an older update does not hold back a newer one
-const HOOKS_REV = 2   // 2: the team hook for leaders (UserPromptSubmit)
+const HOOKS_REV = 3   // 2: the team hook for leaders (UserPromptSubmit); 3: the inbox waits a week, not a day
 async function offerHooks(always) {
   if (TRY && !always) return   // the hooks belong to the installed app
   const state = hookState()
