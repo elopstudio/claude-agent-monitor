@@ -44,9 +44,10 @@ lives, where to report a problem, and its licence (PolyForm Noncommercial, with 
 - **Minimise.** **Minimise** in an agent's dialog folds it into a bar along the bottom of the page — one chip per agent,
   with its robot, name and state (`!` while it waits for you). A click on a chip opens that agent again on the same tab,
   with the message you had started still in the box; a click on the open one folds it away. Switching from one chip to
-  another puts the agent you leave on the bar too. **×** takes an agent off the bar, **Close** in its dialog does the
-  same, and an agent whose session ends drops off by itself. The bar lists session names only; unsent messages stay in
-  the page and are never saved.
+  another puts the agent you leave on the bar too. **Ctrl + 1 … 9** does the same as a click on the chip with that number,
+  even while you are typing (the approval keys use Alt, so the two never clash). **×** takes an agent off the bar,
+  **Close** in its dialog does the same, and an agent whose session ends drops off by itself. The bar lists session names
+  only; unsent messages stay in the page and are never saved.
 
 The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 
