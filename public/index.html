@@ -121,9 +121,11 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .cnt.rest{color:var(--faint);border:1px dashed var(--line-strong)}
 .all-body{padding:16px;display:flex;flex-direction:column;gap:18px}
 .all-group>h3{margin:0 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
-.all-group>h3 button{appearance:none;border:0;background:none;padding:0;color:var(--text);font:700 15px var(--mono);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
-.all-group>h3 button:hover{text-decoration-color:var(--text)}
+.all-group>h3 .pgo{appearance:none;border:0;background:none;padding:0;color:var(--text);font:700 15px var(--mono);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+.all-group>h3 .pgo:hover{text-decoration-color:var(--text)}
 .all-group>h3 .label{color:var(--muted);font-size:12px;font-weight:500}
+.all-group>h3 .counts{margin-left:0}   /* next to the name; the button takes the right end */
+.all-group>h3 .newagent-btn{margin-left:auto}
 .all-group .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
 .pbody{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px}
 
@@ -2041,7 +2043,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     for (const p of data.projects) {
       const g = el('div', 'all-group');
       const h = el('h3');
-      const go = el('button', null, p.key);
+      const go = el('button', 'pgo', p.key);
       go.type = 'button';
       go.addEventListener('click', () => select(p.key));
       h.append(go);
@@ -2050,7 +2052,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (p.counts.working) c.append(el('span', 'cnt run', '▶ ' + p.counts.working));
       if (p.counts.waiting) c.append(el('span', 'cnt wait', '○ ' + p.counts.waiting));
       if (p.counts.resting) c.append(el('span', 'cnt rest', '– ' + p.counts.resting));
-      h.append(c);
+      // a new agent in this project's folder, without going to its tab first
+      h.append(c, newAgentButton(p));
       const grid = el('div', 'grid');
       for (const x of p.sessions) grid.append(botCard(x));
       g.append(h, grid);

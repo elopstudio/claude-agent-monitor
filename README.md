@@ -228,7 +228,7 @@ Without a link the monitor never contacts cam.elopstudio.com. `CAM_URL` points i
 
 ## Agents the monitor runs itself
 
-**+ New agent** (in a project's header, or on the all-agents tab) starts an agent without VS Code, the way the
+**+ New agent** (in a project's header, in each project's section on the all-agents tab — that project's folder already picked — or at the top of that tab) starts an agent without VS Code, the way the
 VS Code extension does it: the monitor runs the installed `claude` program in headless mode
 (`claude -p --input-format stream-json --output-format stream-json --include-partial-messages`) in the folder you pick,
 on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conversation tab is the full chat:
