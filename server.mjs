@@ -15,6 +15,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import crypto from 'node:crypto'
+import { spawn, execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createAgents } from './agents.mjs'
 import { createAccount } from './account.mjs'
@@ -881,12 +882,83 @@ async function sendMessage(body) {
   if (!name || !text) return 400
   const target = (await readRegistry()).find((x) => x.name === name)
   if (!target) return 404
-  const q = inbox.get(target.sessionId) || []
-  q.push({ text, at: Date.now() })
-  inbox.set(target.sessionId, q.slice(-10))
-  deliver(target.sessionId)
-  notifyPages()
+  queueText(target.sessionId, text)
   return 200
+}
+function queueText(sessionId, text) {
+  const q = inbox.get(sessionId) || []
+  q.push({ text, at: Date.now() })
+  inbox.set(sessionId, q.slice(-10))
+  deliver(sessionId)
+  notifyPages()
+}
+
+/* ── A command typed on the page (a message starting with !) ── */
+
+// Like `!` in Claude Code: the person at this PC runs a command in the agent's folder, with their own rights,
+// and the agent gets what it printed. It is typed by that person, so no permission check applies — the token
+// the page holds is what keeps any other page from doing this. Nothing of it is written to disk.
+const RUN_TIMEOUT_MS = 2 * 60 * 1000, RUN_KEEP = 1024 * 1024, RUN_TO_AGENT = 12000, RUN_TO_PAGE = 60000
+let runShell = null
+function userShell() {
+  if (runShell) return runShell
+  if (process.platform !== 'win32') return (runShell = { exe: process.env.SHELL || '/bin/sh', args: ['-lc'], name: path.basename(process.env.SHELL || 'sh') })
+  // Git Bash, as Claude Code uses on Windows (never System32\bash.exe, which is WSL); else PowerShell
+  const pf = process.env.ProgramFiles || 'C:\\Program Files'
+  const tries = [process.env.CLAUDE_CODE_GIT_BASH_PATH, path.join(pf, 'Git', 'bin', 'bash.exe'), path.join(process.env['ProgramFiles(x86)'] || pf, 'Git', 'bin', 'bash.exe'),
+    path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'Git', 'bin', 'bash.exe')]
+  try { for (const line of execFileSync('where.exe', ['git'], { encoding: 'utf8', windowsHide: true }).split(/\r?\n/)) if (line.trim()) tries.push(path.join(path.dirname(line.trim()), '..', 'bin', 'bash.exe')) } catch {}
+  for (const p of tries) if (p && fs.existsSync(p)) return (runShell = { exe: path.resolve(p), args: ['-c'], name: 'bash' })
+  return (runShell = { exe: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-Command'], name: 'powershell', prefix: '[Console]::OutputEncoding=[Text.Encoding]::UTF8; ' })
+}
+const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07/g
+const keepEnds = (t, n) => (t.length <= n ? t : t.slice(0, n / 4) + '\n… (' + (t.length - n) + ' characters left out) …\n' + t.slice(-(n * 3) / 4))
+function runIn(cwd, command) {
+  const sh = userShell(), started = Date.now()
+  return new Promise((resolve) => {
+    let child
+    try { child = spawn(sh.exe, [...sh.args, (sh.prefix || '') + command], { cwd, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: process.env, detached: process.platform !== 'win32' }) }
+    catch (e) { resolve({ code: null, error: String(e.message || e), stdout: '', stderr: '', ms: 0, shell: sh.name }); return }
+    const out = { stdout: [], stderr: [] }, size = { stdout: 0, stderr: 0 }
+    for (const k of ['stdout', 'stderr']) child[k].on('data', (c) => { if (size[k] < RUN_KEEP) { out[k].push(c); size[k] += c.length } })
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' }) } catch {} }
+      else { try { process.kill(-child.pid, 'SIGTERM') } catch {} }
+    }, RUN_TIMEOUT_MS)
+    let finished = false
+    const done = (code, error) => {
+      if (finished) return
+      finished = true
+      clearTimeout(timer)
+      const text = (k) => Buffer.concat(out[k]).toString('utf8').replace(ANSI, '').replace(/\r\n?/g, '\n')
+      resolve({ code, error, timedOut, stdout: text('stdout'), stderr: text('stderr'), ms: Date.now() - started, shell: sh.name })
+    }
+    child.on('error', (e) => done(null, String(e.message || e)))
+    child.on('close', (code) => done(code, null))
+    // something the command left running in the background (an ssh-agent, a server) can hold the output open:
+    // once the command itself has ended, wait a moment for the rest and then answer anyway
+    child.on('exit', (code) => setTimeout(() => done(code, null), 500))
+  })
+}
+async function runCommand(body) {
+  const command = String(body.command || '').trim()
+  if (!command || command.length > 4000) return [400, {}]
+  let cwd = null, target = null
+  if (body.id) cwd = agents.cwdOf(body.id)
+  else {
+    target = (await readRegistry()).find((x) => x.name === String(body.session || ''))
+    cwd = target?.cwd || null
+  }
+  if (!cwd || !fs.existsSync(cwd)) return [404, {}]
+  const r = await runIn(cwd, command)
+  // handed over the way Claude Code shows a command the user ran with !
+  const status = r.error ? 'could not start: ' + r.error : r.timedOut ? 'stopped after ' + RUN_TIMEOUT_MS / 1000 + ' s' : 'exit code ' + r.code
+  const text = 'I ran this command myself from the agent monitor, in ' + cwd.replace(/\\/g, '/') + ' (' + r.shell + ', ' + status + ', ' + (r.ms / 1000).toFixed(1) + ' s):\n' +
+    '<bash-input>' + command + '</bash-input>\n<bash-stdout>' + keepEnds(r.stdout, RUN_TO_AGENT) + '</bash-stdout>' + (r.stderr ? '<bash-stderr>' + keepEnds(r.stderr, RUN_TO_AGENT / 2) + '</bash-stderr>' : '')
+  const delivered = body.id ? agents.sendText(body.id, text) : (queueText(target.sessionId, text), true)
+  return [200, { code: r.code, error: r.error, timedOut: r.timedOut, ms: r.ms, shell: r.shell, stdout: keepEnds(r.stdout, RUN_TO_PAGE), stderr: keepEnds(r.stderr, RUN_TO_PAGE / 2), delivered }]
 }
 
 /* ── Board edits from the page ────────────────── */
@@ -1018,6 +1090,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
       if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
+      if (url.pathname === '/api/run') { const [code, o] = await runCommand(body); json(code, o); return }
       if (url.pathname === '/api/look') { json(await saveLook(body), {}); return }
       if (url.pathname === '/api/order') { json(await saveOrder(body), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }

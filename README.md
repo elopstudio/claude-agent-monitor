@@ -51,6 +51,13 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   even while you are typing (the approval keys use Alt, so the two never clash). **×** takes an agent off the bar,
   **✕** in its dialog does the same, and an agent whose session ends drops off by itself. The bar lists session names
   only; unsent messages stay in the page and are never saved.
+- **Run a command.** A message that starts with `!` is run as a command, like `!` in Claude Code — for what an agent
+  cannot do itself (a permission check blocks it, or a VS Code session whose mode the page cannot change). It runs on
+  this PC in the agent's folder, as you, with no permission check: Git Bash on Windows (PowerShell if there is none),
+  your login shell on macOS and Linux. It is stopped after 2 minutes and gets no input, so a command that asks for a
+  password fails instead of waiting. The output shows under the box, and the agent gets it as a message —
+  `<bash-input>`, `<bash-stdout>`, `<bash-stderr>`, the way Claude Code hands over a command you ran; very long output
+  keeps its start and end. Nothing of it is saved. This works for monitor agents and VS Code sessions alike.
 
 The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 

@@ -392,6 +392,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
 
   function shutdown() { shuttingDown = true; for (const a of agents.values()) stop(a) }
 
+  // for a command run from the page: where the agent works, and handing it the result as a message
+  const cwdOf = (id) => agents.get(String(id))?.cwd || null
+  const sendText = (id, text) => { const a = agents.get(String(id)); return !!a && send(a, text, []) }
+
   load()
-  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable }
+  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText }
 }
