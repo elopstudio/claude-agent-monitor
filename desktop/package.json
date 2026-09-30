@@ -11,8 +11,8 @@
     "start": "electron .",
     "dist": "electron-builder --win nsis --publish never",
     "dist:mac": "electron-builder --mac --publish never",
-    "release": "electron-builder --win nsis --publish always",
-    "release:mac": "electron-builder --mac --publish always"
+    "release": "node release.cjs win",
+    "release:mac": "node release.cjs mac"
   },
   "build": {
     "appId": "studio.elop.agent-monitor",

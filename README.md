@@ -234,6 +234,8 @@ To release a version the installed apps pick up: raise `version` in `desktop/pac
 to a GitHub release of that version; the apps find it within six hours, or at once with **Check now** in the settings.
 For the Mac, run `GH_TOKEN=… npm run release:mac` on a Mac for the same version: it adds the disk images, the zips and
 `latest-mac.yml` to that release.
+Either one creates the release if it is not there yet (push the commit first: the tag is made from it on GitHub), and adds
+to it however long ago it was published, so the two can be run hours apart.
 
 ## Demo reel
 

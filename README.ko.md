@@ -222,6 +222,8 @@ npm run dist:mac     # Mac 에서: dist/Agent-Monitor-<버전>-{arm64,x64}.{dmg,
 릴리스에 올리고, 앱들은 6시간 안에(설정의 **지금 확인** 이면 바로) 찾아냅니다.
 Mac 용은 같은 버전으로 Mac 에서 `GH_TOKEN=… npm run release:mac` 을 실행합니다. 디스크 이미지, zip, `latest-mac.yml` 을
 같은 릴리스에 더합니다.
+어느 쪽을 먼저 돌려도 릴리스가 없으면 만들고(태그는 GitHub 에서 지금 커밋으로 만드니 먼저 push 해 둡니다), 게시한 지 오래된
+릴리스에도 더하므로 두 쪽을 몇 시간 떨어져 돌려도 됩니다.
 
 ## 소개 영상(릴스)
 
