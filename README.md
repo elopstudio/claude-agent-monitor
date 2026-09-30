@@ -206,7 +206,10 @@ so all your PCs are in one place; you sign in there with GitHub or Google. Each 
 `cloud.json` in the data folder keeps the server, the device id and the private key, and nothing about the person.
 Their name and plan are asked for when the dialog is open and kept in memory only. The server is told only what kind of PC
 it is ("Windows PC", "Mac"; not the hostname, which often carries a name, and you can rename it on the account page),
-the operating system and the monitor's version. Nothing about sessions or conversations is sent.
+the operating system and the monitor's version. With **Show this PC's status on the account page** on (the default;
+the account dialog turns it off), it also sends, every minute it changes, each project's name and how many agents are
+working, waiting and resting, and how many requests wait for an answer. No session names, prompts, conversations,
+commands or files are ever sent. The site's [privacy page](https://cam.elopstudio.com/privacy) lists what it keeps.
 Without a link the monitor never contacts cam.elopstudio.com. `CAM_URL` points it at another server (for development:
 `http://127.0.0.1:8790`).
 
