@@ -593,30 +593,47 @@ const hookStats = { events: {}, permission: { shown: 0, skippedNoViewer: 0, tool
 // state — but only when the team or its roles changed since the leader was last told, so it costs nothing otherwise.
 const toldTeam = new Map()   // sessionId → the team as last told
 async function teamContext(sessionId) {
-  if (!sessionId) return {}
+  if (!sessionId) return ''
   const [data, reg] = await Promise.all([cachedState(), readRegistry()])
   const msgName = new Map(reg.map((r) => [r.sessionId, r.name]))
   const agentSession = new Map((agents ? agents.sessions(Date.now()) : []).map((m) => [m.agentId, m.sessionId]))
   const mine = agents?.byAgentSession(sessionId)
   const pageName = mine ? mine.name : msgName.get(sessionId)
   const p = (data.projects || []).find((x) => x.sessions.some((s) => s.name === pageName && s.isLeader))
-  if (!p) { toldTeam.delete(sessionId); return {} }
+  if (!p) { toldTeam.delete(sessionId); return '' }
   const me = p.sessions.find((s) => s.name === pageName)
   // a monitor agent whose claude is not running has no session to message: the page's message box wakes it
   const nameOf = (s) => (s.managed ? msgName.get(agentSession.get(s.agentId)) : s.name) || ''
   const others = p.sessions.filter((s) => s !== me)
   const who = (s) => [s.nickKo, s.nick].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' / ')
   const sig = JSON.stringify(others.map((s) => [nameOf(s), who(s), s.role]))
-  if (toldTeam.get(sessionId) === sig) return {}
+  if (toldTeam.get(sessionId) === sig) return ''
   toldTeam.set(sessionId, sig)
   const line = (s) => '- ' + (nameOf(s) || '(not running — cannot be messaged until it is started again)') + ' — ' + (who(s) || s.name) + ' · ' + (s.managed ? 'monitor agent' : 'VS Code session') + ' · ' + s.state +
     (s.role ? ' · role: ' + s.role : '') + (s.activity ? ' · last: ' + clip(describeActivity(s.activity), 80) : '')
   const text = 'Agent monitor: you are the leader of the project "' + p.key + '"' + (who(me) ? ', shown to the user as ' + who(me) : '') + '. ' +
     (others.length ? 'The other sessions working on it now (message them with SendMessage using the first name; the user knows them by the names after the dash):\n' + others.map(line).join('\n')
       : 'No other session is working on it right now.')
-  return { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: text } }
+  return text
 }
 const describeActivity = (a) => [a.key, a.arg].filter(Boolean).join(' ')
+
+// The language the person reads the monitor in (the page's EN / 한국어 switch), told to every session once and again
+// when it changes, so replies to them come in that language. The page reports it with each poll; kept in memory.
+const LANGS = { en: 'English', ko: 'Korean' }
+let pageLang = ''
+const toldLang = new Map()   // sessionId → the language last told
+function langContext(sessionId) {
+  if (!pageLang || toldLang.get(sessionId) === pageLang) return ''
+  toldLang.set(sessionId, pageLang)
+  return 'Agent monitor: the user has the monitor set to ' + LANGS[pageLang] + '. Write to the user in ' + LANGS[pageLang] + ' unless they ask for another language.'
+}
+// what a prompt gets added to it: the language, and for a leader its team
+async function promptContext(sessionId) {
+  if (!sessionId) return {}
+  const text = [langContext(sessionId), await teamContext(sessionId)].filter(Boolean).join('\n\n')
+  return text ? { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: text } } : {}
+}
 
 // how each permission request ended — tool name, agent, outcome and time only; the last 20, in memory
 const outcomes = []
@@ -642,7 +659,7 @@ function hookEvent(input, res, opts = {}) {
   }
   // any other activity from the session means the prompt was answered
   if (sessionId && waiting.delete(sessionId)) notifyPages()
-  if (event === 'UserPromptSubmit') return teamContext(sessionId).catch(() => ({}))
+  if (event === 'UserPromptSubmit') return promptContext(sessionId).catch(() => ({}))
   if (event !== 'PermissionRequest') return Promise.resolve({})
   // nobody is watching the page — hand the request straight back to the normal prompt
   if (!opts.managed && agents?.byAgentSession(sessionId)) return Promise.resolve({})
@@ -914,7 +931,10 @@ const TEXT_EXT = /\.(txt|md|markdown|json|jsonl|js|mjs|cjs|ts|tsx|jsx|vue|py|rb|
 function readUpload(res, ref) {
   const m = /^([0-9a-z]{8})\/([^/\\]+)$/i.exec(String(ref || ''))
   const file = m && path.resolve(UPLOADS, m[1], m[2])
-  if (!file || !file.startsWith(path.resolve(UPLOADS) + path.sep) || !fs.existsSync(file)) { res.writeHead(404).end(); return }
+  // a file, not a folder: "<dir>/." passes the path check, and reading a folder would throw
+  let st = null
+  try { st = file && file.startsWith(path.resolve(UPLOADS) + path.sep) ? fs.statSync(file) : null } catch {}
+  if (!st || !st.isFile()) { res.writeHead(404).end(); return }
   const ext = path.extname(file).toLowerCase()
   const type = UPLOAD_TYPES[ext] || (TEXT_EXT.test(file) ? 'text/plain; charset=utf-8' : 'application/octet-stream')
   res.writeHead(200, {
@@ -923,7 +943,7 @@ function readUpload(res, ref) {
     'content-security-policy': "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
     'content-disposition': "inline; filename*=UTF-8''" + encodeURIComponent(m[2].replace(/^[0-9a-z]+-/, '')),
   })
-  fs.createReadStream(file).pipe(res)
+  fs.createReadStream(file).on('error', () => res.destroy()).pipe(res)
 }
 // only files this server saved can be named in a message
 function attachedPaths(list) {
@@ -1202,6 +1222,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/state') {
       if (url.searchParams.get('visible') === '1') lastViewAt = Date.now()
+      if (LANGS[url.searchParams.get('lang')]) pageLang = url.searchParams.get('lang')
       json(200, await cachedState())
       return
     }

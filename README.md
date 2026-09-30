@@ -132,7 +132,9 @@ on every `PermissionRequest`; the request shows up at the top of the page, namin
 - **Keys** — the first open request shows a number on each button; press it (Alt+number while typing a message).
   In a question, numbers pick options, ↑↓ moves between questions, and Enter sends.
 The same hook, on `PostToolUse` and `Stop`, tells the page each session's permission mode (MANUAL, AUTO, …); on
-`Notification` it notices a prompt VS Code is showing, and on `UserPromptSubmit` it tells a leader its team (above).
+`Notification` it notices a prompt VS Code is showing, and on `UserPromptSubmit` it tells a leader its team (above)
+and tells every session the language the monitor is set to (EN / 한국어), so it writes to you in that language — once,
+and again whenever you switch. The page sends its language with each poll; the server keeps it in memory only.
 
 Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 

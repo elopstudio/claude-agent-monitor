@@ -124,7 +124,9 @@ Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elo
   질문에서는 숫자로 선택지를 고르고, ↑↓로 질문을 옮기고, Enter로 보냅니다.
 
 같은 훅이 `PostToolUse` 와 `Stop` 에서 세션마다 권한 모드(MANUAL, AUTO, …)를 화면에 알려주고, `Notification` 에서는
-VS Code 가 띄운 창을 알아채며, `UserPromptSubmit` 에서는 리더에게 팀원을 알려 줍니다(위 참고).
+VS Code 가 띄운 창을 알아채며, `UserPromptSubmit` 에서는 리더에게 팀원을 알려 주고(위 참고) 모든 세션에 모니터의 언어 설정
+(EN / 한국어)을 알려 줘서 그 언어로 답하게 합니다. 처음 한 번, 그리고 언어를 바꿀 때마다 다시 알립니다. 화면이 새로 불러올 때마다
+언어를 함께 보내고, 서버는 메모리에만 둡니다.
 
 `~/.claude/settings.json` 에 아래를 넣습니다(이미 있는 `hooks` 와 합칩니다).
 

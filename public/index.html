@@ -862,6 +862,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     if (!I18N[next]) return;
     lang = next;
     try { localStorage.setItem('am.lang', next); } catch (e) {}
+    clearTimeout(timer); tick();   // the server hears the new language at once (only ever called from the switch)
     applyStatic();
     approvalsBox.dataset.ids = '';
     if (last) render(last);
@@ -2695,7 +2696,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
   }
   async function tick() {
     try {
-      const r = await fetch('/api/state?visible=' + (document.hidden ? 0 : 1), { cache: 'no-store' });
+      // the language goes along, so the sessions are told which one to write to the person in
+      const r = await fetch('/api/state?visible=' + (document.hidden ? 0 : 1) + '&lang=' + lang, { cache: 'no-store' });
       if (!r.ok) throw new Error(String(r.status));
       const data = await r.json();
       if (data.token) token = data.token;
