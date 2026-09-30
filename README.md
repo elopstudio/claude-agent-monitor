@@ -72,6 +72,7 @@ named in `config.json`; without one, it is the session that sent the most messag
 | ▶ Working | The session is busy — the robot is typing |
 | ○ Waiting | Idle for less than 30 minutes — the robot is dozing |
 | – Resting | Idle for 30 minutes or more — the robot is greyed out |
+| ! Asking | A request or question waits for you (here or in VS Code) — the robot's eyes are wide open, it hops, and an orange **!** sits over its head instead of the dozing *z*; the card's border pulses |
 
 State is never carried by colour alone: every state also has a symbol, a word, a face and a motion.
 
