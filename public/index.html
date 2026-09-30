@@ -484,6 +484,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .dh b{font-size:17px;font-weight:900}
 .detail .dh .sh{font-family:var(--mono);font-size:12px;color:var(--faint);margin-left:6px}
 .detail .dh .close{appearance:none;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);border-radius:8px;padding:6px 12px;font:700 12.5px var(--sans);cursor:pointer}
+.detail .dh .close.icon{width:32px;height:32px;padding:0;display:inline-grid;place-items:center;flex:none}
+.detail .dh .close.icon:hover{border-color:var(--text)}
+.detail .dh .close svg{width:16px;height:16px}
 /* Dock: agent dialogs minimised along the bottom, one click to open or fold again */
 .dock{position:fixed;left:20px;bottom:16px;z-index:39;display:flex;flex-wrap:wrap-reverse;gap:6px;max-width:calc(100vw - 40px);margin:0;padding:0}
 .dock:empty{display:none}
@@ -746,6 +749,16 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
   const $ = (id) => document.getElementById(id);
   const approvalsBox = document.getElementById('approvals');   // moves into the agent dialog while that is open
   function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  // a square button with a drawn icon (minimise, close); its name is the tooltip and what screen readers say
+  const ICONS = { min: '<path d="M4 12.5h8"/>', close: '<path d="M4 4l8 8M12 4l-8 8"/>' };
+  function iconButton(kind, label) {
+    const b = el('button', 'close icon');
+    b.type = 'button';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' + ICONS[kind] + '</svg>';   // static shapes only
+    return b;
+  }
   const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
   const nickFor = (s) => str(lang === 'ko' && s.nickKo || s.nick);
   function dur(ms) {
@@ -1163,8 +1176,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const head = el('div', 'dh');
     const who = el('div', 'who');
     who.append(el('b', null, t('newAgent')));
-    const close = el('button', 'close', t('close'));
-    close.type = 'button';
+    const close = iconButton('close', t('close'));
     close.addEventListener('click', () => d.close());
     head.append(who, close);
     const form = el('form', 'newagent');
@@ -1306,11 +1318,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const head = el('div', 'dh');
     const who = el('div', 'who');
     who.append(el('b', null, nickFor(s) || str(s.name)), el('span', 'sh', str(s.short) || str(s.name)));
-    const min = el('button', 'close', t('minimise'));
-    min.type = 'button';
+    const min = iconButton('min', t('minimise'));
     min.addEventListener('click', () => { dock(s); d.close(); });
-    const close = el('button', 'close', t('close'));
-    close.type = 'button';
+    const close = iconButton('close', t('close'));
     close.addEventListener('click', () => { undock(s.name); d.close(); });
     const calling = asked || (last?.inEditor || []).some((w) => w.session === s.name);
     head.append(robotNode(str(s.name), calling ? 'asking' : st, s.isLeader, false), who, badge(st), min, close);
@@ -1790,8 +1800,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const head = el('div', 'dh');
     const who = el('div', 'who');
     who.append(el('b', null, t('acctTitle')));
-    const close = el('button', 'close', t('close'));
-    close.type = 'button';
+    const close = iconButton('close', t('close'));
     close.addEventListener('click', () => d.close());
     head.append(who, close);
     const body = el('div', 'acct');
@@ -1882,8 +1891,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const head = el('div', 'dh');
     const who = el('div', 'who');
     who.append(el('b', null, t('aboutTitle')));
-    const close = el('button', 'close', t('close'));
-    close.type = 'button';
+    const close = iconButton('close', t('close'));
     close.addEventListener('click', () => d.close());
     head.append(who, close);
     const body = el('div', 'about');
