@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>reel</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#0b0d12;color:#e8eaef;font-family:"Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif}
+#bg{position:absolute;inset:0;background:radial-gradient(900px 700px at 80% 10%,#1d2741 0%,transparent 70%),radial-gradient(800px 800px at 10% 90%,#2a2140 0%,transparent 70%)}
+/* caption */
+#cap{position:absolute;left:64px;right:64px;top:150px;height:280px;display:flex;align-items:flex-end}
+/* the old and the new caption share one spot and cross-fade — never side by side */
+#cap .c{position:absolute;left:0;right:0;bottom:0;font-weight:800;font-size:76px;line-height:1.22;letter-spacing:-.02em;opacity:0;transform:translateY(30px);transition:opacity .45s ease,transform .45s ease}
+#cap .c.on{opacity:1;transform:none}
+#cap .c.out{opacity:0;transform:translateY(-26px);transition-duration:.25s}
+#cap em{font-style:normal;color:#ffd166}
+/* the monitor, seen through a camera */
+#frame{position:absolute;left:40px;top:460px;width:1000px;height:1000px;border-radius:30px;overflow:hidden;background:#0f1116;border:2px solid #2a303b;box-shadow:0 30px 90px rgba(0,0,0,.55);opacity:0;transform:scale(.92);transition:opacity .5s ease,transform .6s ease}
+#frame.on{opacity:1;transform:none}
+#cam{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform 1s cubic-bezier(.65,0,.35,1)}
+#cam iframe{width:1280px;height:1900px;border:0;display:block;background:#0f1116}
+#chip{position:absolute;left:50%;bottom:34px;transform:translate(-50%,20px);opacity:0;transition:opacity .35s,transform .35s;background:rgba(15,17,22,.88);border:2px solid #3a4150;border-radius:999px;padding:16px 30px;font-weight:800;font-size:38px;white-space:nowrap;backdrop-filter:blur(6px)}
+#chip.on{opacity:1;transform:translate(-50%,0)}
+#chip.run{border-color:#86a6f5;color:#b9cbff}
+#chip.wait{border-color:#e0bc5e;color:#ffd98a}
+/* many Claude windows */
+#chaos{position:absolute;left:0;top:440px;width:1080px;height:1040px}
+.win{position:absolute;width:600px;height:330px;border-radius:18px;background:#1b1f27;border:2px solid #313846;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;opacity:0;transform:scale(.8) rotate(var(--r));transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1)}
+.win.on{opacity:1;transform:scale(1) rotate(var(--r))}
+.win.gone{opacity:0;transform:translate(var(--gx),var(--gy)) scale(.35) rotate(0deg);transition:opacity .45s ease,transform .5s ease-in}
+.win .bar{height:48px;display:flex;align-items:center;gap:10px;padding:0 18px;background:#232833;font:600 22px system-ui,sans-serif;color:#a3abb8}
+.win .bar i{width:13px;height:13px;border-radius:50%;background:#4a5261;display:inline-block}
+.win .body{padding:16px 20px;font:500 23px/1.55 "Cascadia Mono",Consolas,monospace;color:#c9d0db}
+.win .body div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.win .ok{color:#6fcf97}.win .tool{color:#86a6f5}.win .warn{color:#ffd166;font-weight:700}.win .dim{color:#737c8a}
+.win .ask{margin-top:6px;border:2px solid #e0bc5e;border-radius:10px;padding:6px 12px;color:#ffd98a;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{border-color:transparent}}
+/* brand line and the end card */
+#brand{position:absolute;left:0;right:0;bottom:44px;text-align:center;font-weight:700;font-size:32px;color:#8d95a3;opacity:0;transition:opacity .5s}
+#brand.on{opacity:1}
+#end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;background:rgba(9,11,16,.86);opacity:0;transition:opacity .7s ease}
+#end.on{opacity:1}
+#end .robot{width:300px;height:300px}
+#end h1{margin:0;font-size:96px;font-weight:900;letter-spacing:-.03em}
+#end p{margin:0;font-size:42px;color:#a3abb8;font-weight:600}
+#end .go{margin-top:30px;font-size:44px;font-weight:800;color:#0b0d12;background:#ffd166;border-radius:999px;padding:20px 44px}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="cap"></div>
+<div id="chaos"></div>
+<div id="frame"><div id="cam"><iframe id="mon" src="/?app=1&lang=ko"></iframe></div><div id="chip"></div></div>
+<div id="brand">Claude Agent Monitor</div>
+<div id="end"><div id="endbot"></div><h1>Claude Agent Monitor</h1><p>Claude Code 세션을 한눈에</p><div class="go">프로필 링크에서 보기</div></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const mon = () => $('mon').contentDocument;
+
+function caption(html) {
+  const old = $('cap').querySelector('.c');
+  if (old) { old.classList.add('out'); setTimeout(() => old.remove(), 300); }   // out first, then the new one comes in
+  const c = document.createElement('div');
+  c.className = 'c';
+  c.innerHTML = html;
+  $('cap').append(c);
+  setTimeout(() => c.classList.add('on'), old ? 230 : 30);
+}
+function chip(text, cls) {
+  const c = $('chip');
+  c.classList.remove('on');
+  if (!text) return;
+  setTimeout(() => { c.textContent = text; c.className = cls || ''; requestAnimationFrame(() => c.classList.add('on')); }, text && c.textContent ? 250 : 0);
+}
+// point the camera at a box of the monitor page (its own CSS pixels)
+const FW = 1000, FH = 1000;
+// up: room left at the bottom of the frame for the chip
+function look(r, { pad = 30, max = 2.6, ms = 1000, up = 50 } = {}) {
+  const s = Math.min(max, FW / (r.w + pad * 2), (FH - up * 2) / (r.h + pad * 2));
+  const tx = FW / 2 - s * (r.x + r.w / 2), ty = FH / 2 - up - s * (r.y + r.h / 2);
+  $('cam').style.transitionDuration = ms + 'ms';
+  $('cam').style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+}
+function boxOf(...els) {
+  const rs = els.filter(Boolean).map((e) => e.getBoundingClientRect());
+  const x = Math.min(...rs.map((r) => r.left)), y = Math.min(...rs.map((r) => r.top));
+  return { x, y, w: Math.max(...rs.map((r) => r.right)) - x, h: Math.max(...rs.map((r) => r.bottom)) - y };
+}
+const card = (name) => [...mon().querySelectorAll('.bot-card')].find((c) => c.querySelector('.botname')?.textContent === name);
+const fullView = (ms) => { const d = mon().querySelector('main') || mon().body; const r = d.getBoundingClientRect(); look({ x: 0, y: 0, w: 1280, h: Math.max(900, r.bottom + 20) }, { pad: 0, ms, up: 0 }); };
+
+// 0–3 s: a pile of Claude windows, all talking at once
+const WINS = [
+  { x: 30, y: 20, r: '-4deg', t: 'Claude Code · shop-web', l: [['tool', '⏺ Bash(npm test)'], ['dim', '  … 42 passed, 1 failed'], ['', '● 쿠폰 계산을 고쳐 볼게요'], ['tool', '⏺ Edit(coupon.ts)']] },
+  { x: 450, y: 80, r: '3deg', t: 'Claude Code · api-server', l: [['', '● 주문 API 인덱스를 추가합니다'], ['tool', '⏺ Read(orders.sql)'], ['tool', '⏺ Grep("created_at")'], ['dim', '  12 matches']] },
+  { x: 60, y: 340, r: '2deg', t: 'Claude Code · shop-web', l: [['', '● 스테이징에 배포할까요?'], ['tool', '⏺ Bash(./scripts/deploy.sh)'], ['ask', '허락이 필요합니다  1) 예  2) 아니오']] },
+  { x: 440, y: 400, r: '-3deg', t: 'Claude Code · mobile-app', l: [['', '● 푸시 알림 문구를 정리했어요'], ['ok', '✓ push.ts 수정 완료'], ['dim', '  다음 지시를 기다리는 중…']] },
+  { x: 20, y: 660, r: '-2deg', t: 'Claude Code · shop-web', l: [['tool', '⏺ Read(design-tokens.css)'], ['', '● 버튼 대비를 확인했습니다'], ['dim', '  대기 중']] },
+  { x: 460, y: 700, r: '4deg', t: 'Claude Code · api-server', l: [['tool', '⏺ Bash(k6 run load.js)'], ['dim', '  p95 182ms'], ['warn', '⚠ 느린 쿼리 3개']] },
+];
+function buildChaos() {
+  WINS.forEach((w, i) => {
+    const n = document.createElement('div');
+    n.className = 'win';
+    n.style.left = w.x + 'px'; n.style.top = w.y + 'px'; n.style.setProperty('--r', w.r);
+    n.style.setProperty('--gx', (540 - w.x - 300) + 'px'); n.style.setProperty('--gy', (500 - w.y - 165) + 'px');
+    n.innerHTML = `<div class="bar"><i></i><i></i><i></i>&nbsp;${w.t}</div><div class="body"></div>`;
+    $('chaos').append(n);
+    w.node = n;
+  });
+}
+async function typeLines(w, delay) {
+  await sleep(delay);
+  w.node.classList.add('on');
+  for (const [cls, text] of w.l) { await sleep(260); const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = text; w.node.querySelector('.body').append(d); }
+}
+
+async function start() {
+  const t0 = performance.now();
+  const at = (s) => sleep(Math.max(0, t0 + s * 1000 - performance.now()));
+  // 0–3 s
+  WINS.forEach((w, i) => typeLines(w, i * 170));
+  await at(0.25); caption('클로드 여러 개 켜놓고<br>뭐 하는지 <em>헷갈린다면?</em>');
+  await at(2.45); WINS.forEach((w) => w.node.classList.add('gone'));
+  fullView(0);
+  await at(2.7); $('frame').classList.add('on');
+  // 3–9 s: a robot that works types; one that waits dozes
+  await at(3.0); caption('일하면 <em>타이핑</em>하고,<br>기다리면 <em>졸아요</em> 🤖'); 
+  await at(3.5); look(boxOf(card('서연')), { pad: 26, ms: 1100 });
+  await at(4.4); chip('▶ 작업 중 — 타닥타닥 타이핑', 'run');
+  await at(6.1); chip(''); look(boxOf(card('지호')), { pad: 26, ms: 900 });
+  await at(6.9); chip('○ 대기 — 꾸벅꾸벅 졸아요', 'wait');
+  await at(8.4); chip(''); look(boxOf(card('서연'), card('지호')), { pad: 30, ms: 700 });
+  // 9–15 s: what each is doing, who told whom what, and a request waiting for you
+  await at(9.0); caption('에이전트들 작업을<br><em>한눈에</em>');
+  [...mon().querySelectorAll('#tabs .tab')].find((t) => t.dataset.key === 'shop-web')?.click();
+  await sleep(120); fullView(600);
+  await at(9.7); look(boxOf(mon().querySelector('.side')), { pad: 20, ms: 900 });
+  await at(10.3); chip('💬 누가 누구에게 무엇을', ''); fetch('/demo/ask?on=1');
+  await at(11.5); chip(''); look(boxOf(card('하은')), { pad: 26, ms: 900 });
+  await at(12.2); chip('! 승인 기다리는 로봇은 깨어서 불러요', 'wait');
+  await at(13.2); chip(''); mon().getElementById('approvals').style.width = '430px';   // narrower, so it can be shown bigger
+  await at(13.4); look(boxOf(mon().querySelector('#approvals .approval')), { pad: 18, ms: 800 });
+  await at(14.0); chip('허용·거부 — 숫자 키로 바로', 'run');
+  // the end: the whole screen, then the name
+  await at(15.0); chip(''); fullView(900);
+  await at(15.9); $('endbot').innerHTML = mon().querySelector('#logo svg')?.outerHTML.replace('class="robot"', 'class="robot" style="width:300px;height:300px"') || ''; $('end').classList.add('on'); $('cap').querySelector('.c')?.classList.remove('on'); $('brand').classList.remove('on');
+  await at(18.0);
+}
+buildChaos();
+window.reelStart = start;
+window.reelReady = () => new Promise((resolve) => {
+  const check = () => (mon() && card('서연') && card('지호') ? resolve(true) : setTimeout(check, 100));
+  check();
+});
+</script>
+</body>
+</html>

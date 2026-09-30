@@ -234,6 +234,20 @@ to a GitHub release of that version; the apps find it within six hours, or at on
 For the Mac, run `GH_TOKEN=… npm run release:mac` on a Mac for the same version: it adds the disk images, the zips and
 `latest-mac.yml` to that release.
 
+## Demo reel
+
+`tools/reel/` records the short vertical video (1080×1920, 18 s) used on Instagram: a pile of Claude windows, then the
+robots up close, the team chat, a request waiting for an answer, and the name at the end. It runs the real page on made-up
+data — no session, conversation or account of this PC appears in it.
+
+```bash
+cd tools/reel
+npm install          # ffmpeg, only for this tool; Electron comes from desktop/
+npm run record       # out/reel.mp4, and a few stills in out/stills/ to check it
+```
+
+The scenes, captions and timing are in `reel.html`; the demo projects and agents in `demo-server.js`.
+
 ## Board format
 
 See `boards/example.json`.

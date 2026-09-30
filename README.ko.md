@@ -223,6 +223,19 @@ npm run dist:mac     # Mac 에서: dist/Agent-Monitor-<버전>-{arm64,x64}.{dmg,
 Mac 용은 같은 버전으로 Mac 에서 `GH_TOKEN=… npm run release:mac` 을 실행합니다. 디스크 이미지, zip, `latest-mac.yml` 을
 같은 릴리스에 더합니다.
 
+## 소개 영상(릴스)
+
+`tools/reel/` 은 인스타그램에 올리는 짧은 세로 영상(1080×1920, 18초)을 만듭니다. Claude 창이 잔뜩 뜬 장면, 로봇 확대, 팀 대화,
+답을 기다리는 요청, 마지막 제품 이름 순서입니다. 진짜 화면을 지어낸 데이터로 띄워 찍으므로, 이 PC 의 세션·대화·계정은 나오지 않습니다.
+
+```bash
+cd tools/reel
+npm install          # 이 도구에만 필요한 ffmpeg. Electron 은 desktop/ 의 것을 씁니다
+npm run record       # out/reel.mp4, 확인용 스틸은 out/stills/
+```
+
+장면, 자막, 타이밍은 `reel.html`, 데모 프로젝트와 에이전트는 `demo-server.js` 에 있습니다.
+
 ## 작업판 형식
 
 `boards/example.json` 을 봅니다.
