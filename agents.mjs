@@ -18,6 +18,8 @@ import { spawn, execFileSync } from 'node:child_process'
 const HISTORY = 600                 // normalised events kept per agent for a dialog opened later
 const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }
 const MODES = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions']
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']   // claude's --effort; none = its own default
+const effortOf = (v) => (EFFORTS.includes(v) ? v : '')
 // the crown is not on offer: it marks the leader
 const ACCS = ["ball","twin","phones","sprout","bolt"]
 // { c: palette index 0-7, acc: headgear } — anything else means "the usual look from the name"
@@ -31,7 +33,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
@@ -220,6 +222,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // lets "All OK" (bypassPermissions) be chosen, at the start or later; it is on only while that mode is picked
       '--allow-dangerously-skip-permissions']
     if (a.model) args.push('--model', a.model)
+    if (a.effort) args.push('--effort', a.effort)
     // quick start: only the monitor's own tool, none of the user's MCP servers and connectors
     if (a.fast) args.push('--strict-mcp-config')
     if (a.sessionId) args.push('--resume', a.sessionId)
@@ -310,7 +313,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     const a = {
       // a look and a name picked in the new-agent dialog (both optional)
       fast: !!body.fast, avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
-      id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode, model: String(body.model || '').replace(/[^\w.:[\]-]/g, '') || '',
+      id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode, model: String(body.model || '').replace(/[^\w.:[\]-]/g, '') || '', effort: effortOf(body.effort),
       newSessionId: crypto.randomUUID(), sessionId: '', proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
     }
@@ -349,13 +352,16 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // takes effect from the next message: the process is restarted on the same session
       if (MODES.includes(body.mode)) a.mode = body.mode
       if (typeof body.model === 'string') a.model = body.model.replace(/[^\w.:[\]-]/g, '')
+      if (typeof body.effort === 'string') a.effort = effortOf(body.effort)
       if (typeof body.nick === 'string') a.nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
       if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
-      if (typeof body.nick === 'string' || body.avatar !== undefined) { save(); notifyPages(); if (!('mode' in body) && !('model' in body)) return [200, {}] }
+      if (typeof body.nick === 'string' || body.avatar !== undefined) { save(); notifyPages(); if (!('mode' in body) && !('model' in body) && !('effort' in body)) return [200, {}] }
       save()
-      const what = 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '')
+      const what = 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '') + (a.effort ? ' · effort ' + a.effort : '')
       if (!a.proc) { emit(a, { kind: 'note', text: what + ' — from the next message' }); notifyPages(); return [200, {}] }
-      const asks = [...('mode' in body ? [{ subtype: 'set_permission_mode', mode: a.mode }] : []), ...('model' in body ? [{ subtype: 'set_model', ...(a.model ? { model: a.model } : {}) }] : [])]
+      const asks = [...('mode' in body ? [{ subtype: 'set_permission_mode', mode: a.mode }] : []), ...('model' in body ? [{ subtype: 'set_model', ...(a.model ? { model: a.model } : {}) }] : []),
+        // effort has no request of its own: it goes in as the session's effortLevel setting
+        ...('effort' in body ? [{ subtype: 'apply_flag_settings', settings: { effortLevel: a.effort || null } }] : [])]
       const answers = await Promise.all(asks.map((r) => control(a, r)))
       if (answers.every((r) => r.subtype === 'success')) emit(a, { kind: 'note', text: what + ' — now' })
       else if (a.state === 'working') { a.restartAfterTurn = true; emit(a, { kind: 'note', text: what + ' — after this turn' }) }
@@ -394,7 +400,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     return [...agents.values()].map((a) => ({
       managed: true, agentId: a.id, sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
-      statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
+      statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))
   }
   const byAgentSession = (sessionId) => [...agents.values()].find((a) => a.sessionId === sessionId || a.newSessionId === sessionId)

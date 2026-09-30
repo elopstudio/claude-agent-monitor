@@ -205,7 +205,8 @@ on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conv
 - **Mode** and **Model** (the pills in the message box) change the running agent at once, even in the middle of a turn. **ALL OK**
   (`bypassPermissions`) works too: agents start with `--allow-dangerously-skip-permissions`, which makes that mode
   available without turning it on. Models: the default, the newest of a family (**Fable**, **Opus**, **Sonnet**,
-  **Haiku**), a fixed version (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 4.5), or **Other…** for any model name;
+  **Haiku**), a fixed version (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 4.5), or **Other…** for any model name.
+  **Effort** (low, medium, high, extra high, max, or Claude Code's default) is the third pill and changes at once too;
 - attached images go into the message as images; other files by path;
 - **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
 

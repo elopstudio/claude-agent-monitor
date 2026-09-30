@@ -445,7 +445,7 @@ async function buildState() {
       id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', pinNick: m.nick || '', avatar: m.avatar || null, state: m.state,
       statusSince: m.statusSince, startedAt: m.startedAt, kind: 'monitor', managed: true, agentId: m.agentId, running: m.running,
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
-      lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model,
+      lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model, effort: m.effort,
       listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
       lastSignAt: m.lastEventAt || 0, subagents: await subagentsOf(m.sessionId).catch(() => []), today: await todayOf(m.sessionId).catch(() => null),
     }
