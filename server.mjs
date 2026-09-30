@@ -601,13 +601,14 @@ async function teamContext(sessionId) {
   const p = (data.projects || []).find((x) => x.sessions.some((s) => s.name === pageName && s.isLeader))
   if (!p) { toldTeam.delete(sessionId); return {} }
   const me = p.sessions.find((s) => s.name === pageName)
-  const nameOf = (s) => (s.managed ? msgName.get(agentSession.get(s.agentId)) : s.name) || s.name
+  // a monitor agent whose claude is not running has no session to message: the page's message box wakes it
+  const nameOf = (s) => (s.managed ? msgName.get(agentSession.get(s.agentId)) : s.name) || ''
   const others = p.sessions.filter((s) => s !== me)
   const who = (s) => [s.nickKo, s.nick].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' / ')
   const sig = JSON.stringify(others.map((s) => [nameOf(s), who(s), s.role]))
   if (toldTeam.get(sessionId) === sig) return {}
   toldTeam.set(sessionId, sig)
-  const line = (s) => '- ' + nameOf(s) + ' — ' + (who(s) || s.name) + ' · ' + (s.managed ? 'monitor agent' : 'VS Code session') + ' · ' + s.state +
+  const line = (s) => '- ' + (nameOf(s) || '(not running — cannot be messaged until it is started again)') + ' — ' + (who(s) || s.name) + ' · ' + (s.managed ? 'monitor agent' : 'VS Code session') + ' · ' + s.state +
     (s.role ? ' · role: ' + s.role : '') + (s.activity ? ' · last: ' + clip(describeActivity(s.activity), 80) : '')
   const text = 'Agent monitor: you are the leader of the project "' + p.key + '"' + (who(me) ? ', shown to the user as ' + who(me) : '') + '. ' +
     (others.length ? 'The other sessions working on it now (message them with SendMessage using the first name; the user knows them by the names after the dash):\n' + others.map(line).join('\n')
