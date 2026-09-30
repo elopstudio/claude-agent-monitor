@@ -49,14 +49,16 @@ async function offerHooks(always) {
   const state = hookState()
   if (state === 'ok' && !always) return
   const settings = readSettings()
-  if (!always && settings.hooksDeclined) return
+  // hooks from an older version: offered once, even to someone who once said no to installing them
+  const outdated = state === 'outdated'
+  if (!always && (outdated ? settings.hooksUpdateDeclined : settings.hooksDeclined)) return
   const r = await ask({
     type: 'question', buttons: ['설치', '나중에'], defaultId: 0, cancelId: 1,
-    message: always ? 'Claude Code hook을 이 앱 기준으로 다시 설치할까요?' : 'Claude Code에 모니터 hook을 설치할까요?',
+    message: always ? 'Claude Code hook을 이 앱 기준으로 다시 설치할까요?' : outdated ? '모니터 hook을 새 버전으로 갱신할까요?' : 'Claude Code에 모니터 hook을 설치할까요?',
     detail: '승인·질문에 답하기, 권한 모드 표시, 에이전트에게 메시지 보내기에 필요합니다.\n' + CLAUDE_SETTINGS + ' 의 모니터 항목만 추가·교체하고, 다른 설정은 그대로 둡니다 (백업: settings.json.before-agent-monitor).\n' + (findNode() ? 'hook은 이 PC의 Node.js로 실행됩니다.' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다.'),
   })
   if (quitting) return   // a box closed by quitting is not an answer
-  if (r.response !== 0) { if (!always) writeSettings({ ...settings, hooksDeclined: true }); return }
+  if (r.response !== 0) { if (!always) writeSettings({ ...settings, [outdated ? 'hooksUpdateDeclined' : 'hooksDeclined']: true }); return }
   try { installHooks(); await ask({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
   catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
   if (tray) tray.setContextMenu(trayMenu())

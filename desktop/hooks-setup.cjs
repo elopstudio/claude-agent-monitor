@@ -36,18 +36,21 @@ function hookCmd(script, extra) {
   const q = (p) => "'" + p.replace(/'/g, "'\\''") + "'"
   return { type: 'command', command: 'ELECTRON_RUN_AS_NODE=1 ' + q(execPath) + ' ' + q(file), ...extra }
 }
+const INBOX_TIMEOUT = 86400   // seconds; older installs had 1800, which left resting sessions unreachable
 function hookEntries() {
   return {
     PermissionRequest: [{ matcher: '*', hooks: [hookCmd('bridge.mjs', { timeout: 90 })] }],
     PostToolUse: [{ matcher: '*', hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }],
     Notification: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }],
-    Stop: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }, { hooks: [hookCmd('inbox.mjs', { asyncRewake: true, timeout: 1800 })] }],
+    // the inbox waits up to a day, so a session resting for hours can still be woken by a message from the page
+    Stop: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }, { hooks: [hookCmd('inbox.mjs', { asyncRewake: true, timeout: INBOX_TIMEOUT })] }],
   }
 }
 function readClaudeSettings() {
   try { return JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, 'utf8')) } catch (e) { return e.code === 'ENOENT' ? {} : null }
 }
-// 'ok' when every event has one of our hooks and its script exists; otherwise 'missing'
+// 'ok' when every event has one of our hooks and its script exists; 'outdated' when the message hook still has the
+// old half-hour timeout; otherwise 'missing'
 function hookState() {
   const cfg = readClaudeSettings()
   if (!cfg) return 'unreadable'
@@ -60,6 +63,9 @@ function hookState() {
     const script = Array.isArray(h.args) && h.args.length ? h.args[h.args.length - 1] : quoted ? quoted[1] : ''
     if (!script || !fs.existsSync(script)) return 'missing'
   }
+  const inbox = (cfg.hooks?.Stop || []).flatMap((m) => m.hooks || []).find((h) => /[\\/]hooks[\\/]inbox\.mjs/.test(cmdText(h)))
+  if (!inbox) return 'missing'
+  if (!(Number(inbox.timeout) >= INBOX_TIMEOUT)) return 'outdated'
   return 'ok'
 }
 // replaces the monitor's own entries and leaves every other setting and hook as it was (a backup is kept)
