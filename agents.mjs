@@ -27,8 +27,11 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
 
   // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
   // session) — never what was said. After a restart they come back stopped; the next message resumes the session.
+  // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself.
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn']
+  const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off.'
+  let shuttingDown = false   // stopping everything on the way out is not the end of their turns
   function save() {
     try {
       fs.mkdirSync(path.dirname(FILE), { recursive: true })
@@ -50,8 +53,9 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       agents.set(a.id, a)
       // the conversation so far, from its transcript, so the dialog is not empty after a restart
       if (a.sessionId && historyOf) { try { a.events = await historyOf(a.sessionId) } catch {} }
-      a.events.push({ kind: 'note', text: 'monitor restarted — send a message to continue', at: Date.now() })
+      a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : 'monitor restarted — send a message to continue', at: Date.now() })
     }
+    for (const a of agents.values()) if (a.midTurn) send(a, CARRY_ON, [])
     notifyPages()
   }
 
@@ -77,6 +81,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     if (a.state === state) return
     a.state = state
     a.stateSince = Date.now()
+    // written down as it happens, so even a monitor that is killed knows afterwards who was mid-turn
+    if (!shuttingDown && a.midTurn !== (state === 'working')) { a.midTurn = state === 'working'; save() }
     emit(a, { kind: 'state', state })
     notifyPages()
   }
@@ -149,7 +155,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     if (a.fast) args.push('--strict-mcp-config')
     if (a.sessionId) args.push('--resume', a.sessionId)
     else args.push('--session-id', a.newSessionId)
-    const child = spawn(claudeExecutable(), args, { cwd: a.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env })
+    let child
+    // a claudePath that cannot be run at all throws right here, not as an 'error' event
+    try { child = spawn(claudeExecutable(), args, { cwd: a.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env }) }
+    catch (e) { emit(a, { kind: 'note', text: 'could not start claude: ' + e.message }); a.proc = null; setState(a, 'stopped'); return }
     a.proc = child
     if (!a.sessionId) { a.sessionId = a.newSessionId; save() }   // from now on this session is resumed, never created again
     let rest = ''
@@ -188,6 +197,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
 
   function send(a, text, files) {
     if (!a.proc) spawnAgent(a)
+    if (!a.proc) return false
     const msg = userMessage(text, files)
     try { a.proc.stdin.write(JSON.stringify(msg) + '\n') } catch { return false }
     emit(a, { kind: 'user', text: mask(clip2(text, 4000)), files: files.map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, '')) })
@@ -298,7 +308,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   }
   const byAgentSession = (sessionId) => [...agents.values()].find((a) => a.sessionId === sessionId || a.newSessionId === sessionId)
 
-  function shutdown() { for (const a of agents.values()) stop(a) }
+  function shutdown() { shuttingDown = true; for (const a of agents.values()) stop(a) }
 
   load()
   return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable }
