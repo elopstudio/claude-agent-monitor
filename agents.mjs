@@ -293,5 +293,5 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   function shutdown() { for (const a of agents.values()) stop(a) }
 
   load()
-  return { handle, stream, prompt, sessions, byAgentSession, shutdown }
+  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable }
 }

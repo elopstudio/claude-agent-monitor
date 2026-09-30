@@ -43,13 +43,16 @@ The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 | `~/.claude/projects/*/<sessionId>.jsonl` | **Only the last 768 KB** — the latest tool action and the summary line of messages sent to other sessions |
 | `boards/<project>.json` | The task board and per-session roles, written by the project's leader — optional |
 | `config.json` | Project labels, leader assignment, tab order — optional (see `config.example.json`) |
+| `~/.claude.json` | The signed-in account (name, e-mail, organisation) and the usage Claude Code last saved — only while the account dialog is open |
+| `~/.claude/.credentials.json` | The Claude sign-in token and plan, to ask Anthropic for the usage — only while the account dialog is open |
 
 A project is the folder name of the git root above a session's working directory. The leader is the session
 named in `config.json`; without one, it is the session that sent the most messages (at least 3).
 
 ## What it never reads, and what it shows
 
-- `~/.claude/sessions/*.key`, `.credentials.json` and settings files are never opened.
+- `~/.claude/sessions/*.key` and settings files are never opened. `.credentials.json` is opened only by the
+  account dialog (below); its token goes to `api.anthropic.com` and nowhere else, and is never stored or logged.
 - The cards, tabs, board and state API carry no user prompts, conversation text, tool results or message bodies:
   a tool action is reduced to its kind plus a short label (a file name or the command's own description), and
   web lookups show neither the URL nor the query. Socket addresses never reach the page.
@@ -101,6 +104,19 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
   Another web page cannot read it, so it cannot approve anything.
 - Pending requests live in memory only. The command or file path is shown on the page so you can judge it,
   and is never written to disk or logged.
+
+## Claude account
+
+**👤 Account** at the top shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
+is used: the current 5-hour session and the week, with when each resets. The numbers come from the same place as
+Claude Code's `/usage`, asked at most once a minute while the dialog is open; if Anthropic cannot be reached, the
+numbers Claude Code last saved are shown and marked as such.
+
+- **Switch account** signs out and opens `claude auth login` in a window of its own; finish in the browser.
+- **Sign out** runs `claude auth logout`. Every Claude Code session on the PC — VS Code and the monitor's
+  agents — stops working until you sign in again.
+
+Claude Code keeps its own credentials: the monitor stores no account, e-mail or token of its own.
 
 ## Agents the monitor runs itself
 

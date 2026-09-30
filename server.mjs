@@ -17,6 +17,7 @@ import os from 'node:os'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { createAgents } from './agents.mjs'
+import { createAccount } from './account.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))   // the code: public/, hooks/
 // the data: config.json, boards/, .runtime/ — the code's own folder unless MONITOR_HOME says otherwise
@@ -920,6 +921,7 @@ const agents = createAgents({
     return out.slice(-300)
   },
 })
+const account = createAccount({ claudeExecutable: agents.claudeExecutable })
 
 /* ── HTTP ─────────────────────────────────────── */
 
@@ -943,6 +945,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/upload') { const [code, o] = await saveUpload(req, url); json(code, o); return }
       const body = await readBody(req)
       if (url.pathname === '/hook/prompt') { json(200, await agents.prompt(body)); return }
+      if (url.pathname.startsWith('/api/account/')) { const [code, o] = await account.handle(url); json(code, o); return }
       if (url.pathname.startsWith('/api/agents/')) { const [code, o] = await agents.handle(url, body); json(code, o); return }
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
@@ -957,6 +960,12 @@ const server = http.createServer(async (req, res) => {
       // folder picker for a new agent: sub-folders only, never files; needs the token like every other private read
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       json(200, await listDirs(url.searchParams.get('path') || ''))
+      return
+    }
+    if (url.pathname === '/api/account') {
+      // the account's email is private like the conversations: the token is needed to read it
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      json(200, await account.info(url.searchParams.get('fresh') === '1'))
       return
     }
     if (url.pathname === '/api/agent-stream') {
