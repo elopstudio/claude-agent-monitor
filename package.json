@@ -1,6 +1,6 @@
 {
   "name": "claude-agent-monitor",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "description": "Local dashboard for Claude Code sessions, grouped as project → leader → agents (read-only)",
   "license": "PolyForm-Noncommercial-1.0.0",
