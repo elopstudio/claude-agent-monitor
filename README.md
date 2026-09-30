@@ -318,6 +318,10 @@ The scenes, captions and timing are in `reel.html`; the demo projects and agents
 See `boards/example.json`.
 
 - `status` is one of `running | queued | blocked | done`; `order` sets the queue position.
+- `decisions` holds questions for a human, `{ "title": "…", "status": "open" }` (answered from the page:
+  `answered` with an `answer`), and records of decisions already made, `{ "text": "…", "by": "-7f", "at": "<ISO time>" }`.
+  Records are listed after the questions, newest first, as decided — who and when, nothing to answer — and the
+  column's count is the questions still waiting.
 - `roles` maps a session to a short role, e.g. `{ "-0f": "auth · simulation" }`.
 - `session` and the keys of `roles` may be a short name (`-0f`), a full session name or a nickname (`Tom`, `민준`).
 - `boards/*.json` and `config.json` are local state and are not committed.

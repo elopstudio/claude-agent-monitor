@@ -241,6 +241,8 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .task .tt{flex:1;min-width:0;overflow-wrap:anywhere}
 .task .ss{font-family:var(--mono);font-size:10.5px;color:var(--muted);flex:none}
 .task.done{background:transparent;color:var(--muted)}
+.task.made{background:transparent;color:var(--muted);font-size:12px}
+.task.made .ss{flex-basis:100%;order:2;font-size:10.5px}   /* who and when, under the text */
 .more{font-size:11px;color:var(--faint);padding:0 4px 4px}
 .task{flex-wrap:wrap}
 .task .answer{display:block;color:var(--run);font-size:12px;margin-top:3px;font-weight:500}
@@ -670,7 +672,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: 'LEAD', idleBubble: 'Resting', waitBubble: 'Waiting', last: 'Last · {x}',
       forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
-      board: 'Board', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
+      board: 'Board', decidedBy: '{x} decided · {t}', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
       askTitle: 'NEEDS APPROVAL', asksFor: 'Asking to run {x}', asking: 'WAITING FOR YOU', unknownAgent: 'an agent outside the list', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
@@ -694,7 +696,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: '리더', idleBubble: '쉬는 중', waitBubble: '대기 중', last: '마지막 · {x}',
       forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
-      board: '작업판', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
+      board: '작업판', decidedBy: '{x} 결정 · {t}', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
       askTitle: '승인 필요', asksFor: '{x} 실행 허락을 기다리는 중', asking: '승인 대기', unknownAgent: '목록에 없는 에이전트', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
@@ -1883,17 +1885,19 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     // the leader writes "-0f" or a full session name — show the nickname when there is one
     const nickOf = (v) => { const s = p.sessions.find((x) => x.short === v || x.name === v || x.nick === v || x.nickKo === v); return s ? nickFor(s) : v; };
     const cols = el('div', 'kcols');
-    const column = (cls, title, items, withPos, limit) => {
+    const column = (cls, title, items, withPos, limit, count) => {
       const c = el('div', 'kcol ' + cls);
-      const hh = el('h4', null, title); hh.append(el('span', 'n', String(items.length)));
+      const hh = el('h4', null, title); hh.append(el('span', 'n', String(count ?? items.length)));
       c.append(hh);
       let q = 0;
       for (const it of items.slice(0, limit)) {
         const st = str(it.status);
         const row = el('div', 'task' + (st === 'blocked' ? ' blocked' : '') + (st === 'done' ? ' done' : ''));
         if (withPos && st === 'queued') row.append(el('span', 'pos', String(++q)));
-        const tt = el('span', 'tt', (st === 'done' ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title));
+        const tt = el('span', 'tt', (st === 'done' || it._made ? '✓ ' : st === 'blocked' ? '■ ' : '') + str(it.title));
         row.append(tt);
+        // a decision an agent already made: who and when, nothing to answer
+        if (it._made) { row.classList.add('made'); row.append(el('span', 'ss', t('decidedBy', { x: /^(user|human|you)$/i.test(str(it.by)) ? t('byUser') : nickOf(str(it.by)) || '?', t: it.at ? ago(time(it.at)) : '' }))); }
         if (it.session) row.append(el('span', 'ss', nickOf(str(it.session))));
         if (it._dec) decisionControls(p, it, row, tt);
         if (cls === 'k-queue' && st === 'queued') queueControls(p, it, items, row);
@@ -1906,12 +1910,17 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     };
     const time = (v) => Date.parse(str(v)) || 0;
     const byOrder = (a, c) => (Number(a.order) || 999) - (Number(c.order) || 999);
-    const dec = (Array.isArray(b.decisions) ? b.decisions : []).map((d, i) => ({ ...d, _i: i })).filter((d) => d.status !== 'closed')
-      .map((d) => ({ title: d.title, status: d.status === 'answered' ? 'answered' : 'queued', order: d.order, answer: d.answer, _i: d._i, _dec: true })).sort(byOrder);
+    // a decision is a question for a human: { title, status: open | answered, answer }. An entry with only { text, by, at }
+    // records one an agent already made; it is listed after the questions, newest first, as decided
+    const allDec = (Array.isArray(b.decisions) ? b.decisions : []).map((d, i) => ({ ...d, _i: i })).filter((d) => d && d.status !== 'closed');
+    const isRecord = (d) => !d.title && d.text && !d.status;
+    const dec = allDec.filter((d) => !isRecord(d))
+      .map((d) => ({ title: d.title || d.text, status: d.status === 'answered' ? 'answered' : 'queued', order: d.order, answer: d.answer, _i: d._i, _dec: true })).sort(byOrder);
+    const made = allDec.filter(isRecord).sort((a, c) => time(c.at) - time(a.at)).map((d) => ({ title: d.text, by: d.by, at: d.at, _made: true }));
     const indexed = tasks.map((x, i) => ({ ...x, _i: i }));
     // decisions come first: nothing behind them can move until a human answers
     cols.append(
-      column('k-dec', '? ' + t('decisions'), dec, true, 12),
+      column('k-dec', '? ' + t('decisions'), [...dec, ...made], true, 12, dec.filter((d) => d.status !== 'answered').length),
       column('k-run', '▶ ' + t('inProgress'), indexed.filter((x) => x.status === 'running'), false, 12),
       column('k-queue', '○ ' + t('queued'), indexed.filter((x) => x.status === 'queued' || x.status === 'blocked')
         .sort((a, c) => (a.status === 'blocked') - (c.status === 'blocked') || byOrder(a, c)), true, 30),

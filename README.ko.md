@@ -296,6 +296,9 @@ npm run record       # out/reel.mp4, 확인용 스틸은 out/stills/
 `boards/example.json` 을 봅니다.
 
 - `status` 는 `running | queued | blocked | done` 중 하나이고, `order` 가 대기 순서를 정합니다.
+- `decisions` 에는 사람이 답할 질문 `{ "title": "…", "status": "open" }`(화면에서 답하면 `answered` 와 `answer`)과,
+  이미 내린 결정의 기록 `{ "text": "…", "by": "-7f", "at": "<ISO 시각>" }` 을 적습니다. 기록은 질문 뒤에 최근 것부터
+  "정해짐" 으로 나오고(누가·언제, 답할 것 없음), 칸 제목의 숫자는 아직 답을 기다리는 질문 수입니다.
 - `roles` 는 세션과 짧은 역할을 짝짓습니다. 예: `{ "-0f": "auth · simulation" }`.
 - `session` 과 `roles` 의 키에는 짧은 이름(`-0f`), 전체 세션 이름, 별명(`Tom`, `민준`)을 쓸 수 있습니다.
 - `boards/*.json` 과 `config.json` 은 로컬 상태라 커밋하지 않습니다.
