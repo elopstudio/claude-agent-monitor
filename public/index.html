@@ -327,6 +327,9 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .approval .done.bad{color:var(--block)}
 @media (max-width:640px){ .approval{grid-template-columns:1fr} .approval .acts{justify-content:stretch} .approval button{flex:1} }
 .detail{border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);color:var(--text);padding:0;width:min(980px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:0 20px 60px var(--bot-shadow)}
+.detail[open]{display:flex;flex-direction:column;overflow:hidden}   /* the header and tabs stay put; .dbody scrolls */
+.detail>.dh,.detail>.dtabs{flex:none}
+.detail .dbody{flex:1 1 auto;min-height:0;overflow:auto}
 .detail .actl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px 0;font-size:12.5px;color:var(--muted)}
 .modelpick{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
 .modelpick input[hidden]{display:none}
@@ -761,6 +764,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
   const $ = (id) => document.getElementById(id);
   const approvalsBox = document.getElementById('approvals');   // moves into the agent dialog while that is open
   function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  // what a dialog shows under its header and tabs: only this part scrolls
+  function dbody(...nodes) { const b = el('div', 'dbody'); b.append(...nodes); return b; }
   // a square button with a drawn icon (minimise, close); its name is the tooltip and what screen readers say
   const ICONS = { min: '<path d="M4 12.5h8"/>', close: '<path d="M4 4l8 8M12 4l-8 8"/>' };
   function iconButton(kind, label) {
@@ -1259,7 +1264,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       showDetail({ name: r.name, short: r.name, nick: lp.get().nick, nickKo: lp.get().nick, avatar: lp.get().avatar, managed: true, agentId: r.id, mode: mode.value, model: model.value, state: 'working', startedAt: Date.now() }, false, 'conv');
       clearTimeout(timer); tick();
     });
-    d.replaceChildren(head, form);
+    d.replaceChildren(head, dbody(form));
     if (!d.open) d.showModal();
     floatInto(d);
     d.classList.add('narrow');
@@ -1488,7 +1493,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     }
     show(pick);
     d.classList.remove('narrow');
-    d.replaceChildren(head, tabs, info, conv, subs, form);   // the floating stack is re-attached right after
+    d.replaceChildren(head, tabs, dbody(info, conv, subs, form));   // the floating stack is re-attached right after
     if (!d.open) d.showModal();
     current = { name: s.name, tab: () => pick, draft: () => ta.value };
     floatInto(d);
@@ -1910,7 +1915,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (info.busy) for (const b of acts.children) b.disabled = true;
       body.append(acts, el('div', 'hint', t('acctWarn')));
     }
-    d.replaceChildren(head, body);
+    d.replaceChildren(head, dbody(body));
     if (!d.open) d.showModal();
     floatInto(d);
     d.classList.add('narrow');
@@ -2000,7 +2005,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       tabs.append(b);
     }
     tabs.firstChild.click();
-    d.replaceChildren(head, tabs, body, keys);
+    d.replaceChildren(head, tabs, dbody(body, keys));
     if (!d.open) d.showModal();
     floatInto(d);
     d.classList.add('narrow');
