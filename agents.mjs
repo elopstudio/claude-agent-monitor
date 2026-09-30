@@ -30,7 +30,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself.
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
   const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn']
-  const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off.'
+  const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   let shuttingDown = false   // stopping everything on the way out is not the end of their turns
   function save() {
     try {
