@@ -29,6 +29,10 @@ lives, where to report a problem, and its licence (PolyForm Noncommercial, with 
   `config.json`.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
+- **Working in another project.** A card started in one project that has just changed files in another git repository
+  (within 30 minutes) gets **↗ other-project**; that project's tab lists it under *Working here from other projects*, and
+  a click goes back to where it belongs. Only file-changing tools count, not reading; the page gets the project's folder
+  name, never the file's path.
 - **Names.** Every agent also gets a person's name — Tom, Mark, … in English, 민준, 서연, … in Korean — so
   `-7f` and `-74` are easy to tell apart. The name is derived from the session id, so it is the same in every
   browser and on every poll, and no two agents in one project share one. Pin a name with `names` in `config.json`.

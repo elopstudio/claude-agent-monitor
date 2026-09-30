@@ -134,6 +134,30 @@ function projectRoot(cwd) {
 }
 const projectKey = (root) => path.basename(root).toLowerCase()
 
+// the git repository a file belongs to, or null for a file outside any (a scratch folder, Claude Code's own notes)
+const gitRootCache = new Map()
+function gitRootOf(dir) {
+  if (gitRootCache.has(dir)) return gitRootCache.get(dir)
+  let d = path.resolve(dir), found = null
+  for (let i = 0; i < 20 && d; i++) {
+    if (fs.existsSync(path.join(d, '.git'))) { found = d; break }
+    const up = path.dirname(d)
+    if (up === d) break
+    d = up
+  }
+  gitRootCache.set(dir, found)
+  return found
+}
+const AWAY_MS = 30 * 60 * 1000   // a file changed in another project this recently: the session is working there
+const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit', 'MultiEdit'])
+// another project the session has just been changing files in: its key (the folder name) and when — never the file
+function awayOf(info, cwd, own, now) {
+  if (!info?.lastEditPath || now - info.lastEditAt > AWAY_MS) return null
+  const root = gitRootOf(path.dirname(path.resolve(cwd || '', info.lastEditPath)))
+  const key = root && projectKey(root)
+  return key && key !== own ? { key, at: info.lastEditAt } : null
+}
+
 /* ── Transcript tail ──────────────────────────── */
 
 const transcriptPath = new Map()
@@ -192,7 +216,7 @@ function describe(name, input = {}) {
 }
 
 const tailCache = new Map()   // sessionId → { file, offset, mtimeMs, info }
-const emptyInfo = () => ({ title: '', activity: null, activityAt: 0, lastEventAt: 0, sent: [], context: 0, results: 0, errors: 0, lastErrorAt: 0, recent: [] })
+const emptyInfo = () => ({ title: '', activity: null, activityAt: 0, lastEventAt: 0, sent: [], context: 0, results: 0, errors: 0, lastErrorAt: 0, recent: [], lastEditPath: '', lastEditAt: 0 })
 
 // One transcript line, oldest to newest: later lines simply overwrite the "latest" fields.
 function applyLine(info, o) {
@@ -213,6 +237,8 @@ function applyLine(info, o) {
     if (c?.type !== 'tool_use') continue
     info.activity = describe(c.name, c.input)
     info.activityAt = ts
+    // the last file changed, to tell which project the session is really working in (kept on the server only)
+    if (EDIT_TOOLS.has(c.name)) { const f = c.input?.file_path || c.input?.notebook_path; if (typeof f === 'string' && f) { info.lastEditPath = f; info.lastEditAt = ts } }
     // a send without a message is only an idle-notice subscription, not conversation
     if (c.name === 'SendMessage' && c.input?.to && c.input.message) {
       info.sent.push({ to: String(c.input.to), summary: clip(c.input.summary || '', 70), at: ts })
@@ -397,6 +423,7 @@ async function buildState() {
       subagents: await subagentsOf(s.sessionId).catch(() => []), today: await todayOf(s.sessionId).catch(() => null),
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
+    sess.away = awayOf(info, s.cwd, key, now)
     const p = projects.get(key)
     p.sessions.push(sess)
     bySession.set(s.sessionId, { sess, project: key })
@@ -422,6 +449,7 @@ async function buildState() {
       lastSignAt: m.lastEventAt || 0, subagents: await subagentsOf(m.sessionId).catch(() => []), today: await todayOf(m.sessionId).catch(() => null),
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
+    sess.away = awayOf(info, m.cwd, m.key, now)
     projects.get(m.key).sessions.push(sess)
     bySession.set(m.sessionId, { sess, project: m.key })
   }
@@ -460,6 +488,11 @@ async function buildState() {
         resting: p.sessions.filter((s) => s.state === 'resting').length,
       },
     })
+  }
+  // each project lists the sessions from elsewhere that are changing its files right now
+  for (const p of out) {
+    p.guests = out.filter((q) => q.key !== p.key).flatMap((q) => q.sessions.filter((x) => x.away?.key === p.key)
+      .map((x) => ({ name: x.name, nick: x.nick, nickKo: x.nickKo, isLeader: !!x.isLeader, from: q.key, at: x.away.at, state: x.state })))
   }
   const order = config.order || []
   out.sort((a, b) => {
