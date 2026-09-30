@@ -19,7 +19,7 @@ The page is in English by default. Switch to Korean with the **EN / 한국어** 
 (remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
 
 **ⓘ About** in the header says what the program is, its version, who makes it (ELOP Studio), where the source code
-lives, where to report a problem, and its licence (MIT, with the full text).
+lives, where to report a problem, and its licence (PolyForm Noncommercial, with the full text).
 
 ## What you see
 
@@ -116,8 +116,9 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 
 **👤 Account** at the top shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
 is used: the current 5-hour session and the week, with when each resets. The numbers come from the same place as
-Claude Code's `/usage`, asked at most once a minute while the dialog is open; if Anthropic cannot be reached, the
-numbers Claude Code last saved are shown and marked as such.
+Claude Code's `/usage`. Anthropic turns callers away when that is asked often, so the monitor asks at most every five
+minutes (Refresh: once a minute), and after a refusal it waits longer each time, up to 30 minutes. Meanwhile — and
+whenever Anthropic cannot be reached — it shows the newest numbers it has, with the time they are from.
 
 - **Switch account** signs out and opens `claude auth login` in a window of its own; finish in the browser.
 - **Sign out** runs `claude auth logout`. Every Claude Code session on the PC — VS Code and the monitor's
@@ -270,4 +271,9 @@ Built and maintained by [ELOP Studio](https://elopstudio.com) (이롭스튜디�
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE). Free for personal use and for other noncommercial purposes — study,
+hobby projects, research, and noncommercial organisations such as schools and charities. **Commercial use needs a
+separate licence from [ELOP Studio](https://elopstudio.com).**
+
+Versions up to 0.2.4 were released under MIT; a copy obtained under MIT keeps those terms. From 0.2.5 on, this
+licence applies.

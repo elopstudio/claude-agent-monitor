@@ -64,7 +64,9 @@ function usage(u) {
   if (b.hidden) return
   b.textContent = [ses && '세션 ' + Math.round(ses.percent) + '%', week && '주간 ' + Math.round(week.percent) + '%'].filter(Boolean).join(' · ')
   b.className = 'usage' + ['', ' warn', ' full'][Math.max(0, ...lim.map(level))]
-  b.title = lim.map((x) => (NAMES[x.kind] || (x.kind === 'weekly_scoped' ? '주간 · ' + (x.model || '') : x.kind)) + ' ' + Math.round(x.percent) + '%' + (left(x.resetsAt) ? ' · ' + left(x.resetsAt) + ' 후 초기화' : '')).join('\n') + '\n누르면 계정 창을 엽니다'
+  // numbers the monitor could not refresh just now say how old they are
+  const old = u.source !== 'live' && u.at ? '\n' + Math.max(1, Math.round((Date.now() - u.at) / 60000)) + '분 전에 확인한 값' : ''
+  b.title = lim.map((x) => (NAMES[x.kind] || (x.kind === 'weekly_scoped' ? '주간 · ' + (x.model || '') : x.kind)) + ' ' + Math.round(x.percent) + '%' + (left(x.resetsAt) ? ' · ' + left(x.resetsAt) + ' 후 초기화' : '')).join('\n') + old + '\n누르면 계정 창을 엽니다'
 }
 app.onUsage(usage)
 $('usage').addEventListener('click', () => app.account())

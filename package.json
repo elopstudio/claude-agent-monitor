@@ -1,9 +1,9 @@
 {
   "name": "claude-agent-monitor",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "description": "Local dashboard for Claude Code sessions, grouped as project → leader → agents (read-only)",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
     "start": "node server.mjs"
