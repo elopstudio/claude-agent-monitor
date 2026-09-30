@@ -28,10 +28,13 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
 
   // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
   // session) — never what was said. After a restart they come back stopped; the next message resumes the session.
-  // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself.
+  // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
+  // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
+  const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
+  const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
   let shuttingDown = false   // stopping everything on the way out is not the end of their turns
   function save() {
     try {
@@ -54,9 +57,14 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       agents.set(a.id, a)
       // the conversation so far, from its transcript, so the dialog is not empty after a restart
       if (a.sessionId && historyOf) { try { a.events = await historyOf(a.sessionId) } catch {} }
-      a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : 'monitor restarted — send a message to continue', at: Date.now() })
+      a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS
+      a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : a.justAfter ? 'monitor restarted right after the last turn — asked to check on it' : 'monitor restarted — send a message to continue', at: Date.now() })
     }
-    for (const a of agents.values()) if (a.midTurn) send(a, CARRY_ON, [])
+    for (const a of agents.values()) {
+      if (a.midTurn) send(a, CARRY_ON, [])
+      else if (a.justAfter) send(a, JUST_AFTER, [])
+      delete a.justAfter
+    }
     notifyPages()
   }
 
@@ -135,7 +143,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     a.state = state
     a.stateSince = Date.now()
     // written down as it happens, so even a monitor that is killed knows afterwards who was mid-turn
-    if (!shuttingDown && a.midTurn !== (state === 'working')) { a.midTurn = state === 'working'; save() }
+    if (!shuttingDown && a.midTurn !== (state === 'working')) { a.midTurn = state === 'working'; if (!a.midTurn) a.turnEndedAt = Date.now(); save() }
     emit(a, { kind: 'state', state })
     notifyPages()
   }
