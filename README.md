@@ -14,6 +14,7 @@ npm start            # http://127.0.0.1:4777  (override with PORT=…)
 ```
 
 Or install the [desktop app](#desktop-app): a window of its own and the tray, no terminal needed.
+Downloads for Windows and macOS, and what the monitor does, are at **[cam.elopstudio.com](https://cam.elopstudio.com)**.
 
 The page is in English by default. Switch to Korean with the **EN / 한국어** toggle in the header
 (remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.

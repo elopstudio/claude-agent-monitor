@@ -14,6 +14,7 @@ npm start            # http://127.0.0.1:4777  (포트는 PORT=… 로 바꿉니�
 ```
 
 [데스크톱 앱](#데스크톱-앱)으로 설치하면 터미널 없이 전용 창과 트레이로 씁니다.
+Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elopstudio.com/?lang=ko)** 에 있습니다.
 
 화면은 기본이 영어입니다. 헤더의 **EN / 한국어** 버튼으로 바꾸면 브라우저가 기억하고,
 `http://127.0.0.1:4777/?lang=ko` 로 열어도 됩니다.
