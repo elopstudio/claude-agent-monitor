@@ -23,6 +23,8 @@ button.usage{width:auto;padding:0 9px;height:22px;border:1px solid var(--line);b
 button.usage.warn{color:var(--wait);border-color:var(--wait);background:var(--wait-soft)}
 button.usage.full{color:var(--block);border-color:var(--block);background:var(--block-soft)}
 button.usage[hidden]{display:none}
+/* macOS: the traffic lights sit on the left, nothing on the right */
+body.mac{padding:0 10px 0 80px}
 </style>
 </head>
 <body>
@@ -31,15 +33,19 @@ button.usage[hidden]{display:none}
 <div class="bar">
   <button id="back" title="Back (Alt+←)" aria-label="Back">←</button>
   <button id="forward" title="Forward (Alt+→)" aria-label="Forward">→</button>
-  <button id="reload" title="Reload (F5)" aria-label="Reload">⟳</button>
+  <button id="reload" title="Reload (F5)" data-mac="Reload (⌘R)" aria-label="Reload">⟳</button>
   <span class="sep"></span>
-  <button id="out" title="Zoom out (Ctrl+-)" aria-label="Zoom out">−</button>
-  <button id="pct" class="pct" title="Reset zoom (Ctrl+0)" aria-label="Reset zoom">100%</button>
-  <button id="in" title="Zoom in (Ctrl+=)" aria-label="Zoom in">+</button>
+  <button id="out" title="Zoom out (Ctrl+-)" data-mac="Zoom out (⌘-)" aria-label="Zoom out">−</button>
+  <button id="pct" class="pct" title="Reset zoom (Ctrl+0)" data-mac="Reset zoom (⌘0)" aria-label="Reset zoom">100%</button>
+  <button id="in" title="Zoom in (Ctrl+=)" data-mac="Zoom in (⌘=)" aria-label="Zoom in">+</button>
   <span class="sep"></span>
   <button id="settings" title="설정" aria-label="설정">⚙</button>
 </div>
 <script>
+if (new URLSearchParams(location.search).get('platform') === 'darwin') {
+  document.body.classList.add('mac')
+  for (const b of document.querySelectorAll('[data-mac]')) b.title = b.dataset.mac
+}
 const app = window.monitorApp
 const $ = (id) => document.getElementById(id)
 const wire = { back: 'back', forward: 'forward', reload: 'reload', out: 'zoomOut', pct: 'zoomReset', in: 'zoomIn', settings: 'settings' }

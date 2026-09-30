@@ -165,7 +165,8 @@ servers and connectors, which starts faster still. Set `"claudePath"` in `config
 
 ## Desktop app
 
-`desktop/` packages the monitor as a Windows app: no terminal, and nothing depends on VS Code staying open.
+`desktop/` packages the monitor as a Windows and macOS app: no terminal, and nothing depends on VS Code staying open.
+The notes below are written for Windows; what differs on a Mac is under **macOS**.
 
 **Install.** Run `Agent Monitor Setup <version>.exe` (build it with `npm run dist`, below). It installs for the current
 user — no admin rights — and starts. The installer is not code-signed, so Windows SmartScreen may warn: *More info → Run anyway*.
@@ -201,6 +202,20 @@ and open the page in the browser.
   your leaders write their boards to. `MONITOR_HOME` does the same for `npm start`.
 - The hooks find the running monitor through `~/.claude-agent-monitor/bridge.json`, wherever it runs from.
 
+**macOS.**
+- **Install.** Open `Agent-Monitor-<version>-arm64.dmg` (Apple silicon) or `-x64.dmg` (Intel) and drag the app to
+  Applications. Started from anywhere else, it offers to move itself there first: the hooks remember where the app is.
+- The app is not signed with an Apple Developer ID, so the first start is refused ("cannot verify the developer").
+  Open it once with **right-click → Open**, or allow it in **System Settings → Privacy & Security → Open Anyway**.
+- The window buttons (red, yellow, green) sit at the left of the title strip. The shortcuts use **⌘** where Windows uses
+  **Ctrl** (**⌘ − / 0 / =**, **⌘R**); the window shortcut is **⌃⌥J** by default.
+- The menu bar icon does what the tray does. Requests waiting show as a number on the Dock icon, and a new one bounces it.
+  Clicking the Dock icon brings the window back; **⌘Q** quits and stops the monitor agents.
+- **Updates:** macOS installs an update only into a signed app, so the Mac app checks GitHub Releases as on Windows but
+  only tells you a new version is out (a notification, the menu, the settings) and opens the release page to download it.
+- Hooks: an app started from the Finder does not see your shell's PATH, so it asks your login shell where `node` is
+  (nvm, fnm, Homebrew). Without Node.js the hooks run on the app itself, as on Windows.
+
 Build it yourself:
 
 ```bash
@@ -208,11 +223,16 @@ cd desktop
 npm install          # Electron and electron-builder, only for the app — the monitor itself stays dependency-free
 npm start            # run it from source
 npm run dist         # dist/Agent Monitor Setup <version>.exe
+npm run dist:mac     # on a Mac: dist/Agent-Monitor-<version>-{arm64,x64}.{dmg,zip}
 ```
+
+The Windows installer is built on Windows and the Mac app on a Mac.
 
 To release a version the installed apps pick up: raise `version` in `desktop/package.json`, then
 `GH_TOKEN=<a token that may write releases> npm run release`. It builds the installer and uploads it with `latest.yml`
 to a GitHub release of that version; the apps find it within six hours, or at once with **Check now** in the settings.
+For the Mac, run `GH_TOKEN=… npm run release:mac` on a Mac for the same version: it adds the disk images, the zips and
+`latest-mac.yml` to that release.
 
 ## Board format
 

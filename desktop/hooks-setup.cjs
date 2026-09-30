@@ -9,16 +9,32 @@ const CLAUDE_SETTINGS = settingsPath
 const HOOKS = hooksDir
 const cmdText = (h) => [h.command, ...(h.args || [])].join(' ')
 const ours = (h) => /[\\/]hooks[\\/](bridge|inbox)\.mjs/.test(cmdText(h))
+const WIN = process.platform === 'win32'
+let macNode = null
 function findNode() {
   if (node !== undefined) return node
-  try { return execFileSync('where.exe', ['node'], { encoding: 'utf8' }).split(/\r?\n/).map((l) => l.trim()).find((l) => /\.exe$/i.test(l)) || '' } catch { return '' }
+  if (WIN) { try { return execFileSync('where.exe', ['node'], { encoding: 'utf8' }).split(/\r?\n/).map((l) => l.trim()).find((l) => /\.exe$/i.test(l)) || '' } catch { return '' } }
+  // macOS: an app started from the Finder gets a bare PATH, so ask the login shell (nvm, fnm, …) before the usual
+  // places. A login shell takes a moment, so the answer is kept while it still points at a file.
+  if (macNode !== null && (!macNode || fs.existsSync(macNode))) return macNode
+  macNode = ''
+  try {
+    const found = execFileSync(process.env.SHELL || '/bin/zsh', ['-ilc', 'command -v node'], { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\n/).pop()
+    if (found && path.isAbsolute(found) && fs.existsSync(found)) macNode = found
+  } catch {}
+  if (!macNode) macNode = ['/opt/homebrew/bin/node', '/usr/local/bin/node'].find((p) => fs.existsSync(p)) || ''
+  return macNode
 }
 function hookCmd(script, extra) {
   const file = path.join(HOOKS, script)
   const node = findNode()
   if (node) return { type: 'command', command: node, args: [file], ...extra }
-  const q = (p) => "'" + p.replace(/'/g, "''") + "'"
-  return { type: 'command', shell: 'powershell', command: "$env:ELECTRON_RUN_AS_NODE='1'; & " + q(execPath) + ' ' + q(file), ...extra }
+  if (WIN) {
+    const q = (p) => "'" + p.replace(/'/g, "''") + "'"
+    return { type: 'command', shell: 'powershell', command: "$env:ELECTRON_RUN_AS_NODE='1'; & " + q(execPath) + ' ' + q(file), ...extra }
+  }
+  const q = (p) => "'" + p.replace(/'/g, "'\\''") + "'"
+  return { type: 'command', command: 'ELECTRON_RUN_AS_NODE=1 ' + q(execPath) + ' ' + q(file), ...extra }
 }
 function hookEntries() {
   return {

@@ -11,12 +11,18 @@ const URL = `http://127.0.0.1:${PORT}/`
 // the monitor's code: next to this folder while developing, in the app's resources once installed
 const CODE = app.isPackaged ? path.join(process.resourcesPath, 'monitor') : path.join(__dirname, '..')
 const ICON = path.join(__dirname, 'icon.png')
+const MAC = process.platform === 'darwin'
+const RELEASES = 'https://github.com/elopstudio/claude-agent-monitor/releases/latest'
 
 /* ── settings: where the monitor keeps config.json, boards/ and its agent list ── */
+// read before startServer sets it for the server
+const GIVEN_HOME = process.env.MONITOR_HOME || ''
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 function readSettings() { try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) } catch { return {} } }
 function writeSettings(s) { fs.mkdirSync(path.dirname(settingsFile()), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2)) }
 function dataDir() {
+  // a MONITOR_HOME given to the app wins, as it does for npm start (and keeps a test run away from the real folder)
+  if (GIVEN_HOME) return GIVEN_HOME
   const s = readSettings()
   if (s.dataDir && fs.existsSync(s.dataDir)) return s.dataDir
   // while developing, the repository itself; installed, a folder in the home directory
@@ -31,18 +37,27 @@ function dataDir() {
 const setup = require('./hooks-setup.cjs')({ hooksDir: path.join(CODE, 'hooks'), execPath: process.execPath })
 const { hookState, installHooks, findNode, CLAUDE_SETTINGS } = setup
 
+// A question for the user. On macOS a message box with no window runs modally on the main thread, and the
+// monitor server lives on that thread: approvals would stop until it is answered. There it goes on the window, as a sheet.
+function ask(opts) {
+  if (!MAC) return dialog.showMessageBox(opts)
+  showWindow()
+  return dialog.showMessageBox(win, opts)
+}
+
 async function offerHooks(always) {
   const state = hookState()
   if (state === 'ok' && !always) return
   const settings = readSettings()
   if (!always && settings.hooksDeclined) return
-  const r = await dialog.showMessageBox({
+  const r = await ask({
     type: 'question', buttons: ['설치', '나중에'], defaultId: 0, cancelId: 1,
     message: always ? 'Claude Code hook을 이 앱 기준으로 다시 설치할까요?' : 'Claude Code에 모니터 hook을 설치할까요?',
     detail: '승인·질문에 답하기, 권한 모드 표시, 에이전트에게 메시지 보내기에 필요합니다.\n' + CLAUDE_SETTINGS + ' 의 모니터 항목만 추가·교체하고, 다른 설정은 그대로 둡니다 (백업: settings.json.before-agent-monitor).\n' + (findNode() ? 'hook은 이 PC의 Node.js로 실행됩니다.' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다.'),
   })
+  if (quitting) return   // a box closed by quitting is not an answer
   if (r.response !== 0) { if (!always) writeSettings({ ...settings, hooksDeclined: true }); return }
-  try { installHooks(); await dialog.showMessageBox({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
+  try { installHooks(); await ask({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
   catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
   if (tray) tray.setContextMenu(trayMenu())
 }
@@ -74,7 +89,9 @@ async function startServer() {
 const STRIP = 36
 const DARK = { color: '#171b22', symbolColor: '#e8eaef', height: STRIP }, LIGHT = { color: '#ffffff', symbolColor: '#171a21', height: STRIP }
 const overlay = () => (nativeTheme.shouldUseDarkColors ? DARK : LIGHT)
-nativeTheme.on('updated', () => { if (win) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
+nativeTheme.on('updated', () => { if (win && !MAC) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
+// no system title bar: Windows draws minimise / maximise / close over the strip, macOS its traffic lights on the left
+const titleBar = () => (MAC ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y: 11 } } : { titleBarStyle: 'hidden', titleBarOverlay: overlay() })
 const LOGIN = { args: ['--hidden'] }   // started at login: stay in the tray
 const zoom = () => { const z = Number(readSettings().zoom); return z >= 0.5 && z <= 2 ? z : 1 }
 let win = null, page = null, strip = null
@@ -131,8 +148,7 @@ function showWindow() {
   win = new BaseWindow({
     width: 1440, height: 920, minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
     backgroundColor: dark ? '#0f1116' : '#f2f3f7',
-    // no Windows title bar: Windows draws minimise / maximise / close over the strip, in its colours
-    titleBarStyle: 'hidden', titleBarOverlay: overlay(),
+    ...titleBar(),
   })
   const safe = { contextIsolation: true, sandbox: true }
   strip = new WebContentsView({ webPreferences: { ...safe, preload: path.join(__dirname, 'preload.cjs') } })
@@ -140,7 +156,7 @@ function showWindow() {
   page.setBackgroundColor(dark ? '#0f1116' : '#f2f3f7')
   win.contentView.addChildView(page)
   win.contentView.addChildView(strip)
-  strip.webContents.loadFile(path.join(__dirname, 'strip.html'))
+  strip.webContents.loadFile(path.join(__dirname, 'strip.html'), { query: { platform: process.platform } })
   strip.webContents.on('did-finish-load', () => { if (strip) strip.webContents.send('monitor-app-usage', usage) })
   page.webContents.loadURL(URL + '?app=1&v=' + encodeURIComponent(app.getVersion()))
   layout()
@@ -174,6 +190,7 @@ function trayMenu() {
     { label: '설정…', click: showSettings },
     { label: '프로그램 정보', click: showAbout },
     ...(update.status === 'ready' ? [{ label: '업데이트 ' + update.version + ' 설치하고 다시 시작', click: installUpdate }] : []),
+    ...(update.status === 'available' ? [{ label: '업데이트 ' + update.version + ' 받으러 가기', click: installUpdate }] : []),
     { type: 'separator' },
     { label: ownServer ? '종료 (모니터 에이전트도 멈춤)' : '종료', click: quit },
   ])
@@ -203,7 +220,8 @@ function paintBadge() {
   }
   const n = waitingCount
   if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip(['Agent Monitor', usageLine(), n ? '답을 기다리는 요청 ' + n + '건' : ''].filter(Boolean).join('\n')) }
-  if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? '요청 ' + n + '건' : '') } catch (e) { console.error('overlay icon:', e.message) } }
+  if (MAC) { if (app.dock) app.dock.setBadge(n ? String(n) : '') }
+  else if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? '요청 ' + n + '건' : '') } catch (e) { console.error('overlay icon:', e.message) } }
 }
 const shown = new Set()   // a notification that is garbage-collected no longer answers its click
 function notify(title, body, onClick) {
@@ -231,7 +249,8 @@ function watch(data) {
   const fresh = seenAsks ? approvals.filter((a) => !seenAsks.has(a.id)) : []
   seenAsks = new Set(approvals.map((a) => a.id))
   if (fresh.length && !focused()) {
-    if (win) { try { win.flashFrame(true) } catch {} }
+    if (MAC) { if (app.dock) app.dock.bounce('informational') }
+    else if (win) { try { win.flashFrame(true) } catch {} }
     for (const a of fresh.slice(0, 3)) notify((a.questions ? '질문' : a.plan ? '계획 승인' : '승인 요청') + ' · ' + who(a), [a.tool, a.what].filter(Boolean).join(' — ') || '답을 기다립니다')
   }
   // an agent that starts to look stuck: once, until it moves again
@@ -300,10 +319,17 @@ function checkUpdates() { if (updater) updater.checkForUpdates().catch(() => set
 function setupUpdates() {
   if (!app.isPackaged) return
   try { updater = require('electron-updater').autoUpdater } catch { return }
-  updater.autoDownload = true
+  // the macOS build is not signed with a Developer ID, and macOS applies an update only to a signed app:
+  // there the app says a new version is out and opens the release page
+  updater.autoDownload = !MAC
   updater.autoInstallOnAppQuit = true
   updater.on('checking-for-update', () => setUpdate('checking'))
-  updater.on('update-available', (i) => setUpdate('downloading', { version: i.version, percent: 0 }))
+  updater.on('update-available', (i) => {
+    if (!MAC) { setUpdate('downloading', { version: i.version, percent: 0 }); return }
+    const fresh = update.version !== i.version
+    setUpdate('available', { version: i.version })
+    if (fresh) notify('Agent Monitor ' + i.version + ' 나옴', '누르면 받는 곳을 엽니다.', () => shell.openExternal(RELEASES))
+  })
   updater.on('update-not-available', () => setUpdate('latest'))
   updater.on('download-progress', (p) => { update.percent = Math.round(p.percent || 0); if (settingsWin) settingsWin.webContents.send('monitor-settings-changed') })
   updater.on('update-downloaded', (i) => { setUpdate('ready', { version: i.version }); notify('Agent Monitor ' + i.version + ' 받음', '트레이 메뉴나 설정에서 다시 시작하면 바로 적용됩니다. 앱을 끌 때도 적용됩니다.') })
@@ -313,6 +339,7 @@ function setupUpdates() {
   setInterval(checkUpdates, 6 * 3600e3).unref()
 }
 function installUpdate() {
+  if (update.status === 'available') { shell.openExternal(RELEASES); return }
   if (!updater || update.status !== 'ready') return
   quitting = true
   if (ownServer && typeof globalThis.agentMonitorShutdown === 'function') globalThis.agentMonitorShutdown()
@@ -326,10 +353,10 @@ function showSettings() {
   settingsWin = new BrowserWindow({
     width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: 'Agent Monitor 설정', icon: ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
-    titleBarStyle: 'hidden', titleBarOverlay: overlay(),
+    ...titleBar(),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'settings-preload.cjs') },
   })
-  settingsWin.loadFile(path.join(__dirname, 'settings.html'))
+  settingsWin.loadFile(path.join(__dirname, 'settings.html'), { query: { platform: process.platform } })
   settingsWin.on('closed', () => { settingsWin = null })
 }
 ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
@@ -357,7 +384,7 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   return {
     openAtLogin: app.getLoginItemSettings(LOGIN).openAtLogin, closeToTray: s2.closeToTray !== false,
     dataDir: dataDir(), ownServer, hooks: hookState(), node: !!findNode(), version: app.getVersion(), url: URL,
-    hotkey: hotkey(), hotkeys: HOTKEYS, hotkeyOk, update: { ...update },
+    hotkey: hotkey(), hotkeys: HOTKEYS, hotkeyOk, update: { ...update }, platform: process.platform,
   }
 })
 function quit() {
@@ -376,12 +403,22 @@ else {
       app.quit()
       return
     }
+    // run from the disk image or Downloads, the hooks would point at a copy that goes away: offer to move it first
+    if (MAC && app.isPackaged && !app.isInApplicationsFolder() && !readSettings().moveDeclined) {
+      const r = await ask({ type: 'question', buttons: ['응용 프로그램으로 옮기기', '그대로 쓰기'], defaultId: 0, cancelId: 1, message: 'Agent Monitor를 응용 프로그램 폴더로 옮길까요?', detail: 'Claude Code hook이 이 앱의 위치를 기억합니다. 디스크 이미지나 다운로드 폴더에서 그대로 쓰면, 그 사본이 없어질 때 hook도 멈춥니다.' })
+      // a box closed by quitting is not a yes
+      if (quitting) return
+      if (r.response === 0) { try { if (app.moveToApplicationsFolder()) return } catch (e) { dialog.showErrorBox('Agent Monitor', '옮기지 못했습니다.\n\n' + (e && e.message || e)) } }
+      else writeSettings({ ...readSettings(), moveDeclined: true })
+    }
     tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }))
     tray.setToolTip('Agent Monitor')
     tray.setContextMenu(trayMenu())
     tray.on('click', showWindow)
-    // started at login: stay in the tray until opened
-    if (!process.argv.includes('--hidden')) showWindow()
+    // started at login: stay in the tray until opened (macOS says so itself; Windows passes --hidden)
+    let atLogin = process.argv.includes('--hidden')
+    if (MAC) { try { atLogin = atLogin || app.getLoginItemSettings().wasOpenedAtLogin } catch {} }
+    if (!atLogin) showWindow()
     // a PC where the monitor's hooks are not registered yet: offer to register them
     offerHooks(false)
     paintBadge()
@@ -390,6 +427,12 @@ else {
     setupUpdates()
   })
   app.on('window-all-closed', () => { /* the tray keeps the app alive */ })
-  app.on('before-quit', () => { quitting = true })
+  // the Dock icon brings the window back
+  app.on('activate', () => { if (tray) showWindow() })
+  // Cmd+Q and the Dock's Quit come here without going through quit(): stop the agents the same way
+  app.on('before-quit', () => {
+    if (!quitting && ownServer && typeof globalThis.agentMonitorShutdown === 'function') globalThis.agentMonitorShutdown()
+    quitting = true
+  })
   app.on('will-quit', () => globalShortcut.unregisterAll())
 }

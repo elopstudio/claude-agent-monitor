@@ -8,9 +8,11 @@
 @media (prefers-color-scheme: dark){:root{--bg:#0f1116;--surface:#171b22;--line:#2a303b;--text:#e8eaef;--muted:#a3abb8;--faint:#737c8a;--accent:#86a6f5;--ok:#6fcf97;--warn:#e0bc5e}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:13.5px/1.5 system-ui,"Segoe UI","Noto Sans KR",sans-serif}
-/* the window's title strip: drag to move; Windows draws the close button on the right */
+/* the window's title strip: drag to move; Windows draws the close button on the right, macOS its traffic lights on the left */
 .strip{height:36px;display:flex;align-items:center;gap:8px;padding:0 150px 0 12px;background:var(--surface);border-bottom:1px solid var(--line);-webkit-app-region:drag;user-select:none;font-weight:700;font-size:12px;color:var(--muted)}
 .strip img{width:18px;height:18px}
+/* macOS: the traffic lights sit on the left */
+body.mac .strip{padding:0 12px 0 80px}
 main{padding:18px 20px 24px;display:grid;gap:14px}
 section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 h2{margin:0 0 10px;font-size:12.5px;color:var(--muted)}
@@ -61,7 +63,7 @@ select{font:13px inherit;font-family:inherit;color:var(--text);background:var(--
   </section>
   <section>
     <h2>업데이트 — GitHub Releases</h2>
-    <div class="row"><span class="t"><span class="state" id="updState">…</span><small>켤 때와 6시간마다 확인하고, 받아 두었다가 다시 시작할 때 설치합니다</small></span>
+    <div class="row"><span class="t"><span class="state" id="updState">…</span><small id="updHow">켤 때와 6시간마다 확인하고, 받아 두었다가 다시 시작할 때 설치합니다</small></span>
       <span class="btns"><button id="checkUpdates">지금 확인</button><button class="primary" id="installUpdate" hidden>설치하고 다시 시작</button></span></div>
   </section>
   <section>
@@ -71,6 +73,12 @@ select{font:13px inherit;font-family:inherit;color:var(--text);background:var(--
   </section>
 </main>
 <script>
+const MAC = new URLSearchParams(location.search).get('platform') === 'darwin'
+if (MAC) {
+  document.body.classList.add('mac')
+  // macOS has a menu bar, not a tray
+  for (const n of document.querySelectorAll('small, .t')) for (const t of n.childNodes) if (t.nodeType === 3) t.textContent = t.textContent.replace('PC에 로그인하면 트레이에서', 'Mac에 로그인하면 메뉴 막대에서').replace('창을 닫으면 트레이로', '창을 닫으면 메뉴 막대로')
+}
 const api = window.monitorSettings
 const $ = (id) => document.getElementById(id)
 async function load() {
@@ -84,16 +92,18 @@ async function load() {
   $('hookHow').textContent = s.node ? 'hook은 이 PC의 Node.js로 실행됩니다' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다'
   $('version').textContent = s.version
   $('url').textContent = s.url
-  const keyName = (k) => k === 'off' ? '끄기' : k.replace('Control', 'Ctrl')
+  const keyName = (k) => k === 'off' ? '끄기' : MAC ? k.replace('Control+', '⌃').replace('Alt+', '⌥') : k.replace('Control', 'Ctrl')
   $('hotkey').replaceChildren(...s.hotkeys.map((k) => new Option(keyName(k), k)))
   $('hotkey').value = s.hotkey
   $('hotkeyHow').textContent = s.hotkeyOk ? '어디서든 눌러 창을 띄우고, 한 번 더 누르면 숨깁니다' : keyName(s.hotkey) + '은 다른 프로그램이 쓰고 있습니다 — 다른 키를 골라 주세요'
   $('hotkeyHow').style.color = s.hotkeyOk ? '' : 'var(--warn)'
   const u = s.update
-  $('updState').textContent = { dev: '개발 중인 앱은 업데이트하지 않습니다', idle: '확인 전', checking: '확인하는 중…', latest: '최신 버전입니다', none: '아직 올라온 릴리스가 없습니다', downloading: (u.version || '새 버전') + ' 받는 중… ' + (u.percent || 0) + '%', ready: u.version + ' 받음 — 다시 시작하면 적용됩니다', error: '확인하지 못했습니다 (인터넷이나 GitHub 연결)' }[u.status] || u.status
+  $('updState').textContent = { dev: '개발 중인 앱은 업데이트하지 않습니다', idle: '확인 전', checking: '확인하는 중…', latest: '최신 버전입니다', none: '아직 올라온 릴리스가 없습니다', downloading: (u.version || '새 버전') + ' 받는 중… ' + (u.percent || 0) + '%', ready: u.version + ' 받음 — 다시 시작하면 적용됩니다', available: (u.version || '새 버전') + ' 나옴 — 받는 곳에서 새로 설치해 주세요', error: '확인하지 못했습니다 (인터넷이나 GitHub 연결)' }[u.status] || u.status
   $('updState').className = 'state ' + (u.status === 'ready' || u.status === 'latest' ? 'ok' : u.status === 'error' ? 'warn' : '')
   $('checkUpdates').disabled = u.status === 'dev' || u.status === 'checking' || u.status === 'downloading'
-  $('installUpdate').hidden = u.status !== 'ready'
+  $('installUpdate').hidden = u.status !== 'ready' && u.status !== 'available'
+  $('installUpdate').textContent = u.status === 'available' ? '받으러 가기' : '설치하고 다시 시작'
+  $('updHow').textContent = MAC ? '켤 때와 6시간마다 확인하고, 새 버전이 나오면 알려 줍니다' : '켤 때와 6시간마다 확인하고, 받아 두었다가 다시 시작할 때 설치합니다'
 }
 $('openAtLogin').addEventListener('change', (e) => api.set('openAtLogin', e.target.checked).then(load))
 $('closeToTray').addEventListener('change', (e) => api.set('closeToTray', e.target.checked).then(load))
