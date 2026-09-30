@@ -42,6 +42,8 @@ function hookEntries() {
     PermissionRequest: [{ matcher: '*', hooks: [hookCmd('bridge.mjs', { timeout: 90 })] }],
     PostToolUse: [{ matcher: '*', hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }],
     Notification: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }],
+    // a project's leader is told who its team is (only when that changed); everyone else gets nothing added
+    UserPromptSubmit: [{ hooks: [hookCmd('bridge.mjs', { timeout: 10 })] }],
     // the inbox waits up to a day, so a session resting for hours can still be woken by a message from the page
     Stop: [{ hooks: [hookCmd('bridge.mjs', { async: true, timeout: 10 })] }, { hooks: [hookCmd('inbox.mjs', { asyncRewake: true, timeout: INBOX_TIMEOUT })] }],
   }
@@ -50,12 +52,15 @@ function readClaudeSettings() {
   try { return JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, 'utf8')) } catch (e) { return e.code === 'ENOENT' ? {} : null }
 }
 // 'ok' when every event has one of our hooks and its script exists; 'outdated' when the message hook still has the
-// old half-hour timeout; otherwise 'missing'
+// old half-hour timeout or the team hook for leaders (added later) is not there yet; otherwise 'missing'
+const LATER = ['UserPromptSubmit']
 function hookState() {
   const cfg = readClaudeSettings()
   if (!cfg) return 'unreadable'
+  let stale = false
   for (const event of Object.keys(hookEntries())) {
     const mine = (cfg.hooks?.[event] || []).flatMap((m) => m.hooks || []).filter(ours)
+    if (!mine.length && LATER.includes(event)) { stale = true; continue }
     if (!mine.length) return 'missing'
     // the script is the last argument of an exec-form hook, or the quoted path inside a shell command
     const h = mine[0]
@@ -65,7 +70,7 @@ function hookState() {
   }
   const inbox = (cfg.hooks?.Stop || []).flatMap((m) => m.hooks || []).find((h) => /[\\/]hooks[\\/]inbox\.mjs/.test(cmdText(h)))
   if (!inbox) return 'missing'
-  if (!(Number(inbox.timeout) >= INBOX_TIMEOUT)) return 'outdated'
+  if (stale || !(Number(inbox.timeout) >= INBOX_TIMEOUT)) return 'outdated'
   return 'ok'
 }
 // replaces the monitor's own entries and leaves every other setting and hook as it was (a backup is kept)

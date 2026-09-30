@@ -123,6 +123,7 @@ export function createAccount({ claudeExecutable, dataDir }) {
     const oauth = cred?.claudeAiOauth || null
     const a = state?.oauthAccount || null
     const loggedIn = !!(a && (oauth?.accessToken || process.platform === 'darwin'))   // on macOS the token is in the keychain
+    if (busy === 'login' && loggedIn) busy = null   // signed in: done, even where the window it ran in cannot be watched
     return {
       loggedIn, busy,
       email: a?.emailAddress || null, name: a?.displayName || a?.fullName || null, org: a?.organizationName || null,
@@ -135,11 +136,24 @@ export function createAccount({ claudeExecutable, dataDir }) {
   function run(args) {
     return new Promise((resolve) => execFile(claudeExecutable(), args, { windowsHide: true, timeout: 30 * 1000 }, (err) => resolve(!err)))
   }
+  // claude needs a real terminal to open the browser and take the code. On Windows a detached child has no console
+  // at all, so `start /wait` opens one (the hidden cmd lives until that window is closed); on macOS it runs in Terminal
   function openLogin() {
-    const child = spawn(claudeExecutable(), ['auth', 'login'], { detached: true, stdio: 'ignore', windowsHide: false })
+    const exe = claudeExecutable()
+    let child, until = 0
+    if (process.platform === 'win32') {
+      child = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `start "Claude Code - sign in" /wait "${exe}" auth login`],
+        { stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true })
+    } else if (process.platform === 'darwin') {
+      const cmd = "'" + exe.replace(/'/g, "'\\''") + "' auth login"
+      child = spawn('osascript', ['-e', `tell application "Terminal" to do script "${cmd.replace(/(["\\])/g, '\\$1')}"`, '-e', 'tell application "Terminal" to activate'], { stdio: 'ignore' })
+      until = 10 * 60 * 1000   // osascript returns at once; the wait message stays up while the sign-in may still be going on
+    } else {
+      child = spawn(exe, ['auth', 'login'], { detached: true, stdio: 'ignore' })
+    }
     busy = 'login'
     const done = () => { if (busy === 'login') busy = null; usageMemo = null }
-    child.on('exit', done)
+    child.on('exit', () => (until ? setTimeout(done, until) : done()))
     child.on('error', done)
     child.unref()
   }

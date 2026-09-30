@@ -64,7 +64,7 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   cannot do itself (a permission check blocks it, or a VS Code session whose mode the page cannot change). It runs on
   this PC in the agent's folder, as you, with no permission check: Git Bash on Windows (PowerShell if there is none),
   your login shell on macOS and Linux. It is stopped after 2 minutes and gets no input, so a command that asks for a
-  password fails instead of waiting. The output shows under the box, and the agent gets it as a message —
+  password fails instead of waiting. The output shows above the box, and the agent gets it as a message —
   `<bash-input>`, `<bash-stdout>`, `<bash-stderr>`, the way Claude Code hands over a command you ran; very long output
   keeps its start and end. Nothing of it is saved. This works for monitor agents and VS Code sessions alike.
 
@@ -84,6 +84,12 @@ The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 
 A project is the folder name of the git root above a session's working directory. The leader is the session
 named in `config.json`; without one, it is the session that sent the most messages (at least 3).
+
+The leader is told who its team is. When it gets a prompt, the `UserPromptSubmit` hook adds the project's other
+sessions to it — the name to message each one with (what `ListAgents` and `SendMessage` use, which is not the name on
+the page for a monitor agent), its names on the page, whether it is a monitor agent or a VS Code session, its state,
+role and last action. It is added only when the team or a role changed since the leader was last told, and never to
+any other session.
 
 ## What it never reads, and what it shows
 
@@ -122,7 +128,8 @@ on every `PermissionRequest`; the request shows up at the top of the page, namin
 - **Answer in VS Code** hands any of them back to the normal prompt.
 - **Keys** — the first open request shows a number on each button; press it (Alt+number while typing a message).
   In a question, numbers pick options, ↑↓ moves between questions, and Enter sends.
-The same hook, on `PostToolUse` and `Stop`, tells the page each session's permission mode (MANUAL, AUTO, …).
+The same hook, on `PostToolUse` and `Stop`, tells the page each session's permission mode (MANUAL, AUTO, …); on
+`Notification` it notices a prompt VS Code is showing, and on `UserPromptSubmit` it tells a leader its team (above).
 
 Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 
@@ -130,6 +137,8 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 "hooks": {
   "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 90 }] }],
   "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] }],
+  "Notification": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] }],
+  "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 10 }] }],
   "Stop": [
     { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] },
     { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/inbox.mjs\"", "asyncRewake": true, "timeout": 86400 }] }
@@ -160,7 +169,8 @@ restart: `.runtime/usage.json` in the data folder keeps the percentages, reset t
 the account by a one-way hash of its id — no e-mail, no token. A limit whose reset time has passed shows 0 % until the
 new number comes in.
 
-- **Switch account** signs out and opens `claude auth login` in a window of its own; finish in the browser.
+- **Switch account** signs out and opens `claude auth login` in a window of its own — a console on Windows, Terminal
+  on macOS — which opens the browser; finish there. The page waits until you are signed in or that window is closed.
 - **Sign out** runs `claude auth logout`. Every Claude Code session on the PC — VS Code and the monitor's
   agents — stops working until you sign in again.
 

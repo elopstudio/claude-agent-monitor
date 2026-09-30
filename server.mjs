@@ -587,6 +587,35 @@ function approvalDetail(tool, input = {}) {
 // counts only — how many hook calls arrived and what became of permission requests, never their content
 const hookStats = { events: {}, permission: { shown: 0, skippedNoViewer: 0, tools: {} }, notifications: {}, lastAt: 0 }
 
+// A project's leader is told who its team is. With a prompt it receives, the monitor adds the other sessions of the
+// project — the name to message each with (what ListAgents / SendMessage use), its names on the page, kind, role and
+// state — but only when the team or its roles changed since the leader was last told, so it costs nothing otherwise.
+const toldTeam = new Map()   // sessionId → the team as last told
+async function teamContext(sessionId) {
+  if (!sessionId) return {}
+  const [data, reg] = await Promise.all([cachedState(), readRegistry()])
+  const msgName = new Map(reg.map((r) => [r.sessionId, r.name]))
+  const agentSession = new Map((agents ? agents.sessions(Date.now()) : []).map((m) => [m.agentId, m.sessionId]))
+  const mine = agents?.byAgentSession(sessionId)
+  const pageName = mine ? mine.name : msgName.get(sessionId)
+  const p = (data.projects || []).find((x) => x.sessions.some((s) => s.name === pageName && s.isLeader))
+  if (!p) { toldTeam.delete(sessionId); return {} }
+  const me = p.sessions.find((s) => s.name === pageName)
+  const nameOf = (s) => (s.managed ? msgName.get(agentSession.get(s.agentId)) : s.name) || s.name
+  const others = p.sessions.filter((s) => s !== me)
+  const who = (s) => [s.nickKo, s.nick].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' / ')
+  const sig = JSON.stringify(others.map((s) => [nameOf(s), who(s), s.role]))
+  if (toldTeam.get(sessionId) === sig) return {}
+  toldTeam.set(sessionId, sig)
+  const line = (s) => '- ' + nameOf(s) + ' — ' + (who(s) || s.name) + ' · ' + (s.managed ? 'monitor agent' : 'VS Code session') + ' · ' + s.state +
+    (s.role ? ' · role: ' + s.role : '') + (s.activity ? ' · last: ' + clip(describeActivity(s.activity), 80) : '')
+  const text = 'Agent monitor: you are the leader of the project "' + p.key + '"' + (who(me) ? ', shown to the user as ' + who(me) : '') + '. ' +
+    (others.length ? 'The other sessions working on it now (message them with SendMessage using the first name; the user knows them by the names after the dash):\n' + others.map(line).join('\n')
+      : 'No other session is working on it right now.')
+  return { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: text } }
+}
+const describeActivity = (a) => [a.key, a.arg].filter(Boolean).join(' ')
+
 // how each permission request ended — tool name, agent, outcome and time only; the last 20, in memory
 const outcomes = []
 function recordOutcome(p, how) {
@@ -611,6 +640,7 @@ function hookEvent(input, res, opts = {}) {
   }
   // any other activity from the session means the prompt was answered
   if (sessionId && waiting.delete(sessionId)) notifyPages()
+  if (event === 'UserPromptSubmit') return teamContext(sessionId).catch(() => ({}))
   if (event !== 'PermissionRequest') return Promise.resolve({})
   // nobody is watching the page — hand the request straight back to the normal prompt
   if (!opts.managed && agents?.byAgentSession(sessionId)) return Promise.resolve({})

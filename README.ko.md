@@ -57,7 +57,7 @@ Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elo
 - **명령 실행.** 메시지를 `!` 로 시작하면 Claude Code 의 `!` 처럼 명령으로 실행됩니다. 권한 검사에 막혔거나, 페이지에서
   모드를 바꿀 수 없는 VS Code 세션처럼 에이전트가 직접 못 하는 일을 대신할 때 씁니다. 이 PC에서 에이전트 폴더를 기준으로
   내 권한으로, 권한 검사 없이 돕니다. 윈도우는 Git Bash(없으면 PowerShell), macOS·리눅스는 로그인 셸입니다. 2분이 지나면
-  멈추고 입력은 받지 않아서, 비밀번호를 묻는 명령은 기다리지 않고 실패합니다. 출력은 입력칸 아래에 나오고, 에이전트에게는
+  멈추고 입력은 받지 않아서, 비밀번호를 묻는 명령은 기다리지 않고 실패합니다. 출력은 입력칸 위에 나오고, 에이전트에게는
   Claude Code 가 내가 실행한 명령을 넘기는 방식(`<bash-input>`, `<bash-stdout>`, `<bash-stderr>`)으로 전달됩니다. 아주 긴
   출력은 앞뒤만 남깁니다. 아무것도 저장하지 않습니다. 모니터 에이전트와 VS Code 세션 모두에서 됩니다.
 
@@ -77,6 +77,11 @@ Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elo
 
 프로젝트는 세션 작업 폴더 위쪽의 git 루트 폴더 이름입니다. 리더는 `config.json` 에 적힌 세션이고,
 적혀 있지 않으면 메시지를 가장 많이 보낸 세션(3개 이상)입니다.
+
+리더는 자기 팀원을 압니다. 리더가 메시지를 받을 때 `UserPromptSubmit` 훅이 같은 프로젝트의 다른 세션 목록을 붙여 줍니다.
+각 세션에 메시지를 보낼 때 쓰는 이름(`ListAgents`·`SendMessage` 가 쓰는 이름으로, 모니터 에이전트는 화면의 이름과 다릅니다),
+화면에 보이는 이름, 모니터 에이전트인지 VS Code 세션인지, 상태, 역할, 마지막 동작이 들어갑니다. 팀원이나 역할이 지난번과
+달라졌을 때만 붙이고, 리더가 아닌 세션에는 붙이지 않습니다.
 
 ## 절대 읽지 않는 것, 그리고 보여주는 것
 
@@ -115,7 +120,8 @@ Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elo
 - **단축키**: 맨 앞 요청의 버튼마다 번호가 붙고, 그 숫자를 누르면 됩니다(메시지 입력 중에는 Alt+숫자).
   질문에서는 숫자로 선택지를 고르고, ↑↓로 질문을 옮기고, Enter로 보냅니다.
 
-같은 훅이 `PostToolUse` 와 `Stop` 에서 세션마다 권한 모드(MANUAL, AUTO, …)를 화면에 알려줍니다.
+같은 훅이 `PostToolUse` 와 `Stop` 에서 세션마다 권한 모드(MANUAL, AUTO, …)를 화면에 알려주고, `Notification` 에서는
+VS Code 가 띄운 창을 알아채며, `UserPromptSubmit` 에서는 리더에게 팀원을 알려 줍니다(위 참고).
 
 `~/.claude/settings.json` 에 아래를 넣습니다(이미 있는 `hooks` 와 합칩니다).
 
@@ -123,6 +129,8 @@ Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elo
 "hooks": {
   "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 90 }] }],
   "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] }],
+  "Notification": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] }],
+  "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "timeout": 10 }] }],
   "Stop": [
     { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/bridge.mjs\"", "async": true, "timeout": 10 }] },
     { "hooks": [{ "type": "command", "command": "node \"C:/dev/claude-agent-monitor/hooks/inbox.mjs\"", "asyncRewake": true, "timeout": 86400 }] }
@@ -150,7 +158,8 @@ Anthropic 은 이 조회를 자주 하면 한동안 막기 때문에, 모니터�
 데이터 폴더의 `.runtime/usage.json` 에 퍼센트, 초기화 시각, 확인 시각만 저장하고, 어느 계정 값인지는 계정 ID 를 되돌릴 수 없게 바꾼 값(해시)으로만 구분합니다.
 이메일이나 토큰은 저장하지 않습니다. 초기화 시각이 지난 한도는 새 값이 들어올 때까지 0% 로 보입니다.
 
-- **계정 바꾸기**: 로그아웃한 뒤 `claude auth login` 을 새 창으로 엽니다. 브라우저에서 로그인을 마치면 됩니다.
+- **계정 바꾸기**: 로그아웃한 뒤 `claude auth login` 을 새 창(윈도우는 콘솔, macOS는 터미널)으로 엽니다. 그 창이 브라우저를
+  열어 주니 거기서 로그인을 마치면 됩니다. 로그인이 끝나거나 그 창을 닫을 때까지 화면은 기다립니다.
 - **로그아웃**: `claude auth logout` 을 실행합니다. 다시 로그인할 때까지 이 PC의 모든 Claude Code 세션
   (VS Code, 모니터 에이전트)이 멈춥니다.
 

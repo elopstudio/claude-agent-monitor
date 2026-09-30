@@ -87,7 +87,7 @@ async function load() {
   $('closeToTray').checked = s.closeToTray
   $('dataDir').textContent = s.dataDir
   $('pickData').disabled = !s.ownServer
-  $('hookState').textContent = s.hooks === 'ok' ? '설치됨' : s.hooks === 'unreadable' ? '설정 파일을 읽을 수 없음' : s.hooks === 'outdated' ? '갱신 필요 — 쉬는 세션에 메시지가 안 갑니다' : '설치 안 됨'
+  $('hookState').textContent = s.hooks === 'ok' ? '설치됨' : s.hooks === 'unreadable' ? '설정 파일을 읽을 수 없음' : s.hooks === 'outdated' ? '갱신 필요 — 새 기능(쉬는 세션 깨우기, 리더 팀원 안내)이 빠져 있습니다' : '설치 안 됨'
   $('hookState').className = 'state ' + (s.hooks === 'ok' ? 'ok' : 'warn')
   $('hookHow').textContent = s.node ? 'hook은 이 PC의 Node.js로 실행됩니다' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다'
   $('version').textContent = s.version
