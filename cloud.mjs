@@ -1,15 +1,15 @@
-// This PC linked to an Agent Monitor account on cam.elopstudio.com, the way `tailscale up` links a machine:
-// the monitor makes an Ed25519 key pair and asks for a short code, the person approves the code in the browser
-// (signed in with GitHub or Google, within the PCs their plan allows), and the monitor collects its device id.
-// From then on each request to the server is signed with the private key; there is no password or token to lose.
+// This PC linked to an Agent Monitor account on cam.elopstudio.com, so the Agent Monitor mobile app can reach it.
+// Linking works the way `tailscale up` links a machine: the monitor makes an Ed25519 key pair and asks for a short
+// code, the person approves the code in the browser (signed in with GitHub or Google, within the PCs their plan
+// allows), and the monitor collects its device id. Each request to the server is signed with the private key.
 //
-// Kept in <data>/cloud.json: the server, the device id, the private key and whether the summary is shared — nothing
-// about the person. Their name and plan are asked for when the page wants them and kept in memory only. The key never
-// leaves this file.
+// While linked, the monitor keeps a WebSocket to the server's relay (wss://…/api/relay/pc). The app's calls come
+// through it and are answered by this monitor's own API on 127.0.0.1, as the page's are — but only the calls in
+// RELAYED below, and never with the local token: the relay adds it here and takes it out of every answer. Content
+// passes through the server (TLS) without being stored there. Unlinking closes the relay.
 //
-// While linked (and unless turned off) the monitor sends a summary every minute it changes, at least every five: per
-// project its name and how many agents are working, waiting and resting, and how many requests wait for a click.
-// Counts only: no session names, prompts, conversations, commands or files. The account page shows it.
+// Kept in <data>/cloud.json: the server, the device id and the private key — nothing about the person. Their name
+// and plan are asked for when the page wants them and kept in memory only. The key never leaves this file.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -19,16 +19,22 @@ const CAM_URL = (process.env.CAM_URL || 'https://cam.elopstudio.com').replace(/\
 const CHECK_EVERY = 60 * 1000          // the page may ask every few seconds; the server is asked at most once a minute
 const HEARTBEAT = 10 * 60 * 1000       // and every ten minutes in the background, so the account shows when this PC was last on
 const TIMEOUT = 10 * 1000
-const SUMMARY_EVERY = 60 * 1000        // the summary is looked at this often and sent when it changed…
-const SUMMARY_AT_LEAST = 5 * 60 * 1000 // …or when it has not been sent for this long
+const RELAY_RETRY_MAX = 60 * 1000      // a lost relay is tried again after 1 s, doubling up to this
+const MAX_RELAYED_BODY = 20 * 1024 * 1024
+
+// what the app may ask of this monitor: everything the page does, except the Claude sign-in (it opens a window on the
+// PC) and this file's own linking (it stays on the PC). Streams are the page's server-sent events.
+const RELAYED = (p) => p.startsWith('/api/') && !p.startsWith('/api/account/') && !p.startsWith('/api/cloud')
+const STREAMS = new Set(['/api/events', '/api/live', '/api/agent-stream'])
+const TOKEN_IN_QUERY = new Set(['/api/dirs', '/api/account', '/api/upload-file', '/api/agent-stream', '/api/live'])
 
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex')
 const signedMessage = (method, pathAndQuery, time, raw) => ['cam-device-v1', method, pathAndQuery, time, sha256(raw)].join('\n')
 
-// summary(): the counts to share, { projects: [{ name, working, waiting, resting }], approvals, asking }
-export function createCloud({ dataDir, version, notifyPages = () => {}, summary = null }) {
+// local: { port, token() } — where this monitor's own API is, and its current token
+export function createCloud({ dataDir, version, notifyPages = () => {}, local = null }) {
   const file = path.join(dataDir, 'cloud.json')
-  let saved = load()      // { server, deviceId, key, share } — linked
+  let saved = load()      // { server, deviceId, key } — linked
   let enrolling = null    // { server, key, deviceCode, code, url, expiresAt, interval, timer } — waiting for the person
   let status = null       // { at, value | null, error | null } — the server's last answer about this PC
   let note = null         // what happened last, for the page: linked | denied | expired | removed | unlinkedHere
@@ -37,7 +43,7 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, summary 
   function load() {
     try {
       const o = JSON.parse(fs.readFileSync(file, 'utf8'))
-      if (o.server && o.device_id && o.key) return { server: o.server, deviceId: o.device_id, key: crypto.createPrivateKey(o.key), share: o.share_status !== false, linkedAt: o.linked_at }
+      if (o.server && o.device_id && o.key) return { server: o.server, deviceId: o.device_id, key: crypto.createPrivateKey(o.key), linkedAt: o.linked_at }
     } catch {}
     return null
   }
@@ -46,19 +52,24 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, summary 
     const key = s.key.export({ format: 'pem', type: 'pkcs8' })
     fs.mkdirSync(dataDir, { recursive: true })
     s.linkedAt = s.linkedAt || new Date().toISOString()
-    fs.writeFileSync(tmp, JSON.stringify({ server: s.server, device_id: s.deviceId, key, share_status: s.share !== false, linked_at: s.linkedAt }, null, 2) + '\n', { mode: 0o600 })
+    fs.writeFileSync(tmp, JSON.stringify({ server: s.server, device_id: s.deviceId, key, linked_at: s.linkedAt }, null, 2) + '\n', { mode: 0o600 })
     fs.renameSync(tmp, file)
   }
-  function forget() { saved = null; status = null; lastSent = null; try { fs.unlinkSync(file) } catch {} }
+  function forget() { saved = null; status = null; relayStop(); try { fs.unlinkSync(file) } catch {} }
+
+  const sign = (s, method, p, raw = '') => {
+    const time = String(Math.floor(Date.now() / 1000))
+    return { time, sig: crypto.sign(null, Buffer.from(signedMessage(method, p, time, Buffer.from(raw))), s.key).toString('base64') }
+  }
 
   // one request to the server, signed with `key` when given; → { status, body } or { status: 0 } when unreachable
   async function call(server, method, p, body, { key, deviceId } = {}) {
     const raw = body ? JSON.stringify(body) : ''
     const headers = { 'x-cam': '1', ...(raw ? { 'content-type': 'application/json' } : {}) }
     if (key) {
-      const time = String(Math.floor(Date.now() / 1000))
+      const { time, sig } = sign({ key }, method, p, raw)
       headers['x-cam-time'] = time
-      headers['x-cam-sig'] = crypto.sign(null, Buffer.from(signedMessage(method, p, time, Buffer.from(raw))), key).toString('base64')
+      headers['x-cam-sig'] = sig
       if (deviceId) headers['x-cam-device'] = deviceId
     }
     try {
@@ -101,11 +112,10 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, summary 
     const r = await call(e.server, 'POST', '/api/devices/token', { device_code: e.deviceCode })
     if (enrolling !== e) return   // cancelled meanwhile
     if (r.status === 200 && r.body.device_id) {
-      saved = { server: e.server, deviceId: r.body.device_id, key: e.key, share: true }
-      lastSent = null
-      setTimeout(() => sendSummary(true), 1000).unref?.()
+      saved = { server: e.server, deviceId: r.body.device_id, key: e.key }
       save(saved)
       enrolling = null; status = null; note = 'linked'
+      relayStart()
       check(true).finally(notifyPages)
       return
     }
@@ -154,37 +164,120 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, summary 
   beat.unref?.()
   if (saved) check(true).catch(() => {})
 
-  // ── the summary for the account page ─────────────────
+  // ── the relay: the mobile app's calls ────────────────
 
-  let lastSent = null     // { json, at } — what was sent last, so an unchanged summary is not sent every minute
-  let sending = false
-  async function sendSummary(force) {
-    if (!saved || !summary || sending) return
+  // Node 22 and the desktop app have a WebSocket client; older Node (npm start on 18/20) cannot keep the relay
+  const canRelay = typeof globalThis.WebSocket === 'function' && !!local
+  let relay = null        // { ws, streams: Map(id → AbortController) }
+  let relayState = 'off'  // off | connecting | on | unsupported
+  let relayRetry = 1000, relayTimer = null, relayWanted = false
+
+  function relayStart() {
+    relayWanted = !!saved
+    if (!saved) return
+    if (!canRelay) { relayState = 'unsupported'; return }
+    if (relay) return
     const s = saved
-    sending = true
-    try {
-      const body = s.share ? await summary() : { projects: [], approvals: 0, asking: 0 }   // off: what was there is emptied once
-      const json = JSON.stringify(body)
-      if (!force && lastSent && lastSent.json === json && Date.now() - lastSent.at < SUMMARY_AT_LEAST) return
-      if (!force && !s.share && lastSent && lastSent.json === json) return   // off and already emptied
-      const r = await call(s.server, 'PUT', '/api/device/status', body, { key: s.key, deviceId: s.deviceId })
-      if (saved !== s) return
-      if (r.status === 200) lastSent = { json, at: Date.now() }
-      else if (r.status === 401 && (r.body.error === 'device_revoked' || r.body.error === 'no_such_device')) { forget(); note = 'removed'; notifyPages() }
-    } catch {} finally { sending = false }
+    const { time, sig } = sign(s, 'GET', '/api/relay/pc')
+    const url = s.server.replace(/^http/, 'ws') + `/api/relay/pc?device=${encodeURIComponent(s.deviceId)}&time=${time}&sig=${encodeURIComponent(sig)}`
+    const ws = new WebSocket(url)
+    relay = { ws, streams: new Map() }
+    relayState = 'connecting'
+    ws.onopen = () => { relayState = 'on'; relayRetry = 1000; notifyPages() }
+    ws.onmessage = (ev) => { onRelay(ws, ev.data).catch(() => {}) }
+    ws.onerror = () => {}
+    ws.onclose = (ev) => {
+      if (relay?.ws !== ws) return
+      for (const ac of relay.streams.values()) ac.abort()
+      relay = null
+      relayState = 'off'
+      notifyPages()
+      if (ev.code === 4001) check(true).catch(() => {})   // removed: the check finds out and forgets the key
+      if (relayWanted && saved) {
+        clearTimeout(relayTimer)
+        relayTimer = setTimeout(relayStart, relayRetry)
+        relayTimer.unref?.()
+        relayRetry = Math.min(relayRetry * 2, RELAY_RETRY_MAX)
+      }
+    }
   }
-  const tick = setInterval(() => { sendSummary(false) }, SUMMARY_EVERY)
-  tick.unref?.()
-  if (saved) setTimeout(() => sendSummary(false), 5000).unref?.()   // after start, once the state has been read
+  function relayStop() {
+    relayWanted = false
+    clearTimeout(relayTimer)
+    if (relay) { const ws = relay.ws; for (const ac of relay.streams.values()) ac.abort(); relay = null; try { ws.close() } catch {} }
+    relayState = 'off'
+  }
 
-  function setShare(on) {
-    if (!saved) return [409, { error: 'not_linked' }]
-    saved.share = on
-    save(saved)
-    sendSummary(true)
-    notifyPages()
-    return [200, { share: on }]
+  const out = (ws, o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)) }
+  // the local URL of a relayed path, with the token where the page would put it
+  function localUrl(p) {
+    const u = new URL(p, `http://127.0.0.1:${local.port}`)
+    if (TOKEN_IN_QUERY.has(u.pathname)) u.searchParams.set('token', local.token())
+    return u
   }
+
+  async function onRelay(ws, raw) {
+    let f
+    try { f = JSON.parse(typeof raw === 'string' ? raw : Buffer.from(raw).toString('utf8')) } catch { return }
+    if (f.t === 'end') { relay?.streams.get(f.id)?.abort(); relay?.streams.delete(f.id); return }
+    const p = typeof f.path === 'string' ? f.path : ''
+    const pathname = p.split('?')[0]
+    if (f.t === 'req') {
+      if (!RELAYED(pathname) || STREAMS.has(pathname)) return out(ws, { t: 'res', id: f.id, status: 403, body: { error: 'not_relayed' } })
+      const method = f.method === 'POST' ? 'POST' : 'GET'
+      const headers = {}
+      let body
+      if (method === 'POST') {
+        headers['x-monitor-token'] = local.token()
+        if (typeof f.b64 === 'string') { body = Buffer.from(f.b64, 'base64'); headers['content-type'] = 'application/octet-stream' }
+        else { body = JSON.stringify(f.body ?? {}); headers['content-type'] = 'application/json' }
+      }
+      try {
+        const r = await fetch(localUrl(p), { method, headers, body, signal: AbortSignal.timeout(5 * 60 * 1000) })
+        const type = r.headers.get('content-type') || ''
+        if (type.includes('application/json')) {
+          const j = await r.json().catch(() => ({}))
+          if (j && typeof j === 'object') delete j.token   // /api/state carries the local token for the page; never for the app
+          out(ws, { t: 'res', id: f.id, status: r.status, body: j })
+        } else {
+          const buf = Buffer.from(await r.arrayBuffer())
+          if (buf.length > MAX_RELAYED_BODY) return out(ws, { t: 'res', id: f.id, status: 413, body: { error: 'too_large' } })
+          out(ws, { t: 'res', id: f.id, status: r.status, b64: buf.toString('base64'), type })
+        }
+      } catch { out(ws, { t: 'res', id: f.id, status: 502, body: { error: 'monitor_unreachable' } }) }
+      return
+    }
+    if (f.t === 'sub') {
+      if (!STREAMS.has(pathname)) return out(ws, { t: 'end', id: f.id, error: 'not_a_stream' })
+      const ac = new AbortController()
+      relay?.streams.set(f.id, ac)
+      try {
+        const r = await fetch(localUrl(p), { signal: ac.signal })
+        if (!r.ok || !r.body) return out(ws, { t: 'end', id: f.id, error: 'http' + r.status })
+        // server-sent events, one frame each: blocks end with a blank line; ":" lines are pings
+        const dec = new TextDecoder()
+        let buf = ''
+        for await (const chunk of r.body) {
+          buf += dec.decode(chunk, { stream: true })
+          let i
+          while ((i = buf.indexOf('\n\n')) >= 0) {
+            const block = buf.slice(0, i); buf = buf.slice(i + 2)
+            let event = 'message'
+            const data = []
+            for (const line of block.split('\n')) {
+              if (line.startsWith('event:')) event = line.slice(6).trim()
+              else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''))
+            }
+            if (data.length) out(ws, { t: 'ev', id: f.id, event, data: data.join('\n') })
+          }
+        }
+        out(ws, { t: 'end', id: f.id })
+      } catch { if (!ac.signal.aborted) out(ws, { t: 'end', id: f.id, error: 'monitor_unreachable' }) }
+      finally { relay?.streams.delete(f.id) }
+    }
+  }
+
+  if (saved) setTimeout(relayStart, 1000).unref?.()   // once the local server listens
 
   // for the page (behind the monitor's token)
   async function info(fresh) {
@@ -195,7 +288,7 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, summary 
       linked: !!saved,
       account: v ? { name: v.user.name, plan: v.plan.name, used: v.used, limit: v.plan.device_limit, device: v.device.name } : null,
       checkedAt: status?.at || null, error: status?.error || null,
-      share: saved ? saved.share !== false : null, sharedAt: saved && lastSent ? lastSent.at : null,
+      relay: saved ? relayState : null,
       pending: pendingView(), note,
     }
   }
@@ -204,10 +297,8 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, summary 
     if (url.pathname === '/api/cloud/link') return link()
     if (url.pathname === '/api/cloud/cancel') { stopEnrolling(); note = null; return [200, {}] }
     if (url.pathname === '/api/cloud/unlink') return unlink()
-    if (url.pathname === '/api/cloud/share-on') return setShare(true)
-    if (url.pathname === '/api/cloud/share-off') return setShare(false)
     return [404, {}]
   }
 
-  return { info, handle, stop: () => { clearInterval(beat); clearInterval(tick); stopEnrolling() } }
+  return { info, handle, stop: () => { clearInterval(beat); stopEnrolling(); relayStop() } }
 }

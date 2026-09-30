@@ -108,6 +108,8 @@ any other session.
   Long letter-and-digit runs (a full commit hash, say) are masked too.
 - Requests whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` are refused (421), so a web page cannot
   reach the API by pointing its own domain at this machine (DNS rebinding).
+- All of this stays on the PC unless you link it for the [mobile app](#the-mobile-app-optional): then what the app
+  asks for (the same API, conversation view included) goes through cam.elopstudio.com's relay.
 
 ## States
 
@@ -193,10 +195,12 @@ An agent that has shown no sign of activity for 10 minutes while working is mark
 For the monitor's own agents the details offer **Stop and carry on**: the turn is stopped and the same session is asked
 to continue. A VS Code session has to be stopped in its panel (Esc).
 
-## Agent Monitor account (optional)
+## The mobile app (optional)
 
-The account dialog's lower half links this PC to an account on [cam.elopstudio.com](https://cam.elopstudio.com/account),
-so all your PCs are in one place; you sign in there with GitHub or Google. Each plan allows a number of PCs (Free 1).
+The Agent Monitor app on your phone reaches the monitor on your PCs through [cam.elopstudio.com](https://cam.elopstudio.com/account):
+its agents as contacts, a chat with each, their conversations, and answers to permission requests and questions.
+The account dialog's lower half links this PC to your account there; you sign in with GitHub or Google. The monitor
+is free on any number of PCs; a plan is how many of them the app can reach (Free 1, Pro 3, Team 10).
 
 - **Link this PC** makes a new Ed25519 key pair and shows a code such as `KXQ4-7MTR`, and opens
   `cam.elopstudio.com/activate` with it. Sign in, check the page shows the same code, and press **Link**. The monitor
@@ -209,10 +213,16 @@ so all your PCs are in one place; you sign in there with GitHub or Google. Each 
 `cloud.json` in the data folder keeps the server, the device id and the private key, and nothing about the person.
 Their name and plan are asked for when the dialog is open and kept in memory only. The server is told only what kind of PC
 it is ("Windows PC", "Mac"; not the hostname, which often carries a name, and you can rename it on the account page),
-the operating system and the monitor's version. With **Show this PC's status on the account page** on (the default;
-the account dialog turns it off), it also sends, every minute it changes, each project's name and how many agents are
-working, waiting and resting, and how many requests wait for an answer. No session names, prompts, conversations,
-commands or files are ever sent. The site's [privacy page](https://cam.elopstudio.com/privacy) lists what it keeps.
+the operating system and the monitor's version.
+
+**The relay.** While linked, the monitor keeps a WebSocket to cam.elopstudio.com (the desktop app, or Node 22 or
+later; the dialog says whether the app can reach this PC now). The app's calls come through it and are answered by
+this monitor's own API, as the page's are. What the app sees and sends — agents, conversations, messages, files,
+approvals, commands — therefore passes through that server, encrypted in transit (TLS) and not stored or logged
+there, but not end-to-end encrypted. The monitor keeps two things to itself: its Claude sign-in (`/api/account/*`)
+and its linking (`/api/cloud*`). It adds its local token to each call and takes it out of every answer, so the
+token never leaves the PC. **Unlink this PC** stops the relay. The site's
+[privacy page](https://cam.elopstudio.com/privacy) lists what it keeps.
 Without a link the monitor never contacts cam.elopstudio.com. `CAM_URL` points it at another server (for development:
 `http://127.0.0.1:8790`).
 

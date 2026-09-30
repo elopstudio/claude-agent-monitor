@@ -1139,17 +1139,8 @@ const account = createAccount({ claudeExecutable: agents.claudeExecutable, dataD
 const INDEX = path.join(ROOT, 'public', 'index.html')
 const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || '' } catch { return '' } })()
 // this PC linked to an account on cam.elopstudio.com
-// the summary it may share: per project a name and three counts, and how many requests wait — nothing else
-const cloud = createCloud({
-  dataDir: DATA, version: VERSION, notifyPages,
-  summary: async () => {
-    const s = await cachedState()
-    return {
-      projects: s.projects.map((p) => ({ name: p.label || p.key, working: p.counts.working, waiting: p.counts.waiting, resting: p.counts.resting })),
-      approvals: s.approvals.length, asking: s.inEditor.length,
-    }
-  },
-})
+// the mobile app's calls come through the relay and are answered by this server's own API, with its token added there
+const cloud = createCloud({ dataDir: DATA, version: VERSION, notifyPages, local: { port: PORT, token: () => TOKEN } })
 // the about dialog's files: the maker's logo for light and dark, and the licence
 const ABOUT_FILES = {
   '/brand/elop-logo-black.png': [path.join(ROOT, 'docs', 'elop-logo-black.png'), 'image/png'],
