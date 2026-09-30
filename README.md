@@ -149,7 +149,10 @@ on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conv
 - permission prompts and questions arrive in the conversation through `hooks/permission-mcp.mjs`
   (`--permission-prompt-tool`) and wait for your answer — there is no VS Code to fall back to;
 - **Stop** ends the current turn (the process is ended; the next message resumes the same session with `--resume`);
-  permission mode and model changes apply from the next message the same way;
+- **Mode** and **Model** change the running agent at once, even in the middle of a turn. **ALL OK**
+  (`bypassPermissions`) works too: agents start with `--allow-dangerously-skip-permissions`, which makes that mode
+  available without turning it on. Models: the default, the newest of a family (**Fable**, **Opus**, **Sonnet**,
+  **Haiku**), a fixed version (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 4.5), or **Other…** for any model name;
 - attached images go into the message as images; other files by path;
 - **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
 

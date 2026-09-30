@@ -92,6 +92,11 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     let o
     try { o = JSON.parse(line) } catch { return }
     a.lastAt = Date.now()
+    if (o.type === 'control_response') {
+      const r = o.response || {}, done = a.controls?.get(r.request_id)
+      if (done) { a.controls.delete(r.request_id); done(r) }
+      return
+    }
     if (o.type === 'system' && o.subtype === 'init') {
       if (o.session_id && o.session_id !== a.sessionId) { a.sessionId = o.session_id; save() }
       if (o.model) a.model = o.model
@@ -143,13 +148,16 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // a failed turn says why (an API error, a limit…) instead of ending silently
       emit(a, { kind: 'turn', ok: !o.is_error, subtype: String(o.subtype || ''), ms: o.duration_ms || 0, ...(o.is_error ? { text: mask(clip(String(o.result || (o.errors || []).join('; ') || o.subtype || ''), 400)) } : {}) })
       setState(a, 'idle')
+      if (a.restartAfterTurn) { a.restartAfterTurn = false; a.respawn = true; stop(a) }
     }
   }
 
   function spawnAgent(a) {
     const mcp = JSON.stringify({ mcpServers: { monitor: { command: process.execPath, args: [path.join(root, 'hooks', 'permission-mcp.mjs')], env: { MONITOR_AGENT: a.id, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } } } })
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--include-partial-messages', '--verbose',
-      '--permission-mode', a.mode, '--mcp-config', mcp, '--permission-prompt-tool', 'mcp__monitor__approve']
+      '--permission-mode', a.mode, '--mcp-config', mcp, '--permission-prompt-tool', 'mcp__monitor__approve',
+      // lets "All OK" (bypassPermissions) be chosen, at the start or later; it is on only while that mode is picked
+      '--allow-dangerously-skip-permissions']
     if (a.model) args.push('--model', a.model)
     // quick start: only the monitor's own tool, none of the user's MCP servers and connectors
     if (a.fast) args.push('--strict-mcp-config')
@@ -175,9 +183,25 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     child.on('exit', (code) => {
       if (a.proc !== child) return
       a.proc = null
+      for (const done of a.controls?.values() || []) done({ subtype: 'error', error: 'claude exited' })
+      a.controls = null
+      if (a.respawn) { a.respawn = false; a.stopping = false; spawnAgent(a); setState(a, 'idle'); return }
       if (!a.stopping && code) emit(a, { kind: 'note', text: 'claude exited (' + code + ')' + (errTail ? ': ' + mask(clip(errTail, 300)) : '') })
       a.stopping = false
       setState(a, 'stopped')
+    })
+  }
+
+  // a control request to the running claude (a new mode or model without a restart); resolves with its answer
+  let controlSeq = 0
+  function control(a, request) {
+    return new Promise((resolve) => {
+      if (!a.proc) return resolve({ subtype: 'error', error: 'not running' })
+      const id = 'm' + (++controlSeq)
+      a.controls = a.controls || new Map()
+      const timer = setTimeout(() => { a.controls?.delete(id); resolve({ subtype: 'error', error: 'no answer' }) }, 5000)
+      a.controls.set(id, (r) => { clearTimeout(timer); resolve(r) })
+      try { a.proc.stdin.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n') } catch { a.controls.delete(id); clearTimeout(timer); resolve({ subtype: 'error', error: 'write failed' }) }
     })
   }
 
@@ -266,9 +290,14 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (typeof body.nick === 'string') a.nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
       if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
       if (typeof body.nick === 'string' || body.avatar !== undefined) { save(); notifyPages(); if (!('mode' in body) && !('model' in body)) return [200, {}] }
-      if (a.proc && a.state !== 'working') stop(a)
       save()
-      emit(a, { kind: 'note', text: 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '') + ' — from the next message' })
+      const what = 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '')
+      if (!a.proc) { emit(a, { kind: 'note', text: what + ' — from the next message' }); notifyPages(); return [200, {}] }
+      const asks = [...('mode' in body ? [{ subtype: 'set_permission_mode', mode: a.mode }] : []), ...('model' in body ? [{ subtype: 'set_model', ...(a.model ? { model: a.model } : {}) }] : [])]
+      const answers = await Promise.all(asks.map((r) => control(a, r)))
+      if (answers.every((r) => r.subtype === 'success')) emit(a, { kind: 'note', text: what + ' — now' })
+      else if (a.state === 'working') { a.restartAfterTurn = true; emit(a, { kind: 'note', text: what + ' — after this turn' }) }
+      else { a.respawn = true; stop(a); emit(a, { kind: 'note', text: what + ' — from the next message' }) }
       notifyPages()
       return [200, {}]
     }
