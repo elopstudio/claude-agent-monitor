@@ -154,7 +154,9 @@ on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conv
 
 The list of these agents survives a restart. `.runtime/agents.json` keeps who each one is (folder, name, look,
 permission mode, model, session id) and never what was said. When the server starts again they come back stopped,
-their conversation read back from the transcript, and the next message resumes the same session.
+their conversation read back from the transcript, and the next message resumes the same session. One that was in the
+middle of a turn when the monitor went away — quit, crash or an app update — carries on by itself: it is told the monitor
+restarted and asked to pick up where it left off.
 **End agent** also removes it from that list.
 
 `claude` takes a while to start, so the monitor starts it as soon as an agent is created, and when the dialog of a
