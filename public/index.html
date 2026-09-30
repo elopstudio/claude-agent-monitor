@@ -330,6 +330,11 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail[open]{display:flex;flex-direction:column;overflow:hidden}   /* the header and tabs stay put; .dbody scrolls */
 .detail>.dh,.detail>.dtabs{flex:none}
 .detail .dbody{flex:1 1 auto;min-height:0;overflow:auto}
+/* an agent's dialog keeps its height: the message box stays at the bottom and grows upwards, the content above gives way */
+.detail:not(.narrow)[open]{height:min(920px,calc(100vh - 32px))}
+.detail>form.msg{flex:none}
+/* stop and end stay in reach while the conversation scrolls under them */
+.detail .dpanel>.actl{position:sticky;top:0;z-index:3;background:var(--surface);padding-bottom:8px}
 .detail .actl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px 0;font-size:12.5px;color:var(--muted)}
 .modelpick{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
 .modelpick input[hidden]{display:none}
@@ -428,7 +433,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .live{position:relative}
 .detail .live .lstate{position:absolute;top:18px;right:28px;z-index:1;font-size:11px;font-weight:700;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
 .detail .live .lstate:empty{display:none}
-.detail .ljump{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);appearance:none;border:1px solid var(--accent);background:var(--accent);color:var(--surface);border-radius:999px;padding:5px 14px;font:700 12px var(--sans);cursor:pointer;box-shadow:0 4px 14px var(--shadow)}
+.detail .ljump{position:sticky;bottom:12px;display:block;margin:-40px auto 0;z-index:2;appearance:none;border:1px solid var(--accent);background:var(--accent);color:var(--surface);border-radius:999px;padding:5px 14px;font:700 12px var(--sans);cursor:pointer;box-shadow:0 4px 14px var(--shadow)}
 .detail .ljump[hidden]{display:none}
 .detail .lasks{display:flex;flex-direction:column;gap:8px}
 .detail .lasks:empty{display:none}
@@ -442,7 +447,7 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .lbar .dots{width:22px;height:6px;background:radial-gradient(circle,currentColor 2.5px,transparent 3px) 0 50%/7.3px 6px repeat-x;animation:dots 1.2s steps(4) infinite;clip-path:inset(0 100% 0 0)}
 @keyframes dots{to{clip-path:inset(0 0 0 0)}}
 @media (prefers-reduced-motion:reduce){ .detail .lbar .dots{animation:none;clip-path:none} }
-.detail .lpane{height:min(52vh,560px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.detail .lpane{min-height:200px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .detail .m .ts{font-size:10.5px;color:var(--faint);margin-top:3px}
 .detail .m.user{align-self:flex-end;max-width:80%;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 11px}
 .detail .m.assistant{align-self:flex-start;max-width:92%;padding:2px 4px}
@@ -532,6 +537,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .composer textarea{display:block;width:100%;border:0;outline:0;background:transparent;resize:none;padding:4px 2px 2px;margin:0;font:14px/1.55 var(--sans);color:var(--text);max-height:220px;overflow-y:auto;min-height:26px}
 .composer textarea::placeholder{color:var(--faint)}
 .composer .chips{display:flex;flex-wrap:wrap;gap:6px}
+.composer .status{font-size:12px;padding:0 2px}
 .composer .chips:empty{display:none}
 .composer .ctools{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:default}
 .composer .cleft{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
@@ -975,10 +981,18 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const jump = el('button', 'ljump', t('newBelow'));
     jump.type = 'button';
     jump.hidden = true;
-    jump.addEventListener('click', () => { pane.scrollTop = pane.scrollHeight; jump.hidden = true; });
-    pane.addEventListener('scroll', () => { if (pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140) jump.hidden = true; });
+    jump.addEventListener('click', () => { toBottom(); jump.hidden = true; });
     wrap.append(state, pane, jump);
     const add = (node) => pane.insertBefore(node, tail);
+    // the conversation has no scrollbar of its own: it scrolls with the dialog's content, found once it is on screen
+    let bound = null;
+    const scroller = () => {
+      const e = pane.closest('.dbody') || pane;
+      if (e !== bound && e !== pane) { e.addEventListener('scroll', () => { if (nearBottom()) jump.hidden = true; }, { passive: true }); bound = e; }
+      return e;
+    };
+    const nearBottom = () => { const e = scroller(); return e.scrollHeight - e.scrollTop - e.clientHeight < 140; };
+    const toBottom = () => { const e = scroller(); e.scrollTop = e.scrollHeight; };
     const open = new Map();   // tool calls still waiting for their result: id → entry
     let lastAt = 0, agentState = s.managed ? 'idle' : '', thinking = false;
     const secs = (ms) => { const n = Math.max(0, Math.round((Date.now() - ms) / 1000)); return n < 60 ? t('sec', { n }) : dur(ms); };
@@ -1007,9 +1021,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
         } else if (st === 'waiting') bar.textContent = t('barWaiting');
         else if (st === 'stopped') bar.textContent = t('barStopped');
         else bar.textContent = t('barResting');
-        const stick = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
+        const stick = nearBottom();
         bar.className = cls;
-        if (stick || arrived) pane.scrollTop = pane.scrollHeight;
+        if (stick || arrived) toBottom();
       },
     };
     if (sub) { tail.hidden = true; }   // a subagent's view has no approvals or status bar of its own
@@ -1017,7 +1031,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const tools = new Map();   // tool_use id → its <details>, so a result lands under its call
     const time = (at) => { if (!at) return ''; const d = new Date(at), p2 = (x) => String(x).padStart(2, '0'); return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
     const put = (entries) => {
-      const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
+      const atBottom = nearBottom();
       const before = pane.children.length;
       for (const e of entries) {
         if (e.role === 'note') { add(el('div', 'm note', str(e.text) + (e.at ? '  · ' + time(e.at) : ''))); continue; }
@@ -1048,7 +1062,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       for (const e of entries) if (e.at > lastAt) lastAt = e.at;
       while (pane.children.length > 401 && pane.firstChild !== tail) pane.firstChild.remove();
       if (!sub && liveCtl) liveCtl.update(last);
-      if (atBottom) pane.scrollTop = pane.scrollHeight;
+      if (atBottom) toBottom();
       // reading further up: say that something new came in below, instead of jumping there
       else if (pane.children.length !== before) jump.hidden = false;
     };
@@ -1065,7 +1079,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (ev.kind === 'block' && ev.type === 'text') {
         const key = ev.msg + ':' + ev.index;
         let m = blocks.get(key);
-        const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
+        const atBottom = nearBottom();
         if (!m) {
           if (!ev.text) return;
           open.clear();
@@ -1077,7 +1091,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
         m.firstChild.replaceChildren(mdNode(ev.text));
         if (!ev.done) m.classList.add('streaming'); else m.classList.remove('streaming');
         lastAt = ev.at;
-        if (atBottom) pane.scrollTop = pane.scrollHeight;
+        if (atBottom) toBottom();
         else jump.hidden = false;
       }
     };
@@ -1091,7 +1105,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
           pane.replaceChildren(tail); tools.clear(); open.clear(); blocks.clear();
           for (const e of d.events) putAgent(e);
           agentState = d.state; if (onAgentState) onAgentState(d.state);
-          state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight;
+          state.textContent = ''; state.className = 'lstate on'; toBottom();
           if (liveCtl) liveCtl.update(last);
         });
         liveES.addEventListener('e', (ev) => putAgent(JSON.parse(ev.data)));
@@ -1102,7 +1116,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     try {
       const es = new EventSource('/api/live?session=' + encodeURIComponent(str(s.name)) + (sub ? '&sub=' + encodeURIComponent(sub) : '') + '&token=' + encodeURIComponent(token));
       if (sub) subES = es; else liveES = es;
-      es.addEventListener('init', (ev) => { pane.replaceChildren(tail); tools.clear(); open.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; pane.scrollTop = pane.scrollHeight; });
+      es.addEventListener('init', (ev) => { pane.replaceChildren(tail); tools.clear(); open.clear(); put(JSON.parse(ev.data)); state.textContent = ''; state.className = 'lstate on'; toBottom(); });
       es.addEventListener('add', (ev) => put(JSON.parse(ev.data)));
       es.onerror = () => { state.textContent = t('liveOff'); state.className = 'lstate'; };
     } catch (e) { state.textContent = t('liveOff'); }
@@ -1158,7 +1172,12 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     tools.append(l, send);
     ta.rows = 1;
     box.append(chips, ta, tools);
-    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px'; };
+    // growing, the box pushes up into the content above: if that was scrolled to its end, it stays there
+    const grow = () => {
+      const sc = box.closest('.detail')?.querySelector('.dbody'), stick = sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
+      ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px';
+      if (stick) sc.scrollTop = sc.scrollHeight;
+    };
     ta.addEventListener('input', grow);
     requestAnimationFrame(grow);   // a draft brought back from the dock
     // a click on the box's empty space goes to the text
@@ -1477,6 +1496,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const ready = () => send.classList.toggle('empty', !ta.value.trim() && !files.length);
     ta.addEventListener('input', ready);
     const box = composer(ta, chips, [attachBtn, ...(s.managed ? agentSettings(s) : [])], send);
+    send.title = t('send') + ' · ' + hint.textContent;
     // "!command": run it here, in the agent's folder, as the person at this PC; the agent gets what it printed
     const runOut = el('pre', 'runout');
     runOut.hidden = true;
@@ -1484,7 +1504,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     let asRun = false;
     const asCommand = () => {
       const c = ta.value.trimStart().startsWith('!');
-      if (c !== asRun) { asRun = c; const b = roundButton(c ? 'run' : 'up', c ? t('runCmd') : t('send'), 'x'); send.innerHTML = b.innerHTML; send.title = b.title; send.setAttribute('aria-label', b.title); }
+      if (c !== asRun) { asRun = c; const b = roundButton(c ? 'run' : 'up', c ? t('runCmd') : t('send'), 'x'); send.innerHTML = b.innerHTML; send.title = b.title + ' · ' + (c ? t('runHint') : hintText); send.setAttribute('aria-label', b.title); }
       send.classList.toggle('run', c); hint.textContent = c ? t('runHint') : hintText;
     };
     ta.addEventListener('input', asCommand);
@@ -1506,7 +1526,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       status.className = 'status ' + (r.delivered ? 'good' : 'bad');
       clearTimeout(timer); tick();
     }
-    form.append(box.box, picker, hint, runOut, status);
+    box.box.prepend(status);   // only a problem shows, inside the box; where the message goes is on the send button
+    form.append(picker, runOut, box.box);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = ta.value.trim();
@@ -1522,7 +1543,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       let r;
       try { r = await post(); if (r.status === 403) { await refreshToken(); r = await post(); } } catch (e2) { r = null; }
       send.disabled = false;
-      if (r && r.ok) { ta.value = ''; files.length = 0; chips.replaceChildren(); box.grow(); ready(); status.textContent = t('msgSent'); status.className = 'status good'; clearTimeout(timer); tick(); }
+      if (r && r.ok) { ta.value = ''; files.length = 0; chips.replaceChildren(); box.grow(); ready(); status.textContent = ''; status.className = 'status'; clearTimeout(timer); tick(); }
       else { status.textContent = t('failed'); status.className = 'status bad'; }
     });
     enterSends(ta, form);
@@ -1546,7 +1567,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       try { localStorage.setItem('am.dtab', k); } catch (e2) {}
       for (const [key, b] of Object.entries(buttons)) b.setAttribute('aria-selected', String(key === k));
       for (const [key, p] of Object.entries(panels)) p.hidden = key !== k;
-      if (k === 'conv') { const lp = conv.querySelector('.lpane'); if (lp) lp.scrollTop = lp.scrollHeight; }
+      if (k === 'conv') requestAnimationFrame(() => { const b = d.querySelector('.dbody'); if (b) b.scrollTop = b.scrollHeight; });
       if (last) approvalsNode(last);
     };
     const nSubs = (s.subagents || []).length;
@@ -1560,7 +1581,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     }
     show(pick);
     d.classList.remove('narrow');
-    d.replaceChildren(head, tabs, dbody(info, conv, subs, form));   // the floating stack is re-attached right after
+    d.replaceChildren(head, tabs, dbody(info, conv, subs), form);   // the box stays at the bottom; the floating stack is re-attached right after
     if (!d.open) d.showModal();
     current = { name: s.name, tab: () => pick, draft: () => ta.value };
     floatInto(d);
