@@ -1,7 +1,7 @@
 {
   "name": "agent-monitor-desktop",
   "productName": "Agent Monitor",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Agent Monitor as a desktop app: the monitor server in its own window and the tray",
   "license": "MIT",

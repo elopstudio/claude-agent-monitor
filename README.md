@@ -21,7 +21,9 @@ The page is in English by default. Switch to Korean with the **EN / 한국어** 
 ## What you see
 
 - **One tab per project.** Each tab shows the leader's robot and how many sessions are working (▶) or waiting (○).
-  The selected tab is kept in the URL (`#project-name`) and in the browser.
+  The selected tab is kept in the URL (`#project-name`) and in the browser. **Drag a tab** to reorder the projects (or
+  **Ctrl + Shift + ← / →** on a focused tab); the all-agents view follows the same order, and it is saved as `order` in
+  `config.json`.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
 - **Names.** Every agent also gets a person's name — Tom, Mark, … in English, 민준, 서연, … in Korean — so

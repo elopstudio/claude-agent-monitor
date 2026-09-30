@@ -46,12 +46,32 @@ function lookFor(config, key, name, short) {
   return lookOf(av[short]) || lookOf(av[name])
 }
 // writes the name and look into config.json, keeping everything else in it as it was
-async function saveLook(body) {
-  const key = String(body.project || '').toLowerCase(), who = String(body.session || '')
-  if (!/^[a-z0-9][a-z0-9._-]{0,80}$/.test(key) || !who || who.length > 120) return 400
+// config.json changes from the page: read it, change it, write it back in one step
+async function editConfig(change) {
   const file = path.join(DATA, 'config.json')
   let config = {}
   try { config = JSON.parse(await fsp.readFile(file, 'utf8')) } catch (e) { if (e.code !== 'ENOENT') return 409 }
+  change(config)
+  const tmp = file + '.' + process.pid + '.tmp'
+  await fsp.writeFile(tmp, JSON.stringify(config, null, 2) + '\n')
+  await fsp.rename(tmp, file)
+  notifyPages()
+  return 200
+}
+
+const PROJECT_KEY = /^[a-z0-9][a-z0-9._-]{0,80}$/
+
+// the tab order dragged on the page; projects not on the page keep their place after the ones that are
+async function saveOrder(body) {
+  const order = Array.isArray(body.order) ? [...new Set(body.order.map((k) => String(k).toLowerCase()))] : []
+  if (!order.length || order.length > 200 || !order.every((k) => PROJECT_KEY.test(k))) return 400
+  return editConfig((config) => { config.order = [...order, ...(Array.isArray(config.order) ? config.order : []).filter((k) => !order.includes(k))] })
+}
+
+async function saveLook(body) {
+  const key = String(body.project || '').toLowerCase(), who = String(body.session || '')
+  if (!PROJECT_KEY.test(key) || !who || who.length > 120) return 400
+  return editConfig((config) => {
   config.projects = config.projects || {}
   const p = (config.projects[key] = config.projects[key] || {})
   if (typeof body.nick === 'string') {
@@ -64,11 +84,7 @@ async function saveLook(body) {
     p.avatars = p.avatars || {}
     if (look) p.avatars[who] = look; else delete p.avatars[who]
   }
-  const tmp = file + '.' + process.pid + '.tmp'
-  await fsp.writeFile(tmp, JSON.stringify(config, null, 2) + '\n')
-  await fsp.rename(tmp, file)
-  notifyPages()
-  return 200
+  })
 }
 
 function loadConfig() {
@@ -963,6 +979,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }
       if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
       if (url.pathname === '/api/look') { json(await saveLook(body), {}); return }
+      if (url.pathname === '/api/order') { json(await saveOrder(body), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }
       if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || ''), Number(body.pick), body.answers) ? 200 : 404, {}); return }
       res.writeHead(404).end(); return
