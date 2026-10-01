@@ -31,20 +31,42 @@ body.mac{padding:0 10px 0 80px}
 <span class="name"><img src="icon.png" alt=""> ELOP Crew</span>
 <button id="usage" class="usage" hidden></button>
 <div class="bar">
-  <button id="back" title="Back (Alt+←)" aria-label="Back">←</button>
-  <button id="forward" title="Forward (Alt+→)" aria-label="Forward">→</button>
-  <button id="reload" title="Reload (F5)" data-mac="Reload (⌘R)" aria-label="Reload">⟳</button>
+  <button id="back" data-tip="back">←</button>
+  <button id="forward" data-tip="forward">→</button>
+  <button id="reload" data-tip="reload">⟳</button>
   <span class="sep"></span>
-  <button id="out" title="Zoom out (Ctrl+-)" data-mac="Zoom out (⌘-)" aria-label="Zoom out">−</button>
-  <button id="pct" class="pct" title="Reset zoom (Ctrl+0)" data-mac="Reset zoom (⌘0)" aria-label="Reset zoom">100%</button>
-  <button id="in" title="Zoom in (Ctrl+=)" data-mac="Zoom in (⌘=)" aria-label="Zoom in">+</button>
+  <button id="out" data-tip="out">−</button>
+  <button id="pct" class="pct" data-tip="pct">100%</button>
+  <button id="in" data-tip="in">+</button>
   <span class="sep"></span>
-  <button id="settings" title="설정" aria-label="설정">⚙</button>
+  <button id="settings" data-tip="settings">⚙</button>
 </div>
 <script>
-if (new URLSearchParams(location.search).get('platform') === 'darwin') {
-  document.body.classList.add('mac')
-  for (const b of document.querySelectorAll('[data-mac]')) b.title = b.dataset.mac
+const qs = new URLSearchParams(location.search), MAC = qs.get('platform') === 'darwin'
+if (MAC) document.body.classList.add('mac')
+// the strip's words, in the language picked on the page (the app passes it on); a button's name, then its keys
+const TEXT = {
+  ko: {
+    back: '뒤로', forward: '앞으로', reload: '새로 고침', out: '축소', pct: '원래 크기', in: '확대', settings: '설정',
+    session: '세션 ', week: '주간 ', limSession: '현재 세션 (5시간)', limWeekAll: '주간 · 전체 모델', limWeekScoped: '주간 · ',
+    min: (m) => m + '분', hours: (h, m) => h + '시간' + (m ? ' ' + m + '분' : ''), days: (d) => d + '일', resets: (l) => l + ' 후 초기화',
+    old: (m) => m + '분 전에 확인한 값', account: '누르면 계정 창을 엽니다',
+  },
+  en: {
+    back: 'Back', forward: 'Forward', reload: 'Reload', out: 'Zoom out', pct: 'Reset zoom', in: 'Zoom in', settings: 'Settings',
+    session: 'Session ', week: 'Week ', limSession: 'Current session (5 hours)', limWeekAll: 'Weekly · all models', limWeekScoped: 'Weekly · ',
+    min: (m) => m + 'm', hours: (h, m) => h + 'h' + (m ? ' ' + m + 'm' : ''), days: (d) => d + 'd', resets: (l) => 'resets in ' + l,
+    old: (m) => 'as checked ' + m + ' min ago', account: 'Click to open your account',
+  },
+}
+const KEYS = MAC ? { reload: '⌘R', out: '⌘-', pct: '⌘0', in: '⌘=' } : { reload: 'F5', out: 'Ctrl+-', pct: 'Ctrl+0', in: 'Ctrl+=' }
+KEYS.back = 'Alt+←'; KEYS.forward = 'Alt+→'
+let lang = TEXT[qs.get('lang')] ? qs.get('lang') : 'en', lastUsage = null
+const t = (key, ...a) => { const v = TEXT[lang][key]; return typeof v === 'function' ? v(...a) : v }
+function words() {
+  document.documentElement.lang = lang
+  for (const b of document.querySelectorAll('[data-tip]')) { const k = b.dataset.tip; b.title = t(k) + (KEYS[k] ? ' (' + KEYS[k] + ')' : ''); b.setAttribute('aria-label', t(k)) }
+  usage(lastUsage)
 }
 const app = window.monitorApp
 const $ = (id) => document.getElementById(id)
@@ -54,22 +76,25 @@ const show = (s) => { if (!s) return; $('pct').textContent = Math.round(s.zoom *
 app.onChange(show)
 app.state().then(show)
 // the session and the week, as on Claude Code's /usage; the other limits in the tooltip
-const NAMES = { session: '현재 세션 (5시간)', weekly_all: '주간 · 전체 모델' }
+const NAMES = { session: 'limSession', weekly_all: 'limWeekAll' }
 const level = (x) => (x.percent >= 95 || /exceed|critical|block/.test(String(x.severity || '')) ? 2 : x.percent >= 80 || x.severity === 'warning' ? 1 : 0)
-function left(at) { const ms = Date.parse(at) - Date.now(); if (!(ms > 0)) return ''; const m = Math.round(ms / 60000); return m < 60 ? m + '분' : m < 1440 ? Math.floor(m / 60) + '시간' + (m % 60 ? ' ' + (m % 60) + '분' : '') : Math.floor(m / 1440) + '일' }
+function left(at) { const ms = Date.parse(at) - Date.now(); if (!(ms > 0)) return ''; const m = Math.round(ms / 60000); return m < 60 ? t('min', m) : m < 1440 ? t('hours', Math.floor(m / 60), m % 60) : t('days', Math.floor(m / 1440)) }
 function usage(u) {
+  lastUsage = u
   const b = $('usage'), lim = (u && u.limits) || []
   const ses = lim.find((x) => x.kind === 'session'), week = lim.find((x) => x.kind === 'weekly_all')
   b.hidden = !ses && !week
   if (b.hidden) return
-  b.textContent = [ses && '세션 ' + Math.round(ses.percent) + '%', week && '주간 ' + Math.round(week.percent) + '%'].filter(Boolean).join(' · ')
+  b.textContent = [ses && t('session') + Math.round(ses.percent) + '%', week && t('week') + Math.round(week.percent) + '%'].filter(Boolean).join(' · ')
   b.className = 'usage' + ['', ' warn', ' full'][Math.max(0, ...lim.map(level))]
   // numbers the monitor could not refresh just now say how old they are
-  const old = u.source !== 'live' && u.at ? '\n' + Math.max(1, Math.round((Date.now() - u.at) / 60000)) + '분 전에 확인한 값' : ''
-  b.title = lim.map((x) => (NAMES[x.kind] || (x.kind === 'weekly_scoped' ? '주간 · ' + (x.model || '') : x.kind)) + ' ' + Math.round(x.percent) + '%' + (left(x.resetsAt) ? ' · ' + left(x.resetsAt) + ' 후 초기화' : '')).join('\n') + old + '\n누르면 계정 창을 엽니다'
+  const old = u.source !== 'live' && u.at ? '\n' + t('old', Math.max(1, Math.round((Date.now() - u.at) / 60000))) : ''
+  b.title = lim.map((x) => (NAMES[x.kind] ? t(NAMES[x.kind]) : x.kind === 'weekly_scoped' ? t('limWeekScoped') + (x.model || '') : x.kind) + ' ' + Math.round(x.percent) + '%' + (left(x.resetsAt) ? ' · ' + t('resets', left(x.resetsAt)) : '')).join('\n') + old + '\n' + t('account')
 }
 app.onUsage(usage)
+app.onLang((l) => { if (TEXT[l]) { lang = l; words() } })
 $('usage').addEventListener('click', () => app.account())
+words()
 </script>
 </body>
 </html>

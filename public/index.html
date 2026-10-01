@@ -1145,6 +1145,7 @@ form.inline .fbtn{font:13px var(--sans);background:var(--surface);border-radius:
     if (!I18N[next]) return;
     lang = next;
     try { localStorage.setItem('am.lang', next); } catch (e) {}
+    try { window.monitorApp?.setLang?.(next); } catch (e) {}   // the desktop app's own words follow
     clearTimeout(timer); tick();   // the server hears the new language at once (only ever called from the switch)
     applyStatic();
     approvalsBox.dataset.ids = '';

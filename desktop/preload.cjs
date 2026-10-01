@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('monitorApp', {
   account: () => call('account'),
   // the theme picked in the page's menu (system, light or dark): the window's header, title bar and settings follow
   theme: (v) => call('theme:' + v),
+  // the language picked on the page ('ko' or 'en'): the tray, the dialogs, this header and the settings follow
+  setLang: (v) => call('lang:' + v),
+  onLang: (fn) => ipcRenderer.on('monitor-app-lang', (_e, l) => fn(l)),
   // the app reports zoom and history changes (keyboard shortcuts included)
   onChange: (fn) => ipcRenderer.on('monitor-app-state', (_e, s) => fn(s)),
   // the plan's limits, as the monitor last heard them

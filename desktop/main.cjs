@@ -19,7 +19,7 @@ const RELEASES = 'https://github.com/elopstudio/elop-crew/releases/latest'
 const GIVEN_HOME = process.env.MONITOR_HOME || ''
 // `npm run try`: a test app beside the installed one — no notifications, global shortcut or hook installs of its own
 const TRY = process.env.MONITOR_TRY === '1'
-const NAME = TRY ? 'ELOP Crew (테스트)' : 'ELOP Crew'
+const NAME = () => (TRY ? t('tryName') : 'ELOP Crew')
 // The app was called Agent Monitor before it became ELOP Crew, and Electron names its folder and its Windows id after
 // the app. Both keep the old name, so an update keeps the settings, the window's place and the page's storage, and
 // Windows its autostart entry (filed under the id), taskbar and notification settings. A --user-data-dir (npm run try) wins.
@@ -39,12 +39,79 @@ function dataDir() {
   return app.isPackaged ? path.join(app.getPath('home'), '.claude-agent-monitor') : CODE
 }
 
+/* ── the app's own words, in the language picked on the page ── */
+// The page keeps its pick in its storage (am.lang) and tells the app when it switches (preload: setLang); the app keeps
+// the last one in its settings for a start in the tray, before the page has loaded. Never told yet: the system's language.
+const TEXT = {
+  ko: {
+    tryName: 'ELOP Crew (테스트)', install: '설치', later: '나중에',
+    hooksAgain: 'Claude Code hook을 이 앱 기준으로 다시 설치할까요?', hooksUpdate: '모니터 hook을 새 버전으로 갱신할까요?', hooksAsk: 'Claude Code에 모니터 hook을 설치할까요?',
+    hooksWhy: (file) => '승인·질문에 답하기, 권한 모드 표시, 에이전트에게 메시지 보내기, 리더에게 팀원 알려 주기에 필요합니다.\n' + file + ' 의 모니터 항목만 추가·교체하고, 다른 설정은 그대로 둡니다 (백업: settings.json.before-agent-monitor).\n',
+    hooksNode: 'hook은 이 PC의 Node.js로 실행됩니다.', hooksNoNode: 'Node.js가 없어서 hook은 이 앱으로 실행됩니다.',
+    hooksDone: 'hook을 설치했습니다.', hooksDoneHow: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.', hooksFailed: 'hook을 설치하지 못했습니다.',
+    open: 'ELOP Crew 열기', settings: '설정…', about: '프로그램 정보',
+    updInstall: (v) => '업데이트 ' + v + ' 설치하고 다시 시작', updGet: (v) => '업데이트 ' + v + ' 받으러 가기',
+    quitAll: '종료 (모니터 에이전트도 멈춤)', quit: '종료',
+    session: (p) => '세션 ' + p + '%', week: (p) => '주간 ' + p + '%',
+    waiting: (n) => '답을 기다리는 요청 ' + n + '건', requests: (n) => '요청 ' + n + '건',
+    question: '질문', plan: '계획 승인', approval: '승인 요청', waits: '답을 기다립니다', agent: '에이전트',
+    stalled: (who) => who + ' 멈춘 듯합니다', stalledHow: (m) => m + '분째 아무 활동이 없습니다',
+    limSession: '현재 세션 (5시간)', limWeekAll: '주간 · 전체 모델', limWeekScoped: '주간 · ',
+    min: (n) => n + '분', hours: (n) => n + '시간', days: (n) => n + '일', resets: (left) => left + ' 후 초기화',
+    usage: (p, name) => 'Claude 사용량 ' + p + '% — ' + name,
+    updOut: (v) => 'ELOP Crew ' + v + ' 나옴', updOutHow: '누르면 받는 곳을 엽니다.',
+    updGot: (v) => 'ELOP Crew ' + v + ' 받음', updGotHow: '트레이 메뉴나 설정에서 다시 시작하면 바로 적용됩니다. 앱을 끌 때도 적용됩니다.',
+    settingsTitle: 'ELOP Crew 설정', dataTitle: '데이터 폴더 (config.json, boards/)',
+    restart: '다시 시작', dataMoved: '데이터 폴더를 바꿨습니다.', dataMovedHow: '앱을 다시 시작하면 새 폴더를 씁니다.',
+    serverFailed: '모니터 서버를 시작하지 못했습니다.',
+    move: '응용 프로그램으로 옮기기', keep: '그대로 쓰기', moveAsk: 'ELOP Crew를 응용 프로그램 폴더로 옮길까요?',
+    moveWhy: 'Claude Code hook이 이 앱의 위치를 기억합니다. 디스크 이미지나 다운로드 폴더에서 그대로 쓰면, 그 사본이 없어질 때 hook도 멈춥니다.', moveFailed: '옮기지 못했습니다.',
+  },
+  en: {
+    tryName: 'ELOP Crew (test)', install: 'Install', later: 'Later',
+    hooksAgain: 'Reinstall the Claude Code hooks for this app?', hooksUpdate: 'Update the monitor hooks to the new version?', hooksAsk: 'Install the monitor hooks in Claude Code?',
+    hooksWhy: (file) => 'They let you answer approvals and questions, show permission modes, send messages to agents, and tell leaders who is on their team.\nOnly the monitor\'s entries in ' + file + ' are added or replaced; every other setting stays as it is (backup: settings.json.before-agent-monitor).\n',
+    hooksNode: 'The hooks run on this PC\'s Node.js.', hooksNoNode: 'Node.js was not found, so the hooks run on this app.',
+    hooksDone: 'Hooks installed.', hooksDoneHow: 'Claude Code sessions already running pick them up right away.', hooksFailed: 'Could not install the hooks.',
+    open: 'Open ELOP Crew', settings: 'Settings…', about: 'About',
+    updInstall: (v) => 'Install update ' + v + ' and restart', updGet: (v) => 'Get update ' + v,
+    quitAll: 'Quit (stops the monitor\'s agents too)', quit: 'Quit',
+    session: (p) => 'Session ' + p + '%', week: (p) => 'Week ' + p + '%',
+    waiting: (n) => n + (n === 1 ? ' request waiting for an answer' : ' requests waiting for an answer'), requests: (n) => n + (n === 1 ? ' request' : ' requests'),
+    question: 'Question', plan: 'Plan approval', approval: 'Approval request', waits: 'Waiting for an answer', agent: 'Agent',
+    stalled: (who) => who + ' seems to be stuck', stalledHow: (m) => 'No activity for ' + m + ' min',
+    limSession: 'Current session (5 hours)', limWeekAll: 'Weekly · all models', limWeekScoped: 'Weekly · ',
+    min: (n) => n + ' min', hours: (n) => n + (n === 1 ? ' hour' : ' hours'), days: (n) => n + (n === 1 ? ' day' : ' days'), resets: (left) => 'Resets in ' + left,
+    usage: (p, name) => 'Claude usage ' + p + '% — ' + name,
+    updOut: (v) => 'ELOP Crew ' + v + ' is out', updOutHow: 'Click to open the download page.',
+    updGot: (v) => 'ELOP Crew ' + v + ' downloaded', updGotHow: 'Restart from the tray menu or the settings to apply it now; otherwise it applies when you quit the app.',
+    settingsTitle: 'ELOP Crew Settings', dataTitle: 'Data folder (config.json, boards/)',
+    restart: 'Restart', dataMoved: 'Data folder changed.', dataMovedHow: 'The app uses the new folder after a restart.',
+    serverFailed: 'Could not start the monitor server.',
+    move: 'Move to Applications', keep: 'Keep Here', moveAsk: 'Move ELOP Crew to the Applications folder?',
+    moveWhy: 'The Claude Code hooks remember where this app is. Run from the disk image or the Downloads folder, the hooks stop working once that copy is gone.', moveFailed: 'Could not move it.',
+  },
+}
+let lang = 'en'   // set once the app is ready (the system's language is known only then)
+const t = (key, ...a) => { const v = TEXT[lang][key]; return typeof v === 'function' ? v(...a) : v }
+const systemLang = () => (/^ko/i.test(app.getLocale() || '') ? 'ko' : 'en')
+function setLang(v) {
+  if (!TEXT[v]) return   // a page that failed to load has no language
+  if (readSettings().lang !== v) writeSettings({ ...readSettings(), lang: v })
+  if (lang === v) return
+  lang = v
+  if (tray) tray.setContextMenu(trayMenu())
+  paintBadge()
+  if (strip) strip.webContents.send('monitor-app-lang', lang)
+  if (settingsWin) settingsWin.webContents.send('monitor-settings-changed')
+}
+
 /* ── Claude Code hooks: approvals, modes, messages ── */
 // The monitor learns about permission prompts, modes and idle sessions through hooks registered in
 // ~/.claude/settings.json. The app registers them itself, pointing at the scripts it ships, so a new PC
 // needs nothing but Claude Code: with Node.js on the PATH the hooks run on it directly; without, this
 // app's own executable runs them as Node (ELECTRON_RUN_AS_NODE).
-const setup = require('./hooks-setup.cjs')({ hooksDir: path.join(CODE, 'hooks'), execPath: process.execPath })
+const setup = require('./hooks-setup.cjs')({ hooksDir: path.join(CODE, 'hooks'), execPath: process.execPath, lang: () => lang })
 const { hookState, installHooks, findNode, CLAUDE_SETTINGS } = setup
 
 // A question for the user. On macOS a message box with no window runs modally on the main thread, and the
@@ -66,15 +133,15 @@ async function offerHooks(always) {
   const outdated = state === 'outdated'
   if (!always && (outdated ? settings.hooksUpdateDeclined === HOOKS_REV : settings.hooksDeclined)) return
   const r = await ask({
-    type: 'question', buttons: ['설치', '나중에'], defaultId: 0, cancelId: 1,
-    message: always ? 'Claude Code hook을 이 앱 기준으로 다시 설치할까요?' : outdated ? '모니터 hook을 새 버전으로 갱신할까요?' : 'Claude Code에 모니터 hook을 설치할까요?',
-    detail: '승인·질문에 답하기, 권한 모드 표시, 에이전트에게 메시지 보내기, 리더에게 팀원 알려 주기에 필요합니다.\n' + CLAUDE_SETTINGS + ' 의 모니터 항목만 추가·교체하고, 다른 설정은 그대로 둡니다 (백업: settings.json.before-agent-monitor).\n' + (findNode() ? 'hook은 이 PC의 Node.js로 실행됩니다.' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다.'),
+    type: 'question', buttons: [t('install'), t('later')], defaultId: 0, cancelId: 1,
+    message: always ? t('hooksAgain') : outdated ? t('hooksUpdate') : t('hooksAsk'),
+    detail: t('hooksWhy', CLAUDE_SETTINGS) + (findNode() ? t('hooksNode') : t('hooksNoNode')),
   })
   if (quitting) return   // a box closed by quitting is not an answer
   // read again: the box may have been open while the zoom or the window's place changed
   if (r.response !== 0) { if (!always) writeSettings({ ...readSettings(), ...(outdated ? { hooksUpdateDeclined: HOOKS_REV } : { hooksDeclined: true }) }); return }
-  try { installHooks(); await ask({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
-  catch (e) { dialog.showErrorBox('ELOP Crew', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
+  try { installHooks(); await ask({ type: 'info', message: t('hooksDone'), detail: t('hooksDoneHow') }) }
+  catch (e) { dialog.showErrorBox('ELOP Crew', t('hooksFailed') + '\n\n' + (e && e.message || e)) }
   if (tray) tray.setContextMenu(trayMenu())
 }
 
@@ -144,6 +211,7 @@ ipcMain.handle('monitor-app', (_e, action) => {
   if (action === 'settings') { showSettings(); return pageState() }
   // the usage in the strip opens the page's account dialog
   if (String(action).startsWith('theme:')) { setTheme(String(action).slice(6)); return pageState() }
+  if (String(action).startsWith('lang:')) { setLang(String(action).slice(5)); return pageState() }
   if (action === 'account') { if (page) page.webContents.executeJavaScript("document.getElementById('acct-btn')?.click()").catch(() => {}); return pageState() }
   if (action !== 'state') appAction(String(action))
   return pageState()
@@ -195,11 +263,12 @@ function showWindow() {
   if (at && readSettings().maximized) win.maximize()
   const safe = { contextIsolation: true, sandbox: true }
   strip = new WebContentsView({ webPreferences: { ...safe, preload: path.join(__dirname, 'preload.cjs') } })
-  page = new WebContentsView({ webPreferences: safe })
+  // the page gets the same bridge, for the theme and the language it tells the app
+  page = new WebContentsView({ webPreferences: { ...safe, preload: path.join(__dirname, 'preload.cjs') } })
   page.setBackgroundColor(dark ? '#0f1116' : '#f2f3f7')
   win.contentView.addChildView(page)
   win.contentView.addChildView(strip)
-  strip.webContents.loadFile(path.join(__dirname, 'strip.html'), { query: { platform: process.platform } })
+  strip.webContents.loadFile(path.join(__dirname, 'strip.html'), { query: { platform: process.platform, lang } })
   strip.webContents.on('did-finish-load', () => { if (strip) strip.webContents.send('monitor-app-usage', usage) })
   page.webContents.loadURL(URL + '?app=1&v=' + encodeURIComponent(app.getVersion()) + (TRY ? '&try=1' : ''))
   layout()
@@ -208,7 +277,8 @@ function showWindow() {
   win.on('unmaximize', layout)
   for (const e of ['resize', 'move', 'maximize', 'unmaximize']) win.on(e, keepSoon)
   const wc = page.webContents
-  wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report() })
+  // the language the page shows (its pick, or its default): it tells the app itself only when it switches
+  wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report(); wc.executeJavaScript('document.documentElement.lang').then(setLang).catch(() => {}) })
   wc.on('did-navigate-in-page', report)
   // Ctrl + mouse wheel: the same steps as the buttons, and remembered
   wc.on('zoom-changed', (_e, direction) => appAction(direction === 'in' ? 'zoom-in' : 'zoom-out'))
@@ -230,13 +300,13 @@ function showAbout() {
 }
 function trayMenu() {
   return Menu.buildFromTemplate([
-    { label: 'ELOP Crew 열기', click: showWindow },
-    { label: '설정…', click: showSettings },
-    { label: '프로그램 정보', click: showAbout },
-    ...(update.status === 'ready' ? [{ label: '업데이트 ' + update.version + ' 설치하고 다시 시작', click: installUpdate }] : []),
-    ...(update.status === 'available' ? [{ label: '업데이트 ' + update.version + ' 받으러 가기', click: installUpdate }] : []),
+    { label: t('open'), click: showWindow },
+    { label: t('settings'), click: showSettings },
+    { label: t('about'), click: showAbout },
+    ...(update.status === 'ready' ? [{ label: t('updInstall', update.version), click: installUpdate }] : []),
+    ...(update.status === 'available' ? [{ label: t('updGet', update.version), click: installUpdate }] : []),
     { type: 'separator' },
-    { label: ownServer ? '종료 (모니터 에이전트도 멈춤)' : '종료', click: quit },
+    { label: ownServer ? t('quitAll') : t('quit'), click: quit },
   ])
 }
 
@@ -255,7 +325,7 @@ function dot(size, r, cx, cy, into) {
   return buf
 }
 let trayPlain = null, trayDot = null, overlayDot = null, waitingCount = 0, usage = null
-const usageLine = () => { const l = usage?.limits || [], s = l.find((x) => x.kind === 'session'), w = l.find((x) => x.kind === 'weekly_all'); return [s && '세션 ' + Math.round(s.percent) + '%', w && '주간 ' + Math.round(w.percent) + '%'].filter(Boolean).join(' · ') }
+const usageLine = () => { const l = usage?.limits || [], s = l.find((x) => x.kind === 'session'), w = l.find((x) => x.kind === 'weekly_all'); return [s && t('session', Math.round(s.percent)), w && t('week', Math.round(w.percent))].filter(Boolean).join(' · ') }
 function paintBadge() {
   if (!trayPlain) {
     trayPlain = nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 })
@@ -263,9 +333,9 @@ function paintBadge() {
     overlayDot = nativeImage.createFromBitmap(dot(16, 7, 8, 8), { width: 16, height: 16 })
   }
   const n = waitingCount
-  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip([NAME, usageLine(), n ? '답을 기다리는 요청 ' + n + '건' : ''].filter(Boolean).join('\n')) }
+  if (tray) { tray.setImage(n ? trayDot : trayPlain); tray.setToolTip([NAME(), usageLine(), n ? t('waiting', n) : ''].filter(Boolean).join('\n')) }
   if (MAC) { if (app.dock) app.dock.setBadge(n ? String(n) : '') }
-  else if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? '요청 ' + n + '건' : '') } catch (e) { console.error('overlay icon:', e.message) } }
+  else if (win) { try { win.setOverlayIcon(n ? overlayDot : null, n ? t('requests', n) : '') } catch (e) { console.error('overlay icon:', e.message) } }
 }
 const shown = new Set()   // a notification that is garbage-collected no longer answers its click
 function notify(title, body, onClick) {
@@ -278,9 +348,10 @@ function notify(title, body, onClick) {
 }
 const focused = () => !!(win && win.isVisible() && win.isFocused())
 const usageLevel = (x) => (x.percent >= 95 || /exceed|critical|block/.test(String(x.severity || '')) ? 2 : x.percent >= 80 || x.severity === 'warning' ? 1 : 0)
-const LIMIT_NAMES = { session: '현재 세션 (5시간)', weekly_all: '주간 · 전체 모델', weekly_scoped: '주간 · ' }
-const limitName = (x) => x.kind === 'weekly_scoped' ? LIMIT_NAMES.weekly_scoped + (x.model || '') : LIMIT_NAMES[x.kind] || x.kind
-const who = (a) => a.nickKo || a.nick || a.session || '에이전트'
+const LIMIT_NAMES = { session: 'limSession', weekly_all: 'limWeekAll' }
+const limitName = (x) => x.kind === 'weekly_scoped' ? t('limWeekScoped') + (x.model || '') : LIMIT_NAMES[x.kind] ? t(LIMIT_NAMES[x.kind]) : x.kind
+// the Korean nickname on a Korean page, as the page names them
+const who = (a) => (lang === 'ko' && a.nickKo) || a.nick || a.nickKo || a.session || t('agent')
 let seenAsks = null, seenStalls = null
 function watch(data) {
   const approvals = data.approvals || [], inEditor = data.inEditor || []
@@ -295,12 +366,12 @@ function watch(data) {
   if (fresh.length && !focused()) {
     if (MAC) { if (app.dock) app.dock.bounce('informational') }
     else if (win) { try { win.flashFrame(true) } catch {} }
-    for (const a of fresh.slice(0, 3)) notify((a.questions ? '질문' : a.plan ? '계획 승인' : '승인 요청') + ' · ' + who(a), [a.tool, a.what].filter(Boolean).join(' — ') || '답을 기다립니다')
+    for (const a of fresh.slice(0, 3)) notify((a.questions ? t('question') : a.plan ? t('plan') : t('approval')) + ' · ' + who(a), [a.tool, a.what].filter(Boolean).join(' — ') || t('waits'))
   }
   // an agent that starts to look stuck: once, until it moves again
   const sessions = (data.projects || []).flatMap((p) => p.sessions || [])
   const stalled = sessions.filter((x) => x.stalledFor)
-  if (seenStalls && !focused()) for (const x of stalled.filter((x) => !seenStalls.has(x.name))) notify(who(x) + ' 멈춘 듯합니다', Math.round(x.stalledFor / 60000) + '분째 아무 활동이 없습니다')
+  if (seenStalls && !focused()) for (const x of stalled.filter((x) => !seenStalls.has(x.name))) notify(t('stalled', who(x)), t('stalledHow', Math.round(x.stalledFor / 60000)))
   seenStalls = new Set(stalled.map((x) => x.name))
   // limits: once past 80 % and again past 95 %, remembered until that limit resets
   const limits = data.usage?.limits || []
@@ -313,8 +384,8 @@ function watch(data) {
       if (lv > (told[k] || 0)) {
         changed = true
         const at = Date.parse(x.resetsAt), left = at - Date.now()
-        const when = left > 0 ? (left < 3600e3 ? Math.round(left / 60000) + '분' : left < 86400e3 ? Math.round(left / 3600e3) + '시간' : Math.round(left / 86400e3) + '일') + ' 후 초기화' : ''
-        notify('Claude 사용량 ' + Math.round(x.percent) + '% — ' + limitName(x), when)
+        const when = left > 0 ? t('resets', left < 3600e3 ? t('min', Math.round(left / 60000)) : left < 86400e3 ? t('hours', Math.round(left / 3600e3)) : t('days', Math.round(left / 86400e3))) : ''
+        notify(t('usage', Math.round(x.percent), limitName(x)), when)
       }
     }
     if (changed || Object.keys(next).length !== Object.keys(told).length) writeSettings({ ...readSettings(), usageTold: next })
@@ -373,11 +444,11 @@ function setupUpdates() {
     if (!MAC) { setUpdate('downloading', { version: i.version, percent: 0 }); return }
     const fresh = update.version !== i.version
     setUpdate('available', { version: i.version })
-    if (fresh) notify('ELOP Crew ' + i.version + ' 나옴', '누르면 받는 곳을 엽니다.', () => shell.openExternal(RELEASES))
+    if (fresh) notify(t('updOut', i.version), t('updOutHow'), () => shell.openExternal(RELEASES))
   })
   updater.on('update-not-available', () => setUpdate('latest'))
   updater.on('download-progress', (p) => { update.percent = Math.round(p.percent || 0); if (settingsWin) settingsWin.webContents.send('monitor-settings-changed') })
-  updater.on('update-downloaded', (i) => { setUpdate('ready', { version: i.version }); notify('ELOP Crew ' + i.version + ' 받음', '트레이 메뉴나 설정에서 다시 시작하면 바로 적용됩니다. 앱을 끌 때도 적용됩니다.') })
+  updater.on('update-downloaded', (i) => { setUpdate('ready', { version: i.version }); notify(t('updGot', i.version), t('updGotHow')) })
   // no release published yet is not a failure
   updater.on('error', (e) => setUpdate(/404|No published versions|Unable to find latest/i.test(String(e && e.message)) ? 'none' : 'error'))
   checkUpdates()
@@ -396,12 +467,12 @@ let settingsWin = null
 function showSettings() {
   if (settingsWin) { settingsWin.show(); settingsWin.focus(); return }
   settingsWin = new BrowserWindow({
-    width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: 'ELOP Crew 설정', icon: ICON,
+    width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: t('settingsTitle'), icon: ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
     ...titleBar(),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'settings-preload.cjs') },
   })
-  settingsWin.loadFile(path.join(__dirname, 'settings.html'), { query: { platform: process.platform } })
+  settingsWin.loadFile(path.join(__dirname, 'settings.html'), { query: { platform: process.platform, lang } })
   settingsWin.on('closed', () => { settingsWin = null })
 }
 ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
@@ -415,13 +486,13 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   if (action === 'openBrowser') shell.openExternal(URL)
   if (action === 'about') showAbout()
   if (action === 'installHooks') {
-    try { installHooks() } catch (e) { dialog.showErrorBox('ELOP Crew', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
+    try { installHooks() } catch (e) { dialog.showErrorBox('ELOP Crew', t('hooksFailed') + '\n\n' + (e && e.message || e)) }
   }
   if (action === 'pickData') {
-    const r = await dialog.showOpenDialog(settingsWin, { title: '데이터 폴더 (config.json, boards/)', defaultPath: dataDir(), properties: ['openDirectory', 'createDirectory'] })
+    const r = await dialog.showOpenDialog(settingsWin, { title: t('dataTitle'), defaultPath: dataDir(), properties: ['openDirectory', 'createDirectory'] })
     if (!r.canceled && r.filePaths[0]) {
       writeSettings({ ...readSettings(), dataDir: r.filePaths[0] })
-      const ok = await dialog.showMessageBox(settingsWin, { type: 'info', buttons: ['다시 시작', '나중에'], message: '데이터 폴더를 바꿨습니다.', detail: '앱을 다시 시작하면 새 폴더를 씁니다.' })
+      const ok = await dialog.showMessageBox(settingsWin, { type: 'info', buttons: [t('restart'), t('later')], message: t('dataMoved'), detail: t('dataMovedHow') })
       if (ok.response === 0) { app.relaunch(); quit() }
     }
   }
@@ -429,7 +500,7 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   return {
     openAtLogin: app.getLoginItemSettings(LOGIN).openAtLogin, closeToTray: s2.closeToTray !== false,
     dataDir: dataDir(), ownServer, hooks: hookState(), node: !!findNode(), version: app.getVersion(), url: URL,
-    hotkey: hotkey(), hotkeys: HOTKEYS, hotkeyOk, update: { ...update }, platform: process.platform,
+    hotkey: hotkey(), hotkeys: HOTKEYS, hotkeyOk, update: { ...update }, platform: process.platform, lang,
   }
 })
 function quit() {
@@ -444,21 +515,22 @@ else {
   app.on('second-instance', showWindow)
   app.whenReady().then(async () => {
     setTheme(readSettings().theme)   // the theme picked last time, before any window shows
+    lang = TEXT[readSettings().lang] ? readSettings().lang : systemLang()   // and the language
     try { await startServer() } catch (e) {
-      dialog.showErrorBox('ELOP Crew', '모니터 서버를 시작하지 못했습니다.\n\n' + (e && e.message || e))
+      dialog.showErrorBox('ELOP Crew', t('serverFailed') + '\n\n' + (e && e.message || e))
       app.quit()
       return
     }
     // run from the disk image or Downloads, the hooks would point at a copy that goes away: offer to move it first
     if (MAC && app.isPackaged && !app.isInApplicationsFolder() && !readSettings().moveDeclined) {
-      const r = await ask({ type: 'question', buttons: ['응용 프로그램으로 옮기기', '그대로 쓰기'], defaultId: 0, cancelId: 1, message: 'ELOP Crew를 응용 프로그램 폴더로 옮길까요?', detail: 'Claude Code hook이 이 앱의 위치를 기억합니다. 디스크 이미지나 다운로드 폴더에서 그대로 쓰면, 그 사본이 없어질 때 hook도 멈춥니다.' })
+      const r = await ask({ type: 'question', buttons: [t('move'), t('keep')], defaultId: 0, cancelId: 1, message: t('moveAsk'), detail: t('moveWhy') })
       // a box closed by quitting is not a yes
       if (quitting) return
-      if (r.response === 0) { try { if (app.moveToApplicationsFolder()) return } catch (e) { dialog.showErrorBox('ELOP Crew', '옮기지 못했습니다.\n\n' + (e && e.message || e)) } }
+      if (r.response === 0) { try { if (app.moveToApplicationsFolder()) return } catch (e) { dialog.showErrorBox('ELOP Crew', t('moveFailed') + '\n\n' + (e && e.message || e)) } }
       else writeSettings({ ...readSettings(), moveDeclined: true })
     }
     tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }))
-    tray.setToolTip(NAME)
+    tray.setToolTip(NAME())
     tray.setContextMenu(trayMenu())
     tray.on('click', showWindow)
     // started at login: stay in the tray until opened (macOS says so itself; Windows passes --hidden)

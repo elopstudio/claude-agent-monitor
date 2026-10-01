@@ -51,70 +51,111 @@ select{font:13px inherit;font-family:inherit;color:var(--text);background:var(--
 </style>
 </head>
 <body>
-<div class="strip"><img src="icon.png" alt=""> ELOP Crew 설정</div>
+<div class="strip"><img src="icon.png" alt=""> <span data-t="title"></span></div>
 <main>
   <section>
-    <h2>시작과 창</h2>
-    <label class="row"><span class="t">로그인할 때 자동 시작<small>PC에 로그인하면 트레이에서 조용히 시작합니다</small></span>
+    <h2 data-t="start"></h2>
+    <label class="row"><span class="t"><span data-t="login"></span><small data-t="loginHow"></small></span>
       <span class="sw"><input type="checkbox" id="openAtLogin"><span></span></span></label>
-    <label class="row"><span class="t">창을 닫으면 트레이로<small>끄면 창을 닫을 때 앱이 종료되고, 모니터 에이전트도 멈춥니다</small></span>
+    <label class="row"><span class="t"><span data-t="tray"></span><small data-t="trayHow"></small></span>
       <span class="sw"><input type="checkbox" id="closeToTray"><span></span></span></label>
-    <label class="row"><span class="t">창 불러오기 단축키<small id="hotkeyHow">어디서든 눌러 창을 띄우고, 한 번 더 누르면 숨깁니다</small></span>
+    <label class="row"><span class="t"><span data-t="hotkey"></span><small id="hotkeyHow"></small></span>
       <select id="hotkey"></select></label>
   </section>
   <section>
-    <h2>데이터 폴더 — config.json, 작업판(boards/), 에이전트 목록</h2>
+    <h2 data-t="data"></h2>
     <div class="row"><span class="path" id="dataDir">…</span>
-      <span class="btns"><button id="openData">열기</button><button id="pickData">바꾸기…</button></span></div>
+      <span class="btns"><button id="openData" data-t="open"></button><button id="pickData" data-t="pick"></button></span></div>
   </section>
   <section>
-    <h2>Claude Code hook — 승인·질문 답하기, 모드 표시, 메시지 보내기</h2>
+    <h2 data-t="hooks"></h2>
     <div class="row"><span class="t"><span class="state" id="hookState">…</span><small id="hookHow"></small></span>
-      <span class="btns"><button class="primary" id="installHooks">설치/갱신</button></span></div>
+      <span class="btns"><button class="primary" id="installHooks" data-t="installHooks"></button></span></div>
   </section>
   <section>
-    <h2>업데이트 — GitHub Releases</h2>
-    <div class="row"><span class="t"><span class="state" id="updState">…</span><small id="updHow">켤 때와 6시간마다 확인하고, 받아 두었다가 다시 시작할 때 설치합니다</small></span>
-      <span class="btns"><button id="checkUpdates">지금 확인</button><button class="primary" id="installUpdate" hidden>설치하고 다시 시작</button></span></div>
+    <h2 data-t="updates"></h2>
+    <div class="row"><span class="t"><span class="state" id="updState">…</span><small id="updHow"></small></span>
+      <span class="btns"><button id="checkUpdates" data-t="check"></button><button class="primary" id="installUpdate" hidden></button></span></div>
   </section>
   <section>
-    <h2>정보</h2>
-    <div class="row"><span class="t">버전 <span id="version"></span><small id="url"></small></span>
-      <span class="btns"><button id="about">프로그램 정보</button><button id="openBrowser">브라우저에서 열기</button></span></div>
+    <h2 data-t="info"></h2>
+    <div class="row"><span class="t"><span><span data-t="version"></span> <span id="version"></span></span><small id="url"></small></span>
+      <span class="btns"><button id="about" data-t="about"></button><button id="openBrowser" data-t="browser"></button></span></div>
   </section>
 </main>
 <script>
-const MAC = new URLSearchParams(location.search).get('platform') === 'darwin'
-if (MAC) {
-  document.body.classList.add('mac')
-  // macOS has a menu bar, not a tray
-  for (const n of document.querySelectorAll('small, .t')) for (const t of n.childNodes) if (t.nodeType === 3) t.textContent = t.textContent.replace('PC에 로그인하면 트레이에서', 'Mac에 로그인하면 메뉴 막대에서').replace('창을 닫으면 트레이로', '창을 닫으면 메뉴 막대로')
+const qs = new URLSearchParams(location.search), MAC = qs.get('platform') === 'darwin'
+if (MAC) document.body.classList.add('mac')
+// the window's words, in the language picked on the page (the app says which); macOS has a menu bar, not a tray
+const TEXT = {
+  ko: {
+    title: 'ELOP Crew 설정', start: '시작과 창',
+    login: '로그인할 때 자동 시작', loginHow: MAC ? 'Mac에 로그인하면 메뉴 막대에서 조용히 시작합니다' : 'PC에 로그인하면 트레이에서 조용히 시작합니다',
+    tray: MAC ? '창을 닫으면 메뉴 막대로' : '창을 닫으면 트레이로', trayHow: '끄면 창을 닫을 때 앱이 종료되고, 모니터 에이전트도 멈춥니다',
+    hotkey: '창 불러오기 단축키', hotkeyHow: '어디서든 눌러 창을 띄우고, 한 번 더 누르면 숨깁니다', hotkeyTaken: (k) => k + '은 다른 프로그램이 쓰고 있습니다 — 다른 키를 골라 주세요', off: '끄기',
+    data: '데이터 폴더 — config.json, 작업판(boards/), 에이전트 목록', open: '열기', pick: '바꾸기…',
+    hooks: 'Claude Code hook — 승인·질문 답하기, 모드 표시, 메시지 보내기', installHooks: '설치/갱신',
+    hooksOk: '설치됨', hooksUnreadable: '설정 파일을 읽을 수 없음', hooksOutdated: '갱신 필요 — 새 기능(쉬는 세션 깨우기, 리더 팀원 안내)이 빠져 있습니다', hooksMissing: '설치 안 됨',
+    node: 'hook은 이 PC의 Node.js로 실행됩니다', noNode: 'Node.js가 없어서 hook은 이 앱으로 실행됩니다',
+    updates: '업데이트 — GitHub Releases', check: '지금 확인', install: '설치하고 다시 시작', get: '받으러 가기',
+    updHow: MAC ? '켤 때와 6시간마다 확인하고, 새 버전이 나오면 알려 줍니다' : '켤 때와 6시간마다 확인하고, 받아 두었다가 다시 시작할 때 설치합니다',
+    dev: '개발 중인 앱은 업데이트하지 않습니다', idle: '확인 전', checking: '확인하는 중…', latest: '최신 버전입니다', none: '아직 올라온 릴리스가 없습니다',
+    downloading: (v, p) => (v || '새 버전') + ' 받는 중… ' + p + '%', ready: (v) => v + ' 받음 — 다시 시작하면 적용됩니다',
+    available: (v) => (v || '새 버전') + ' 나옴 — 받는 곳에서 새로 설치해 주세요', error: '확인하지 못했습니다 (인터넷이나 GitHub 연결)',
+    info: '정보', version: '버전', about: '프로그램 정보', browser: '브라우저에서 열기',
+  },
+  en: {
+    title: 'ELOP Crew Settings', start: 'Startup and window',
+    login: 'Start at login', loginHow: MAC ? 'Starts quietly in the menu bar when you log in to the Mac' : 'Starts quietly in the tray when you sign in to the PC',
+    tray: MAC ? 'Close to the menu bar' : 'Close to the tray', trayHow: 'When off, closing the window quits the app and stops the monitor\'s agents too',
+    hotkey: 'Shortcut to bring up the window', hotkeyHow: 'Press it anywhere to show the window; press it again to hide it', hotkeyTaken: (k) => k + ' is taken by another program — pick a different one', off: 'Off',
+    data: 'Data folder — config.json, boards (boards/), agent list', open: 'Open', pick: 'Change…',
+    hooks: 'Claude Code hooks — approvals and questions, modes, messages', installHooks: 'Install / update',
+    hooksOk: 'Installed', hooksUnreadable: 'Cannot read the settings file', hooksOutdated: 'Needs an update — newer features (waking resting sessions, telling leaders about their team) are missing', hooksMissing: 'Not installed',
+    node: 'The hooks run on this PC\'s Node.js', noNode: 'Node.js was not found, so the hooks run on this app',
+    updates: 'Updates — GitHub Releases', check: 'Check now', install: 'Install and restart', get: 'Get it',
+    updHow: MAC ? 'Checks at start and every 6 hours, and tells you when a new version is out' : 'Checks at start and every 6 hours, downloads in the background and installs on the next restart',
+    dev: 'An app in development is not updated', idle: 'Not checked yet', checking: 'Checking…', latest: 'Up to date', none: 'No release published yet',
+    downloading: (v, p) => 'Downloading ' + (v || 'the new version') + '… ' + p + '%', ready: (v) => v + ' downloaded — restart to apply it',
+    available: (v) => (v || 'A new version') + ' is out — install it from the download page', error: 'Could not check (internet or GitHub connection)',
+    info: 'About', version: 'Version', about: 'About ELOP Crew', browser: 'Open in browser',
+  },
 }
+const UPDATE_STATES = ['dev', 'idle', 'checking', 'latest', 'none', 'downloading', 'ready', 'available', 'error']
+let lang = TEXT[qs.get('lang')] ? qs.get('lang') : 'en'
+const t = (key, ...a) => { const v = TEXT[lang][key]; return typeof v === 'function' ? v(...a) : v }
+function words() {
+  document.documentElement.lang = lang
+  document.title = t('title')
+  for (const n of document.querySelectorAll('[data-t]')) n.textContent = t(n.dataset.t)
+}
+words()
 const api = window.monitorSettings
 const $ = (id) => document.getElementById(id)
 async function load() {
   const s = await api.get()
+  if (TEXT[s.lang] && s.lang !== lang) { lang = s.lang; words() }   // switched on the page while this was open
   $('openAtLogin').checked = s.openAtLogin
   $('closeToTray').checked = s.closeToTray
   $('dataDir').textContent = s.dataDir
   $('pickData').disabled = !s.ownServer
-  $('hookState').textContent = s.hooks === 'ok' ? '설치됨' : s.hooks === 'unreadable' ? '설정 파일을 읽을 수 없음' : s.hooks === 'outdated' ? '갱신 필요 — 새 기능(쉬는 세션 깨우기, 리더 팀원 안내)이 빠져 있습니다' : '설치 안 됨'
+  $('hookState').textContent = t(s.hooks === 'ok' ? 'hooksOk' : s.hooks === 'unreadable' ? 'hooksUnreadable' : s.hooks === 'outdated' ? 'hooksOutdated' : 'hooksMissing')
   $('hookState').className = 'state ' + (s.hooks === 'ok' ? 'ok' : 'warn')
-  $('hookHow').textContent = s.node ? 'hook은 이 PC의 Node.js로 실행됩니다' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다'
+  $('hookHow').textContent = t(s.node ? 'node' : 'noNode')
   $('version').textContent = s.version
   $('url').textContent = s.url
-  const keyName = (k) => k === 'off' ? '끄기' : MAC ? k.replace('Control+', '⌃').replace('Alt+', '⌥') : k.replace('Control', 'Ctrl')
+  const keyName = (k) => k === 'off' ? t('off') : MAC ? k.replace('Control+', '⌃').replace('Alt+', '⌥') : k.replace('Control', 'Ctrl')
   $('hotkey').replaceChildren(...s.hotkeys.map((k) => new Option(keyName(k), k)))
   $('hotkey').value = s.hotkey
-  $('hotkeyHow').textContent = s.hotkeyOk ? '어디서든 눌러 창을 띄우고, 한 번 더 누르면 숨깁니다' : keyName(s.hotkey) + '은 다른 프로그램이 쓰고 있습니다 — 다른 키를 골라 주세요'
+  $('hotkeyHow').textContent = s.hotkeyOk ? t('hotkeyHow') : t('hotkeyTaken', keyName(s.hotkey))
   $('hotkeyHow').style.color = s.hotkeyOk ? '' : 'var(--warn)'
   const u = s.update
-  $('updState').textContent = { dev: '개발 중인 앱은 업데이트하지 않습니다', idle: '확인 전', checking: '확인하는 중…', latest: '최신 버전입니다', none: '아직 올라온 릴리스가 없습니다', downloading: (u.version || '새 버전') + ' 받는 중… ' + (u.percent || 0) + '%', ready: u.version + ' 받음 — 다시 시작하면 적용됩니다', available: (u.version || '새 버전') + ' 나옴 — 받는 곳에서 새로 설치해 주세요', error: '확인하지 못했습니다 (인터넷이나 GitHub 연결)' }[u.status] || u.status
+  $('updState').textContent = UPDATE_STATES.includes(u.status) ? t(u.status, u.version, u.percent || 0) : u.status
   $('updState').className = 'state ' + (u.status === 'ready' || u.status === 'latest' ? 'ok' : u.status === 'error' ? 'warn' : '')
   $('checkUpdates').disabled = u.status === 'dev' || u.status === 'checking' || u.status === 'downloading'
   $('installUpdate').hidden = u.status !== 'ready' && u.status !== 'available'
-  $('installUpdate').textContent = u.status === 'available' ? '받으러 가기' : '설치하고 다시 시작'
-  $('updHow').textContent = MAC ? '켤 때와 6시간마다 확인하고, 새 버전이 나오면 알려 줍니다' : '켤 때와 6시간마다 확인하고, 받아 두었다가 다시 시작할 때 설치합니다'
+  $('installUpdate').textContent = t(u.status === 'available' ? 'get' : 'install')
+  $('updHow').textContent = t('updHow')
 }
 $('openAtLogin').addEventListener('change', (e) => api.set('openAtLogin', e.target.checked).then(load))
 $('closeToTray').addEventListener('change', (e) => api.set('closeToTray', e.target.checked).then(load))

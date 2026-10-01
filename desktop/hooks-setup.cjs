@@ -4,7 +4,9 @@ const path = require('node:path')
 const os = require('node:os')
 const { execFileSync } = require('node:child_process')
 
-module.exports = function hookSetup({ hooksDir, execPath, settingsPath = path.join(os.homedir(), '.claude', 'settings.json'), node }) {
+// lang: the app's language at the moment ('ko' or 'en'), for the one message a person may see
+module.exports = function hookSetup({ hooksDir, execPath, settingsPath = path.join(os.homedir(), '.claude', 'settings.json'), node, lang = () => 'en' }) {
+const UNREADABLE = { ko: ' 파일을 읽을 수 없습니다', en: ' could not be read' }
 const CLAUDE_SETTINGS = settingsPath
 const HOOKS = hooksDir
 const cmdText = (h) => [h.command, ...(h.args || [])].join(' ')
@@ -78,7 +80,7 @@ function hookState() {
 // replaces the monitor's own entries and leaves every other setting and hook as it was (a backup is kept)
 function installHooks() {
   const cfg = readClaudeSettings()
-  if (!cfg) throw new Error(CLAUDE_SETTINGS + ' could not be read')
+  if (!cfg) throw new Error(CLAUDE_SETTINGS + (UNREADABLE[lang()] || UNREADABLE.en))
   fs.mkdirSync(path.dirname(CLAUDE_SETTINGS), { recursive: true })
   if (fs.existsSync(CLAUDE_SETTINGS)) fs.copyFileSync(CLAUDE_SETTINGS, CLAUDE_SETTINGS + '.before-agent-monitor')
   cfg.hooks = cfg.hooks || {}
