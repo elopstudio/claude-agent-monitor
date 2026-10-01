@@ -96,9 +96,13 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : a.justAfter ? 'monitor restarted right after the last turn — asked to check on it' : 'monitor restarted — send a message to continue', at: Date.now() })
     }
     for (const a of agents.values()) {
-      if (a.midTurn) send(a, CARRY_ON, [])
-      else if (a.justAfter) send(a, JUST_AFTER, [])
+      const why = a.midTurn ? CARRY_ON : a.justAfter ? JUST_AFTER : ''
       delete a.justAfter
+      if (!why) continue
+      // the assistant waits for its role (ensureAssistant, a moment later): started without it, it would not know
+      // what it is, and its own tools would ask the person
+      if (a.kind === 'assistant' && !a.system) { a.resumeWith = why; continue }
+      send(a, why, [])
     }
     notifyPages()
   }
@@ -323,7 +327,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // lets "All OK" (bypassPermissions) be chosen, at the start or later; it is on only while that mode is picked
       '--allow-dangerously-skip-permissions']
     // the assistant: its role, and its monitor tools used without a prompt (anything else still asks the person)
-    if (a.kind === 'assistant' && a.system) args.push('--append-system-prompt', a.system, '--allowedTools', 'mcp__assistant')
+    // its own tools never ask, with or without its role; the role itself once the assistant module has given it
+    if (a.kind === 'assistant') args.push('--allowedTools', 'mcp__assistant')
+    if (a.kind === 'assistant' && a.system) args.push('--append-system-prompt', a.system)
+    a.procHasRole = a.kind === 'assistant' && !!a.system
     if (a.model) args.push('--model', a.model)
     if (a.effort) args.push('--effort', a.effort)
     // quick start: only the monitor's own tool, none of the user's MCP servers and connectors
@@ -641,6 +648,16 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     }
     a.kind = 'assistant'   // a list saved by 312f266 lost it (KEEP had no kind): the fixed id is enough
     a.system = system   // the role as this version of the monitor writes it, never saved
+    // a claude started before it had its role gets it now: at once when free, else once its turn is over
+    if (a.proc && !a.procHasRole) { if (a.state === 'working') a.restartAfterTurn = true; else { a.respawn = true; stop(a) } }
+    // cut short by a restart: carry on now that it knows what it is
+    // (not into a claude still on its way out: once the one with the role is there)
+    if (a.resumeWith) {
+      const why = a.resumeWith
+      delete a.resumeWith
+      const go = (n) => (a.proc && !a.procHasRole && n < 50 ? setTimeout(() => go(n + 1), 200) : send(a, why, []))
+      go(0)
+    }
     return a
   }
   const assistantState = () => { const a = agents.get('assistant'); return a ? { state: a.state, running: !!a.proc, mode: a.mode, model: a.model, effort: a.effort || '', sessionId: a.sessionId, avatar: a.avatar || null } : null }
