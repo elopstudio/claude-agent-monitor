@@ -708,6 +708,16 @@ function hookEvent(input, res, opts = {}) {
       suggestions, options: suggestions.map(suggestionLabel), at: Date.now(), expiresAt: Date.now() + wait, managed: !!opts.managed, done,
     })
     notifyPages()
+    // a linked PC tells the phone app (a push if the app is not open): who waits, and for which tool — nothing more
+    cachedState().then((s) => {
+      const a = s.approvals.find((x) => x.id === id)
+      if (!a || !a.session) return
+      cloud.notify({
+        kind: a.questions ? 'question' : a.plan ? 'plan' : 'approval',
+        agent: { name: a.session, managed: !!a.managed, ...(a.session.startsWith('monitor-') ? { agentId: a.session.slice(8) } : {}) },
+        title: a.nickKo || a.nick || a.short || a.session, tool: a.tool,
+      })
+    }).catch(() => {})
   })
 }
 

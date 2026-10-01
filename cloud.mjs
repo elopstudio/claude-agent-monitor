@@ -279,6 +279,13 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, local = 
 
   if (saved) setTimeout(relayStart, 1000).unref?.()   // once the local server listens
 
+  // a request is waiting on this PC: the server tells the phone (live if the app is open, a push if not).
+  // Only who and which tool go: { kind, agent: { name, agentId?, managed }, title, tool } — no command, no question text.
+  function notify(n) {
+    if (!relay || relayState !== 'on' || !n?.agent?.name) return
+    out(relay.ws, { t: 'notify', kind: n.kind, agent: n.agent, title: String(n.title || '').slice(0, 40), tool: String(n.tool || '').slice(0, 40) })
+  }
+
   // for the page (behind the monitor's token)
   async function info(fresh) {
     if (saved) await check(fresh)
@@ -300,5 +307,5 @@ export function createCloud({ dataDir, version, notifyPages = () => {}, local = 
     return [404, {}]
   }
 
-  return { info, handle, stop: () => { clearInterval(beat); stopEnrolling(); relayStop() } }
+  return { info, handle, notify, stop: () => { clearInterval(beat); stopEnrolling(); relayStop() } }
 }
