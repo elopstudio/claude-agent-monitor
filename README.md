@@ -90,6 +90,8 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   above it scrolls with the dialog (one scrollbar), with **Stop** and **End agent** kept in view at its top. Where the
   message will be delivered (at once, after this turn) is on the send button's tooltip; only a problem shows, inside the
   box. The new-agent dialog takes its first message in the same box.
+- **Copy.** A code block in a reply (a command, a snippet) has a copy button at its top right, and a whole reply has one
+  at its bottom right when it is pointed at, for a command written in the text. The assistant's chat has them too.
 - **Images from tools.** An image a tool returned (a screenshot read with Read, an image an MCP tool made) shows under that
   tool's result in the conversation; a click opens it full size. It is read from the session's transcript when the page
   asks for it and is not kept. It is shown on this PC only: an image cannot be masked, so the phone app's relay never

@@ -515,6 +515,17 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .detail .md ul,.detail .md ol{margin:.2em 0 .6em;padding-left:1.4em}
 .detail .md li{margin:.15em 0}
 .detail .md code{font:12.5px var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/* copy buttons: a code block's at its top right, a reply's when it is pointed at */
+.codebox{position:relative}
+.copy{appearance:none;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);border-radius:7px;width:28px;height:26px;display:grid;place-items:center;padding:0;cursor:pointer;transition:opacity .15s,color .15s}
+.copy svg{width:14px;height:14px}
+.copy:hover{color:var(--text);border-color:var(--text)}
+.copy.done{color:var(--run);border-color:var(--run)}
+.codebox .copy{position:absolute;top:6px;right:6px;opacity:.55}
+.codebox:hover .copy,.codebox .copy:focus-visible,.codebox .copy.done{opacity:1}
+.m.assistant,.bub.ai{position:relative}
+.mcopy{position:absolute;right:6px;bottom:4px;opacity:0}
+.m.assistant:hover .mcopy,.bub.ai:hover .mcopy,.mcopy:focus-visible,.mcopy.done{opacity:1}
 .detail .md pre.code{font:12px/1.5 var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow:auto;white-space:pre;margin:.4em 0 .7em}
 .detail .md blockquote{margin:.4em 0;padding:2px 10px;border-left:3px solid var(--line-strong);color:var(--muted)}
 .detail .md hr{border:0;border-top:1px solid var(--line);margin:.8em 0}
@@ -889,7 +900,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
   /* ── Wording ── English is the default; Korean is an option. */
   const I18N = {
     en: {
-      title: 'ELOP Crew', tagline: 'AI Agent Monitor', live: 'Live', connecting: 'Connecting', offline: 'Offline', updated: 'Updated {t}',
+      title: 'ELOP Crew', tagline: 'AI Agent Monitor', copy: 'Copy', copied: 'Copied', copyFailed: 'Could not copy', live: 'Live', connecting: 'Connecting', offline: 'Offline', updated: 'Updated {t}',
       projects: 'Projects', sessions: 'Sessions', working: 'Working', waiting: 'Waiting', resting: 'Resting',
       leader: 'LEAD', idleBubble: 'Resting', waitBubble: 'Waiting', last: 'Last · {x}',
       forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
@@ -914,7 +925,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       },
     },
     ko: {
-      title: 'ELOP Crew', tagline: 'AI Agent Monitor', live: '실시간', connecting: '연결 중', offline: '끊김', updated: '갱신 {t}',
+      title: 'ELOP Crew', tagline: 'AI Agent Monitor', copy: '복사', copied: '복사했습니다', copyFailed: '복사하지 못했습니다', live: '실시간', connecting: '연결 중', offline: '끊김', updated: '갱신 {t}',
       projects: '프로젝트', sessions: '세션', working: '작업 중', waiting: '대기', resting: '쉬는 중',
       leader: '리더', idleBubble: '쉬는 중', waitBubble: '대기 중', last: '마지막 · {x}',
       forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
@@ -1138,6 +1149,35 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     if (last < text.length) frag.append(document.createTextNode(text.slice(last)));
     return frag;
   }
+  // copies what get() returns to the clipboard; the button shows a tick for a moment
+  const COPY_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.2"/></svg>';
+  const DONE_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.2 8.4l3 3 6.6-6.8"/></svg>';
+  async function toClipboard(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+    // where the clipboard API is not allowed: the old way, through a hidden box
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.append(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    ta.remove();
+    return ok;
+  }
+  function copyButton(get, cls) {
+    const b = el('button', 'copy' + (cls ? ' ' + cls : ''));
+    b.type = 'button'; b.title = t('copy'); b.setAttribute('aria-label', t('copy'));
+    b.innerHTML = COPY_SVG;   // static shapes only
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const ok = await toClipboard(String(get() || ''));
+      b.innerHTML = ok ? DONE_SVG : COPY_SVG;
+      b.classList.toggle('done', ok);
+      b.title = ok ? t('copied') : t('copyFailed');
+      clearTimeout(b.timer);
+      b.timer = setTimeout(() => { b.innerHTML = COPY_SVG; b.classList.remove('done'); b.title = t('copy'); }, 1500);
+    });
+    return b;
+  }
   function mdNode(text) {
     const frag = document.createDocumentFragment();
     const lines = String(text || '').split('\n');
@@ -1152,7 +1192,10 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
         i++;
         while (i < lines.length && !/^\s*\x60\x60\x60/.test(lines[i])) body.push(lines[i++]);
         i++;
-        frag.append(el('pre', 'code', body.join('\n')));
+        // a code block (a command, a snippet) has its own copy button at its top right
+        const box = el('div', 'codebox'), pre = el('pre', 'code', body.join('\n'));
+        box.append(pre, copyButton(() => pre.textContent));
+        frag.append(box);
         continue;
       }
       let m;
@@ -1310,6 +1353,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
             m.append(fl);
           }
           m.append(el('div', 'ts', time(e.at)));
+          // a whole reply can be copied too (a command written in the text, not in a block)
+          if (e.role === 'assistant' && e.text) { const mt = m.querySelector('.mt'); m.append(copyButton(() => mt.innerText, 'mcopy')); }
           add(m);
         } else if (e.role === 'tool') {
           const d = el('details', 'm tool');
@@ -1368,6 +1413,8 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
           open.clear();
           m = el('div', 'm assistant');
           m.append(el('div', 'mt md', ''), el('div', 'ts', time(ev.at)));
+          const mt = m.firstChild;
+          m.append(copyButton(() => mt.innerText, 'mcopy'));
           blocks.set(key, m);
           add(m);
         }
@@ -3565,7 +3612,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (ev.done) counts = true;
       // claude often hands over a reply in a few big pieces (after a tool call, hundreds of characters at once): a live
       // reply is let out over a moment, as if typed, catching up within about a second; one read back appears whole
-      if (fresh) assistReveal(b); else { b.shown = b.full.length; b.replaceChildren(mdNode(b.full)); if (b.done) b.append(el('div', 'ts', time(b.at))); }
+      if (fresh) assistReveal(b); else { b.shown = b.full.length; b.replaceChildren(mdNode(b.full)); if (b.done) b.append(el('div', 'ts', time(b.at)), copyButton(() => b.full, 'mcopy')); }
     } else if (ev.kind === 'tool') {
       const n = str(ev.name).replace(/^mcp__assistant__/, '');
       l.insertBefore(el('div', 'tchip', '· ' + (t('assistTool_' + n) !== 'assistTool_' + n ? t('assistTool_' + n) : n)), l.querySelector('.typing'));
@@ -3589,7 +3636,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (left > 0) b.shown += Math.max(3, Math.ceil(left / 12));   // ~12 steps of 40 ms to catch up, never slower than 75 chars/s
       const stick = atBottom();
       b.replaceChildren(mdNode(b.full.slice(0, b.shown)));
-      if (b.shown >= b.full.length && b.done) { b.append(el('div', 'ts', p2c(new Date(b.at || Date.now()).getHours()) + ':' + p2c(new Date(b.at || Date.now()).getMinutes()))); }
+      if (b.shown >= b.full.length && b.done) { b.append(el('div', 'ts', p2c(new Date(b.at || Date.now()).getHours()) + ':' + p2c(new Date(b.at || Date.now()).getMinutes())), copyButton(() => b.full, 'mcopy')); }
       if (stick) toBottom();
       b.timer = b.shown < b.full.length ? setTimeout(step, 40) : null;
     };
