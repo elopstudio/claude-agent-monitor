@@ -1,7 +1,7 @@
 {
   "name": "agent-monitor-desktop",
   "productName": "ELOP Crew",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "private": true,
   "description": "ELOP Crew (AI Agent Monitor) as a desktop app: the monitor server in its own window and the tray",
   "license": "PolyForm-Noncommercial-1.0.0",
