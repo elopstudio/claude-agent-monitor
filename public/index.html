@@ -643,6 +643,27 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .procs .pkill:hover{border-color:var(--block)}
 .procs .pkill:disabled{opacity:.4;cursor:default}
 .procs .pnone{color:var(--muted);font-size:13px;padding:20px;text-align:center}
+/* the last quarter hour, stacked by agent, with the whole PC as a dashed line over it; colours validated as a set */
+.procs .pchart{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--so:#b9bfca;position:relative;border:1px solid var(--line);border-radius:10px;padding:9px 12px 6px;background:var(--surface)}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .procs .pchart{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--so:#4a5262} }
+:root[data-theme="dark"] .procs .pchart{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--so:#4a5262}
+.procs .pclegend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.procs .pclegend .pctitle{color:var(--text);font-size:12.5px;margin-right:auto}
+.procs .pli{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.procs .pli b{color:var(--text);font-variant-numeric:tabular-nums}
+.procs .pli .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.procs .pli .ln{width:14px;border-top:2px dashed var(--muted);flex:none}
+.procs button.pli{appearance:none;border:1px solid var(--line);background:none;border-radius:6px;padding:1px 7px;font:12px var(--sans);color:var(--muted);cursor:pointer}
+.procs button.pli[aria-pressed="false"] .ln{opacity:.4}
+.procs .pchart svg{display:block;width:100%;overflow:visible}
+.procs .pchart svg text{font:10.5px var(--sans);fill:var(--faint);font-variant-numeric:tabular-nums}
+.procs .pcwait{color:var(--muted);font-size:12.5px;padding:26px 0;text-align:center}
+.procs .pctip{position:absolute;z-index:2;pointer-events:none;background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--muted);box-shadow:0 6px 20px rgba(0,0,0,.14);white-space:nowrap;display:grid;gap:2px}
+.procs .pctip[hidden]{display:none}
+.procs .pctip .r{display:flex;align-items:center;gap:7px}
+.procs .pctip .k{width:12px;border-top:2px solid;flex:none}
+.procs .pctip .k.d{border-top-style:dashed}
+.procs .pctip b{color:var(--text);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
 .acct{padding:14px 16px 16px;display:grid;gap:12px;font-size:13px}
 .acct .part{display:grid;gap:12px}
 .acct .cloud{border-top:1px solid var(--line);padding-top:12px}
@@ -721,7 +742,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: 'LEAD', idleBubble: 'Resting', waitBubble: 'Waiting', last: 'Last · {x}',
       forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
-      board: 'Board', decidedBy: '{x} decided · {t}', procs: 'Processes', procTitle: 'What the agents have running', procChip: '{n} process(es) started by agents · CPU {cpu} · {mem}', procNone: 'No agent has anything running', procSum: '{n} running · CPU {cpu} · {mem} · checked {t}', procGroup: '{n} · CPU {cpu} · {mem}', procByCpu: 'Most CPU first', procByMem: 'Most memory first', procHooks: 'Show the monitor\'s own helpers', procEnd: 'End', procEndAsk: 'End {x} and what it started? Unsaved work in it is lost.', procHint: 'Processes the Claude Code sessions started — shells, dev servers, MCP servers, background tasks. CPU is a share of the whole PC since the last look; command lines are masked. Only these can be ended here.', pk_shell: 'shell', pk_mcp: 'MCP', pk_hook: 'monitor', pvShow: 'Preview', pvGone: 'This file is no longer here — attachments are kept for a day.', pvNone: 'No preview for this kind of file.', pvDownload: 'Download', pvCut: '(only the first {n} KB)', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
+      board: 'Board', decidedBy: '{x} decided · {t}', procs: 'Processes', procTitle: 'What the agents have running', procChip: '{n} process(es) started by agents · CPU {cpu} · {mem}', procNone: 'No agent has anything running', procSum: '{n} running · CPU {cpu} · {mem} · checked {t}', procGroup: '{n} · CPU {cpu} · {mem}', procByCpu: 'Most CPU first', procByMem: 'Most memory first', procHooks: 'Show the monitor\'s own helpers', procEnd: 'End', procEndAsk: 'End {x} and what it started? Unsaved work in it is lost.', procHint: 'Processes the Claude Code sessions started — shells, dev servers, MCP servers, background tasks. CPU is a share of the whole PC since the last look; memory is what Task Manager shows (what the process has to itself); command lines are masked. Only these can be ended here.', procChartCpu: 'CPU · last 15 minutes', procChartMem: 'Memory · last 15 minutes', procPc: 'Whole PC', procOther: 'Other agents', procWait: 'The chart fills in as the numbers come in, one point every few seconds.', procAgo: '{n} min ago', procNow: 'now', pk_shell: 'shell', pk_mcp: 'MCP', pk_hook: 'monitor', pvShow: 'Preview', pvGone: 'This file is no longer here — attachments are kept for a day.', pvNone: 'No preview for this kind of file.', pvDownload: 'Download', pvCut: '(only the first {n} KB)', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
       askTitle: 'NEEDS APPROVAL', asksFor: 'Asking to run {x}', asking: 'WAITING FOR YOU', unknownAgent: 'an agent outside the list', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', goneWhile: 'Not answered here in time — it went back to VS Code (or was answered there).', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
@@ -746,7 +767,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: '리더', idleBubble: '쉬는 중', waitBubble: '대기 중', last: '마지막 · {x}',
       forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
-      board: '작업판', decidedBy: '{x} 결정 · {t}', procs: '프로세스', procTitle: '에이전트가 실행 중인 것', procChip: '에이전트가 띄운 프로세스 {n}개 · CPU {cpu} · {mem}', procNone: '에이전트가 띄워 둔 것이 없습니다', procSum: '{n}개 실행 중 · CPU {cpu} · {mem} · {t} 확인', procGroup: '{n}개 · CPU {cpu} · {mem}', procByCpu: 'CPU 많은 순', procByMem: '메모리 많은 순', procHooks: '모니터 자체 도우미도 보기', procEnd: '끄기', procEndAsk: '{x} 와 그것이 띄운 것까지 끌까요? 저장하지 않은 작업은 사라집니다.', procHint: 'Claude Code 세션이 띄운 프로세스입니다 — 셸, 개발 서버, MCP 서버, 백그라운드 작업. CPU 는 지난 확인 이후 PC 전체 대비 사용률이고, 명령줄은 가려서 보여 줍니다. 여기서는 이것들만 끌 수 있습니다.', pk_shell: '셸', pk_mcp: 'MCP', pk_hook: '모니터', pvShow: '미리 보기', pvGone: '파일이 없습니다 — 첨부 파일은 하루만 보관합니다.', pvNone: '이 형식은 미리 볼 수 없습니다.', pvDownload: '내려받기', pvCut: '(앞 {n} KB 만)', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
+      board: '작업판', decidedBy: '{x} 결정 · {t}', procs: '프로세스', procTitle: '에이전트가 실행 중인 것', procChip: '에이전트가 띄운 프로세스 {n}개 · CPU {cpu} · {mem}', procNone: '에이전트가 띄워 둔 것이 없습니다', procSum: '{n}개 실행 중 · CPU {cpu} · {mem} · {t} 확인', procGroup: '{n}개 · CPU {cpu} · {mem}', procByCpu: 'CPU 많은 순', procByMem: '메모리 많은 순', procHooks: '모니터 자체 도우미도 보기', procEnd: '끄기', procEndAsk: '{x} 와 그것이 띄운 것까지 끌까요? 저장하지 않은 작업은 사라집니다.', procHint: 'Claude Code 세션이 띄운 프로세스입니다 — 셸, 개발 서버, MCP 서버, 백그라운드 작업. CPU 는 지난 확인 이후 PC 전체 대비 사용률이고, 메모리는 작업 관리자와 같은 기준(그 프로세스 혼자 쓰는 메모리)이며, 명령줄은 가려서 보여 줍니다. 여기서는 이것들만 끌 수 있습니다.', procChartCpu: 'CPU · 최근 15분', procChartMem: '메모리 · 최근 15분', procPc: 'PC 전체', procOther: '그 밖의 에이전트', procWait: '몇 초마다 한 번씩 재서 차트를 채웁니다.', procAgo: '{n}분 전', procNow: '지금', pk_shell: '셸', pk_mcp: 'MCP', pk_hook: '모니터', pvShow: '미리 보기', pvGone: '파일이 없습니다 — 첨부 파일은 하루만 보관합니다.', pvNone: '이 형식은 미리 볼 수 없습니다.', pvDownload: '내려받기', pvCut: '(앞 {n} KB 만)', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
       askTitle: '승인 필요', asksFor: '{x} 실행 허락을 기다리는 중', asking: '승인 대기', unknownAgent: '목록에 없는 에이전트', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', goneWhile: '여기서 제시간에 답하지 못해 VS Code로 넘어갔습니다(또는 거기서 답했습니다).', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
@@ -2319,8 +2340,102 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const list = el('div', 'plist');
     let data = null;
     const up = (ms) => { if (!ms) return ''; const m = Math.round((Date.now() - ms) / 60000); return m < 60 ? t('m', { n: m }) : m < 1440 ? t('hm', { h: Math.floor(m / 60), m: m % 60 }) : t('d', { n: Math.floor(m / 1440) }); };
+    // the chart: each agent's share stacked (the five busiest over the window, the rest as one), the whole PC dashed above
+    const chart = el('div', 'pchart');
+    const slots = new Map();   // agent → colour, kept while the dialog is open so a colour follows its agent, not its rank
+    let showPc = false, hoverAt = null;   // off at first: beside the whole PC the agents' share is often a sliver
+    try { showPc = localStorage.getItem('am.procPc') === '1'; } catch (e) {}
+    const SVG = 'http://www.w3.org/2000/svg';
+    const svgEl = (tag, attrs, style) => { const n = document.createElementNS(SVG, tag); for (const k in attrs || {}) n.setAttribute(k, attrs[k]); Object.assign(n.style, style || {}); return n; };
+    const nameOf = (n) => { const s = data.sessions.find((g) => g.name === n) || ((last?.projects || []).flatMap((p) => p.sessions)).find((x) => x.name === n); return s && str(lang === 'ko' && s.nickKo || s.nick) || str(n); };
+    const nice = (v) => { const e = 10 ** Math.floor(Math.log10(v)); return [1, 2, 2.5, 5, 10].map((m) => m * e).find((x) => x >= v - 1e-9); };
+    function drawChart() {
+      const key = sort.value, idx = key === 'cpu' ? 0 : 1, H = data.history || [];
+      const fmt = (v) => (!v ? '0' : key === 'cpu' ? pct(v) : bytes(v));
+      const legend = el('div', 'pclegend');
+      legend.append(el('b', 'pctitle', t(key === 'cpu' ? 'procChartCpu' : 'procChartMem')));
+      chart.replaceChildren(legend);
+      if (H.length < 2) { chart.append(el('div', 'pcwait', t('procWait'))); return; }
+      const sum = new Map();
+      for (const h of H) for (const n in h.by) sum.set(n, (sum.get(n) || 0) + h.by[n][idx]);
+      const ranked = [...sum].filter((x) => x[1] > 0).sort((a, c) => c[1] - a[1]).map((x) => x[0]);
+      const shown = ranked.slice(0, 5), rest = ranked.slice(5), used = new Set();
+      for (const n of shown) if (slots.has(n) && !used.has(slots.get(n))) used.add(slots.get(n)); else slots.delete(n);
+      for (const n of shown) if (!slots.has(n)) { let i = 1; while (used.has(i)) i++; slots.set(n, i); used.add(i); }
+      shown.sort((a, c) => slots.get(a) - slots.get(c));
+      const series = shown.map((n) => ({ label: nameOf(n), color: 'var(--s' + slots.get(n) + ')', v: (h) => h.by[n]?.[idx] || 0 }));
+      if (rest.length) series.push({ label: t('procOther'), color: 'var(--so)', v: (h) => rest.reduce((a, n) => a + (h.by[n]?.[idx] || 0), 0) });
+      const pcv = (h) => (key === 'cpu' ? h.cpu : h.mem), stackOf = (h) => series.reduce((a, s) => a + s.v(h), 0);
+      const now = H[H.length - 1];
+      for (const s of series) {
+        const li = el('span', 'pli'), sw = el('i', 'sw');
+        sw.style.background = s.color;
+        li.append(sw, document.createTextNode(s.label), el('b', null, fmt(s.v(now))));
+        legend.append(li);
+      }
+      const pcBtn = el('button', 'pli');
+      pcBtn.type = 'button';
+      pcBtn.setAttribute('aria-pressed', String(showPc));
+      pcBtn.append(el('i', 'ln'), document.createTextNode(t('procPc')), el('b', null, fmt(pcv(now))));
+      pcBtn.addEventListener('click', () => { showPc = !showPc; try { localStorage.setItem('am.procPc', showPc ? '1' : '0'); } catch (e) {} drawChart(); });
+      legend.append(pcBtn);
+
+      const GB = 1073741824, peak = Math.max(...H.map((h) => (showPc ? Math.max(pcv(h), stackOf(h)) : stackOf(h))));
+      const top = key === 'cpu' ? Math.min(100, nice(Math.max(peak, 1))) : nice(Math.max(peak, GB / 8) / GB) * GB;
+      const W = Math.max(320, chart.clientWidth - 24), HT = 150, L = 46, R = 8, T = 6, B = 18;
+      const end = now.at, start = end - 15 * 60000;
+      const x = (at) => L + Math.max(0, (at - start) / (end - start)) * (W - L - R), y = (v) => T + (1 - Math.min(v, top) / top) * (HT - T - B);
+      const svg = svgEl('svg', { viewBox: `0 0 ${W} ${HT}`, height: HT, role: 'img', 'aria-label': t(key === 'cpu' ? 'procChartCpu' : 'procChartMem') });
+      for (const f of [0, 0.5, 1]) {
+        svg.append(svgEl('line', { x1: L, x2: W - R, y1: y(top * f), y2: y(top * f) }, { stroke: f ? 'var(--line)' : 'var(--line-strong)', strokeWidth: 1 }));
+        const lab = svgEl('text', { x: L - 6, y: y(top * f) + 3.5, 'text-anchor': 'end' });
+        lab.textContent = fmt(top * f);
+        svg.append(lab);
+      }
+      for (const m of [15, 10, 5, 0]) {
+        const lab = svgEl('text', { x: x(end - m * 60000), y: HT - 4, 'text-anchor': m === 15 ? 'start' : m ? 'middle' : 'end' });
+        lab.textContent = m ? t('procAgo', { n: m }) : t('procNow');
+        svg.append(lab);
+      }
+      // a stretch with no look in it (no page open, a busy PC) is a gap, not a straight line across
+      const runs = [[]];
+      H.forEach((h, i) => { if (i && h.at - H[i - 1].at > 90000) runs.push([]); runs[runs.length - 1].push(h); });
+      for (const run of runs.filter((r) => r.length > 1)) {
+        let base = run.map(() => 0);
+        for (const s of series) {
+          const upper = run.map((h, i) => base[i] + s.v(h));
+          const d = 'M' + run.map((h, i) => x(h.at).toFixed(1) + ',' + y(upper[i]).toFixed(1)).join('L') + 'L' + run.map((h, i) => x(h.at).toFixed(1) + ',' + y(base[i]).toFixed(1)).reverse().join('L') + 'Z';
+          svg.append(svgEl('path', { d }, { fill: s.color, stroke: 'var(--surface)', strokeWidth: 1, strokeLinejoin: 'round' }));
+          base = upper;
+        }
+        if (showPc) svg.append(svgEl('polyline', { points: run.map((h) => x(h.at).toFixed(1) + ',' + y(pcv(h)).toFixed(1)).join(' ') }, { fill: 'none', stroke: 'var(--muted)', strokeWidth: 2, strokeDasharray: '4 3', strokeLinejoin: 'round' }));
+      }
+      // hover: a crosshair snapped to the nearest look, every series' value at it
+      const cross = svgEl('line', { y1: T, y2: HT - B }, { stroke: 'var(--faint)', strokeWidth: 1, display: 'none' });
+      const hit = svgEl('rect', { x: L, y: 0, width: W - L - R, height: HT }, { fill: 'transparent' });
+      svg.append(cross, hit);
+      const tip = el('div', 'pctip');
+      tip.hidden = true;
+      const show = (at) => {
+        const h = H.reduce((b, c) => (Math.abs(c.at - at) < Math.abs(b.at - at) ? c : b));
+        hoverAt = at;
+        Object.assign(cross.style, { display: '' });
+        cross.setAttribute('x1', x(h.at)); cross.setAttribute('x2', x(h.at));
+        const row = (color, dashed, v, label) => { const r = el('div', 'r'), k = el('i', 'k' + (dashed ? ' d' : '')); k.style.borderTopColor = color; r.append(k, el('b', null, fmt(v)), document.createTextNode(label)); return r; };
+        tip.replaceChildren(el('div', null, new Date(h.at).toLocaleTimeString(lang === 'ko' ? 'ko-KR' : 'en-US')), ...(showPc ? [row('var(--muted)', true, pcv(h), t('procPc'))] : []), ...series.slice().reverse().map((s) => row(s.color, false, s.v(h), s.label)));
+        tip.hidden = false;
+        const px = x(h.at) / W * svg.clientWidth + 12;
+        tip.style.top = (legend.offsetHeight + 14) + 'px';
+        tip.style.left = (px + tip.offsetWidth > chart.clientWidth ? px - tip.offsetWidth - 24 : px) + 'px';
+      };
+      hit.addEventListener('pointermove', (e) => { const r = svg.getBoundingClientRect(); show(start + ((e.clientX - r.left) * W / r.width - L) / (W - L - R) * (end - start)); });
+      hit.addEventListener('pointerleave', () => { hoverAt = null; tip.hidden = true; cross.style.display = 'none'; });
+      chart.append(svg, tip);
+      if (hoverAt != null) show(hoverAt);
+    }
     function draw() {
       if (!data) return;
+      drawChart();
       const key = sort.value;
       const groups = data.sessions.filter((g) => g.procs.some((p) => p.kind !== 'hook') || hooksBox.checked)
         .sort((a, c) => (c.total[key] || 0) - (a.total[key] || 0));
@@ -2364,7 +2479,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     sort.addEventListener('change', () => { try { localStorage.setItem('am.procSort', sort.value); } catch (e) {} draw(); });
     hooksBox.addEventListener('change', draw);
     const body = el('div', 'procs');
-    body.append(bar, list, el('div', 'hint', t('procHint')));
+    body.append(bar, chart, list, el('div', 'hint', t('procHint')));
     d.classList.remove('narrow');
     d.replaceChildren(head, dbody(body));
     if (!d.open) d.showModal();

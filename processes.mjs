@@ -16,8 +16,10 @@ const CORES = Math.max(1, os.cpus().length)
 const HOOK = /[\\/]hooks[\\/](inbox|bridge|permission-mcp)\.mjs/i
 const CONSOLE = /^(conhost|OpenConsole)\.exe$/i
 
+// memory is the private working set, what Task Manager shows: the plain working set counts the shared system DLLs
+// again in every process, so a small node process read 50 MB instead of 10 and a session's total came out far too big
 function queryWindows() {
-  const ps = "Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name,CommandLine,WorkingSetSize,KernelModeTime,UserModeTime,CreationDate | ForEach-Object { [pscustomobject]@{ i = $_.ProcessId; p = $_.ParentProcessId; n = $_.Name; c = $_.CommandLine; m = [double]$_.WorkingSetSize; t = [double]($_.KernelModeTime + $_.UserModeTime) / 10000; s = $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') } else { '' }) } } | ConvertTo-Json -Compress"
+  const ps = "$priv = @{}; Get-CimInstance Win32_PerfRawData_PerfProc_Process -Property IDProcess,WorkingSetPrivate | ForEach-Object { $priv[[int]$_.IDProcess] = [double]$_.WorkingSetPrivate }; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name,CommandLine,WorkingSetSize,KernelModeTime,UserModeTime,CreationDate | ForEach-Object { [pscustomobject]@{ i = $_.ProcessId; p = $_.ParentProcessId; n = $_.Name; c = $_.CommandLine; m = $(if ($priv.ContainsKey([int]$_.ProcessId)) { $priv[[int]$_.ProcessId] } else { [double]$_.WorkingSetSize }); t = [double]($_.KernelModeTime + $_.UserModeTime) / 10000; s = $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') } else { '' }) } } | ConvertTo-Json -Compress"
   return new Promise((resolve) => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, maxBuffer: 64 * 1024 * 1024, timeout: 30000 }, (err, out) => {
     if (err) return resolve(null)
     try { const list = JSON.parse(String(out).replace(/^﻿/, '')); resolve((Array.isArray(list) ? list : [list]).map((x) => ({ pid: x.i, ppid: x.p, name: x.n || '', cmd: x.c || '', mem: x.m || 0, cpuMs: x.t || 0, start: Date.parse(x.s) || 0 }))) } catch { resolve(null) }
@@ -39,6 +41,28 @@ export function createProcesses({ mask, clip }) {
   let snap = null        // { at, list, byParent: Map(ppid → [proc]), byPid: Map }
   let running = null
   let before = new Map()  // pid → { cpuMs, at } from the last snapshot, for CPU use since then
+  // the last quarter hour, one point per snapshot, for the dialog's chart: the whole PC, and each session that a card
+  // or the dialog asked about lately — so the chart already has a past when the dialog opens
+  const HISTORY = 15 * 60000
+  let history = []        // [{ at, cpu, mem, by: { name: [cpu, mem] } }]
+  const watched = new Map() // session pid → { name, seen }
+  const watch = (pid, name) => { if (pid && name) watched.set(pid, { name, seen: Date.now() }) }
+
+  function record(s) {
+    // the first snapshot has nothing to measure CPU against yet
+    if (!s.list.some((p) => p.cpu != null)) return
+    const by = {}
+    for (const [pid, w] of watched) {
+      if (s.at - w.seen > 120000) { watched.delete(pid); continue }
+      if (!s.byPid.has(pid)) continue
+      const t = totals(descendants(s, pid)), had = by[w.name] || [0, 0]
+      by[w.name] = [had[0] + Math.round(t.cpu * 10) / 10, had[1] + t.mem]
+    }
+    // the whole PC: every process but the idle one (pid 0), and the memory in use
+    const cpu = Math.min(100, s.list.reduce((a, p) => a + (p.pid ? p.cpu || 0 : 0), 0))
+    history.push({ at: s.at, cpu: Math.round(cpu * 10) / 10, mem: os.totalmem() - os.freemem(), by })
+    history = history.filter((h) => s.at - h.at <= HISTORY)
+  }
 
   function refresh() {
     if (running) return running
@@ -55,6 +79,7 @@ export function createProcesses({ mask, clip }) {
       const byParent = new Map(), byPid = new Map()
       for (const p of list) { byPid.set(p.pid, p); if (!byParent.has(p.ppid)) byParent.set(p.ppid, []); byParent.get(p.ppid).push(p) }
       snap = { at, list, byParent, byPid }
+      record(snap)
       return snap
     }).finally(() => { running = null })
     return running
@@ -84,17 +109,19 @@ export function createProcesses({ mask, clip }) {
     return { n: work.length, cpu: work.reduce((a, p) => a + (p.cpu || 0), 0), mem: work.reduce((a, p) => a + p.mem, 0), hooks: list.length - work.length }
   }
   // for a card: how much the session has running, from the last snapshot (refreshed in the background)
-  function summary(pid) {
+  function summary(pid, name) {
+    watch(pid, name)
     const s = current(20000)
     if (!s || !pid || !s.byPid.has(pid)) return null
     return totals(descendants(s, pid))
   }
   // for the processes dialog: every session's descendants, the session itself first
   async function list(roots) {
+    for (const r of roots) watch(r.pid, r.info?.name)
     const s = await fresh(4000)
-    if (!s) return { at: null, sessions: [] }
+    if (!s) return { at: null, sessions: [], history: [] }
     return {
-      at: s.at, cores: CORES,
+      at: s.at, cores: CORES, memTotal: os.totalmem(), history,
       sessions: roots.filter((r) => r.pid && s.byPid.has(r.pid)).map((r) => {
         const self = s.byPid.get(r.pid), procs = descendants(s, r.pid)
         return { ...r.info, self: { cpu: self.cpu, mem: self.mem, start: self.start }, total: totals(procs), procs }

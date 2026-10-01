@@ -427,7 +427,7 @@ async function buildState() {
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     sess.away = awayOf(info, s.cwd, key, now)
-    sess.procs = processes.summary(s.pid)   // what it has running: counts only, no commands
+    sess.procs = processes.summary(s.pid, s.name)   // what it has running: counts only, no commands
     const p = projects.get(key)
     p.sessions.push(sess)
     bySession.set(s.sessionId, { sess, project: key })
@@ -454,7 +454,7 @@ async function buildState() {
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     sess.away = awayOf(info, m.cwd, m.key, now)
-    sess.procs = processes.summary(m.pid)
+    sess.procs = processes.summary(m.pid, m.name)
     projects.get(m.key).sessions.push(sess)
     bySession.set(m.sessionId, { sess, project: m.key })
   }
