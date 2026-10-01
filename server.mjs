@@ -352,23 +352,50 @@ const NAMES = [
 function nameHash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h }
 // Runs over every session on the machine at once, so no two agents share a name even across projects
 // (the page shows them side by side on the "all agents" tab). fixedFor(s) returns a name pinned in config.json.
+// An automatic name, once given, is kept (.runtime/names.json, by session id; names only). It used to be worked out
+// afresh on every look, in order of start, each taking the first free name from its hash — so a name picked for one
+// agent, a take-over copying a name, or an earlier session going away moved others to new names, and a restart showed
+// them renamed. Now only a picked name that is the very same moves an automatic one.
+const NAMES_FILE = path.join(DATA, '.runtime', 'names.json')
+const NAMES_KEEP_MS = 30 * 24 * 3600e3
+let given = (() => { try { const g = JSON.parse(fs.readFileSync(NAMES_FILE, 'utf8')); return g && typeof g === 'object' ? g : {} } catch { return {} } })()   // fullId → { n: [en, ko], at }
+function keepGiven(now) {
+  for (const [id, g] of Object.entries(given)) if (!(now - (g?.at || 0) < NAMES_KEEP_MS)) delete given[id]
+  try { fs.mkdirSync(path.dirname(NAMES_FILE), { recursive: true }); fs.writeFileSync(NAMES_FILE, JSON.stringify(given)) } catch {}
+}
 function assignNicks(sessions, fixedFor) {
   const taken = new Set(sessions.map(fixedFor).filter(Boolean).flatMap((f) => [f.en, f.ko]).map((n) => n.toLowerCase()))
   const free = (pair) => !pair.some((n) => taken.has(n.toLowerCase()))
+  const take = (s, pair) => { [s.nick, s.nickKo] = pair; taken.add(pair[0].toLowerCase()); taken.add(pair[1].toLowerCase()) }
+  const now = Date.now(), later = []
+  let changed = false
+  // the names picked by the user first, then the automatic names already given, then new ones from what is left
   for (const s of [...sessions].sort((a, b) => a.startedAt - b.startedAt || a.fullId.localeCompare(b.fullId))) {
     const fixed = fixedFor(s)
     // what the user typed, for the page's name fields: empty ones there mean "automatic"
     s.named = fixed ? fixed.raw : { en: '', ko: '' }
     if (fixed) { s.nick = fixed.en; s.nickKo = fixed.ko; continue }
+    later.push(s)
+  }
+  const fresh = []
+  for (const s of later) {
+    const g = given[s.fullId]
+    if (Array.isArray(g?.n) && g.n.length === 2 && g.n.every((x) => typeof x === 'string' && x) && free(g.n)) {
+      take(s, g.n)
+      if (now - (g.at || 0) > 3600e3) { g.at = now; changed = true }   // seen: kept another month
+    } else fresh.push(s)
+  }
+  for (const s of fresh) {
     const start = nameHash(s.fullId) % NAMES.length
     let pick = null
     for (let i = 0; i < NAMES.length && !pick; i++) {
       const pair = NAMES[(start + i) % NAMES.length]
       if (free(pair)) pick = pair
     }
-    ;[s.nick, s.nickKo] = pick || [s.short, s.short]
-    taken.add(s.nick.toLowerCase()); taken.add(s.nickKo.toLowerCase())
+    take(s, pick || [s.short, s.short])
+    if (s.fullId) { given[s.fullId] = { n: [s.nick, s.nickKo], at: now }; changed = true }
   }
+  if (changed) keepGiven(now)
 }
 
 /* ── Subagents ─────────────────────────────────── */

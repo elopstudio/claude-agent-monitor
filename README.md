@@ -64,7 +64,10 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   name, never the file's path.
 - **Names.** Every agent also gets a person's name — Tom, Mark, … in English, 민준, 서연, … in Korean — so
   `-7f` and `-74` are easy to tell apart. The name is derived from the session id, so it is the same in every
-  browser and on every poll, and no two agents in one project share one. Pin a name with `names` in `config.json`.
+  browser and on every poll, and no two agents share one. Once given, an automatic name is kept
+  (`.runtime/names.json`, by session id, names only, for a month after it was last seen): a restart, an agent coming or
+  going, or a name picked for another agent leaves it alone. Only a name picked for another agent that is the very same
+  moves it to a new one. Pin a name with `names` in `config.json`.
 - **Board** (optional). The project's tasks in progress, queued (numbered), done, and decisions waiting on a human.
 - **Team chat.** Who messaged whom, as one-line summaries.
 - **Subagents.** A card shows `🤖 2` while that many of its subagents (the Agent tool) are running; the agent's dialog has a
