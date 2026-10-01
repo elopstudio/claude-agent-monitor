@@ -41,6 +41,9 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
 - **Counts in the header.** Pointing at (or focusing) a count — projects, sessions, working, waiting, resting —
   lists what it counts: the projects, or the agents with their project, each with its robot's face. A click on an agent opens its dialog, and a click on a
   project opens its tab.
+- **Project names.** A project is named after its folder. **✎** next to the name at the top of its section gives it another
+  name on the page (up to 40 characters), saved as `name` in `config.json`; the folder stays as it is and shows when the name
+  is pointed at. Emptied, the folder's name is back.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
 - **Processes.** **⚙ Processes** in the header, with a count, opens what the agents have running: each agent

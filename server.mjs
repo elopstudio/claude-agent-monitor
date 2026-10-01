@@ -115,6 +115,19 @@ async function saveLook(body) {
   })
 }
 
+// a project's name on the page, picked there: config.json projects.<key>.name. The folder (its key) stays as it is,
+// and an empty name means the folder's own name again
+async function saveProjectName(body) {
+  const key = String(body.project || '').toLowerCase()
+  if (!PROJECT_KEY.test(key)) return 400
+  const name = clip(String(body.name || '').replace(/[\x00-\x1f<>]/g, '').replace(/\s+/g, ' ').trim(), 40)
+  return editConfig((config) => {
+    config.projects = config.projects || {}
+    const p = (config.projects[key] = config.projects[key] || {})
+    if (name && name !== key) p.name = name; else delete p.name
+  })
+}
+
 function loadConfig() {
   try { return JSON.parse(fs.readFileSync(path.join(DATA, 'config.json'), 'utf8')) } catch { return {} }
 }
@@ -518,7 +531,7 @@ async function buildState() {
     p.sessions.sort((a, b) => (b.isLeader - a.isLeader) || a.name.localeCompare(b.name))
     p.messages.sort((a, b) => b.at - a.at)
     out.push({
-      key: p.key, root: p.root, label: cfg.label || '', leader,
+      key: p.key, root: p.root, name: typeof cfg.name === 'string' ? clip(cfg.name, 40) : '', label: cfg.label || '', leader,
       sessions: p.sessions, messages: p.messages.slice(0, MESSAGE_FEED),
       board: boards.get(p.key) || null,
       counts: {
@@ -1351,6 +1364,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/message') { json(await sendMessage(body), {}); return }
       if (url.pathname === '/api/run') { const [code, o] = await runCommand(body); json(code, o); return }
       if (url.pathname === '/api/look') { json(await saveLook(body), {}); return }
+      if (url.pathname === '/api/project-name') { json(await saveProjectName(body), {}); return }
       if (url.pathname === '/api/order') { json(await saveOrder(body), {}); return }
       if (url.pathname === '/api/processes/kill') { json(await processes.kill(Number(body.pid), await processRoots()), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }
