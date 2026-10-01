@@ -574,7 +574,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     if (url.pathname === '/api/agents/close') {
       // kept in the archive when asked — only one with a conversation to carry on
       if (body.archive && isSessionId(a.sessionId) && a.kind !== 'assistant') {
-        saveArchive([{ id: crypto.randomBytes(4).toString('hex'), ...Object.fromEntries(ARCHIVE_KEEP.map((k) => [k, a[k]])), archivedAt: Date.now() }, ...archived().filter((x) => x.sessionId !== a.sessionId)])
+        // a name and a note of the person's own, to find it again later (the conversation's title is not always memorable)
+        const title = clip(String(body.title || '').replace(/[\x00-\x1f<>]/g, ' ').replace(/\s+/g, ' ').trim(), 60)
+        const note = clip(String(body.note || '').replace(/[\x00-\x1f<>]/g, ' ').replace(/\s+/g, ' ').trim(), 200)
+        saveArchive([{ id: crypto.randomBytes(4).toString('hex'), ...Object.fromEntries(ARCHIVE_KEEP.map((k) => [k, a[k]])), title, note, archivedAt: Date.now() }, ...archived().filter((x) => x.sessionId !== a.sessionId)])
       }
       stop(a); agents.delete(a.id); save(); notifyPages(); return [200, {}]
     }
