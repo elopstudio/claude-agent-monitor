@@ -334,7 +334,10 @@ servers and connectors, which starts faster still. Set `"claudePath"` in `config
 The round button at the bottom right (labelled **Assistant** where there is room) opens a chat with the monitor's own
 assistant: one fixed monitor agent (Sonnet by default) that looks after all the others. It is not shown with any
 project and works in a folder of its own under `.runtime/assistant`, so it does not touch your code unless you ask.
-Its message box is the conversation tab's — attach files, and ⚙ for its permission mode, model and effort.
+Its message box is the conversation tab's — attach files, and ⚙ for its permission mode, model and effort, and its
+**look**: one of the eight colours and a headgear, the crown it wears by default among them (an agent's crown means the
+leader, but the assistant is never on the cards). The look is kept with it and drawn on the button, at the top of the
+chat and on its requests.
 Replies appear as they are written. Claude often hands a reply over in a few big pieces (after a tool call, hundreds of
 characters at once), so the chat lets each piece out over a moment, as if typed, and catches up within about a second.
 
@@ -348,7 +351,8 @@ asks you like any agent.
   question or plan; it can never answer its own requests. Each answer it gives appears in the chat with its reason.
 - **Speaking up.** The monitor tells it, at most every 15 seconds and only while it is free, about a request waiting
   more than 2 minutes, an agent that looks stuck, and the plan passing 80 % and 95 %. It handles what it safely can and
-  alerts you only when you are needed: a highlighted line, a badge on the button and a desktop notification.
+  alerts you only when you are needed: a highlighted line, a badge on the button and a desktop notification with its
+  face on it.
 - These events cost tokens only when one happens; nothing about them is written to disk.
 
 ## Desktop app

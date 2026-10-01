@@ -24,6 +24,8 @@ const effortOf = (v) => (EFFORTS.includes(v) ? v : '')
 const ACCS = ["ball","twin","phones","sprout","bolt"]
 // { c: palette index 0-7, acc: headgear } — anything else means "the usual look from the name"
 const avatarOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && ACCS.includes(v.acc) ? { c: v.c, acc: v.acc } : null)
+// the assistant may also keep the crown it wears by default (the leader's mark on the cards, where it never appears)
+const assistantLookOf = (v) => (v && v.acc === 'crown' && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 ? { c: v.c, acc: 'crown' } : avatarOf(v))
 
 export function createAgents({ root, dataDir, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
   // what the agent is for, one line written by the user (shown under its name)
@@ -72,7 +74,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     for (const saved of Array.isArray(list) ? list : []) {
       if (!saved?.id || agents.has(saved.id) || !fs.existsSync(String(saved.cwd || ''))) continue
       const a = {
-        ...saved, avatar: avatarOf(saved.avatar),
+        ...saved, avatar: saved.id === 'assistant' ? assistantLookOf(saved.avatar) : avatarOf(saved.avatar),
         kind: saved.kind || (saved.id === 'assistant' ? 'assistant' : undefined),
         // a list saved before the session id was recorded: the id it was started with is the one to resume
         // taken over but not forked yet (no first turn before the restart): fork again from the VS Code session —
@@ -553,7 +555,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (typeof body.model === 'string') { a.model = body.model.replace(/[^\w.:[\]-]/g, ''); a.initModel = '' }
       if (typeof body.effort === 'string') a.effort = effortOf(body.effort)
       if (typeof body.nick === 'string' || typeof body.nickKo === 'string') a.nick = nickOf(body.nick, typeof body.nickKo === 'string' ? body.nickKo : body.nick)
-      if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
+      if (body.avatar !== undefined) a.avatar = a.kind === 'assistant' ? assistantLookOf(body.avatar) : avatarOf(body.avatar)
       if (typeof body.desc === 'string') a.desc = descOf(body.desc)
       if (typeof body.nick === 'string' || typeof body.nickKo === 'string' || body.avatar !== undefined || typeof body.desc === 'string') { save(); notifyPages(); if (!('mode' in body) && !('model' in body) && !('effort' in body)) return [200, {}] }
       save()
@@ -636,7 +638,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     a.system = system   // the role as this version of the monitor writes it, never saved
     return a
   }
-  const assistantState = () => { const a = agents.get('assistant'); return a ? { state: a.state, running: !!a.proc, mode: a.mode, model: a.model, effort: a.effort || '', sessionId: a.sessionId } : null }
+  const assistantState = () => { const a = agents.get('assistant'); return a ? { state: a.state, running: !!a.proc, mode: a.mode, model: a.model, effort: a.effort || '', sessionId: a.sessionId, avatar: a.avatar || null } : null }
   // a line in the assistant's chat that is not a message: an alert, or something it did on its own
   const noteTo = (id, ev) => { const a = agents.get(id); if (a) emit(a, ev) }
 
