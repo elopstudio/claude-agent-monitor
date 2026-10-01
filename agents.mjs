@@ -262,6 +262,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       setState(a, 'idle')
       const failed = o.is_error && (a.loginFailed || LOGIN_LOST.test(String(o.result || (o.errors || []).join('; '))))
       a.loginFailed = false
+      // why its last turn failed (an API error, a limit, the login), for the page and the assistant; cleared by a good one
+      a.lastFail = o.is_error ? { text: mask(clip(String(o.result || (o.errors || []).join('; ') || o.subtype || ''), 200)), at: Date.now() } : null
       if (!o.is_error) a.loginTriedAt = 0
       if (failed) { loggedOut(a); return }
       if (a.restartAfterTurn) { a.restartAfterTurn = false; a.respawn = true; stop(a) }
@@ -610,7 +612,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   function sessions(now) {
     return [...agents.values()].filter((a) => a.kind !== 'assistant').map((a) => ({
       // forkedFrom: the VS Code session it was taken over from, for good (forkFrom only lasts until its first turn)
-      managed: true, agentId: a.id, pid: a.proc?.pid || 0, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
+      managed: true, agentId: a.id, pid: a.proc?.pid || 0, loginLost: a.loginLost || 0, lastFail: a.lastFail || null, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
       statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))

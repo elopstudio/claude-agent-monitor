@@ -521,6 +521,7 @@ async function buildState() {
     const sess = {
       id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', pinNick: m.nick || '', avatar: m.avatar || null, desc: m.desc || '', state: m.state,
       statusSince: m.statusSince, startedAt: m.startedAt, kind: 'monitor', managed: true, agentId: m.agentId, running: m.running,
+      loginLost: m.loginLost || 0, lastFail: m.lastFail || null,
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model, effort: m.effort,
       listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
@@ -1304,36 +1305,49 @@ async function listDirs(p) {
   return { path: slash(dir), parent: up === dir ? '' : slash(up), dirs }
 }
 
+// a session's conversation from its transcript, in the agent view's own shapes (masked like the live view)
+async function transcriptEvents(sessionId) {
+  const file = await findTranscript(sessionId)
+  if (!file) return []
+  const { lines } = await tailLines(file)
+  const out = []
+  let n = 0
+  for (const l of lines) {
+    let o
+    try { o = JSON.parse(l) } catch { continue }
+    for (const e of liveEntries(o)) {
+      if (e.role === 'assistant') out.push({ kind: 'block', msg: 'h' + n++, index: 0, type: 'text', text: e.text, done: true, at: e.at })
+      else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], refs: e.refs || [], at: e.at })
+      else if (e.role === 'tool') out.push({ kind: 'tool', id: e.id, name: e.name, action: e.action, input: e.input, at: e.at })
+      else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, ...(e.images ? { images: e.images } : {}), at: e.at })
+      else if (e.role === 'note') out.push({ kind: 'note', text: e.text, at: e.at })
+    }
+  }
+  return out.slice(-300)
+}
 const agents = createAgents({
   root: ROOT, dataDir: DATA, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, attachedPaths,
   askPage: (input, opts) => hookEvent(input, null, opts),
   configPath: loadConfig().claudePath || '',
-  // an agent brought back after a restart shows its conversation from the transcript, in the agent view's own shapes
-  historyOf: async (sessionId) => {
-    const file = await findTranscript(sessionId)
-    if (!file) return []
-    const { lines } = await tailLines(file)
-    const out = []
-    let n = 0
-    for (const l of lines) {
-      let o
-      try { o = JSON.parse(l) } catch { continue }
-      for (const e of liveEntries(o)) {
-        if (e.role === 'assistant') out.push({ kind: 'block', msg: 'h' + n++, index: 0, type: 'text', text: e.text, done: true, at: e.at })
-        else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], refs: e.refs || [], at: e.at })
-        else if (e.role === 'tool') out.push({ kind: 'tool', id: e.id, name: e.name, action: e.action, input: e.input, at: e.at })
-        else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, ...(e.images ? { images: e.images } : {}), at: e.at })
-        else if (e.role === 'note') out.push({ kind: 'note', text: e.text, at: e.at })
-      }
-    }
-    return out.slice(-300)
-  },
+  // an agent brought back after a restart shows its conversation from the transcript
+  historyOf: transcriptEvents,
 })
 // the monitor's assistant behind the floating chat button (assistant.mjs)
 const assistant = createAssistant({
   agents, dataDir: DATA, state: () => cachedState(), notifyPages,
   decide: (id, answer) => decide(id, answer), sendTo: (session, text) => sendMessage({ session, text }),
   requestSession: (id) => pending.get(id)?.sessionId,
+  lang: () => LANGS[pageLang] || '',
+  // whether Claude Code is logged in, and to whom only as a hash kept in memory: no address or name reaches the model
+  login: async () => {
+    const i = await account.info(false)
+    return { loggedIn: !!i.loggedIn, plan: i.plan || null, who: i.email ? crypto.createHash('sha256').update('crew:' + i.email).digest('hex').slice(0, 12) : '' }
+  },
+  // the last of an agent's conversation, for the assistant to see what it said and did
+  conversation: async (name) => {
+    const t = (await readRegistry()).find((x) => x.name === name) || agents.sessions(Date.now()).find((x) => x.name === name)
+    return t?.sessionId ? transcriptEvents(t.sessionId) : []
+  },
 })
 const processes = createProcesses({ mask, clip })
 // every session's process, with what the page knows of it, for the processes dialog and for ending one of its children

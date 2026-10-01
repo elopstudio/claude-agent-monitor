@@ -353,18 +353,29 @@ chat and on its requests.
 Replies appear as they are written. Claude often hands a reply over in a few big pieces (after a tool call, hundreds of
 characters at once), so the chat lets each piece out over a moment, as if typed, and catches up within about a second.
 
-It works through tools only it has (`hooks/assistant-mcp.mjs`, used without a prompt): **status** (every project and
-agent, stuck or erroring ones, the requests waiting, the plan's usage), **send_message** to an agent, **nudge** a stuck
-monitor agent, **answer_request** on a waiting permission request, and **notify_user**. Anything else it wants to do
-asks you like any agent.
+It works through tools only it has (`hooks/assistant-mcp.mjs`, used without a prompt): **status** (every project with
+its folder, and every agent: what it is on, stuck, failed or waiting-for-login ones; the requests waiting, with how long
+a VS Code session's has before it goes back to VS Code; whether Claude Code is logged in; the plan's usage),
+**conversation** (the last of one agent's conversation: what it was asked, said and ran, and what failed),
+**send_message** to an agent, **nudge** a stuck monitor agent, **answer_request** on a waiting permission request, and
+**notify_user**. Anything else it wants to do asks you like any agent.
 
-- **Answering for you.** It may allow or deny routine, reversible work inside an agent's own project. It is told to
-  leave to you anything destructive, outside the project, about credentials, money, deploys or force pushes, and every
-  question or plan; it can never answer its own requests. Each answer it gives appears in the chat with its reason.
-- **Speaking up.** The monitor tells it, at most every 15 seconds and only while it is free, about a request waiting
-  more than 2 minutes, an agent that looks stuck, and the plan passing 80 % and 95 %. It handles what it safely can and
-  alerts you only when you are needed: a highlighted line, a badge on the button and a desktop notification with its
-  face on it.
+- **Answering for you.** A permission request reaches it at once — a VS Code session's goes back to VS Code after a
+  minute, and it used to hear of one only after two. It allows, without asking, work inside the agent's own project
+  folder that can be undone: reading and editing the project's files, builds, tests and the project's own scripts, its
+  dependencies, local git that can be undone (add, commit, a branch, stash), its dev server. It leaves to you, with what
+  it recommends, any push or history rewrite, deletes beyond build output, anything outside the project, credentials,
+  deploys, money and anything it cannot tell is safe, and every question or plan; it can never answer its own
+  requests. Each answer it gives appears in the chat with its reason.
+- **Speaking up.** The monitor tells it, at most every 15 seconds and only while it is free, about: each permission
+  request; a question or plan waiting more than 2 minutes; an agent that finished a turn of a minute or more, failed
+  one, or looks stuck; Claude Code logged out, back, or as another account, and the monitor agents waiting for it; the
+  plan passing 80 % and 95 %. It reads the conversation where it matters, handles what it safely can, suggests the next
+  step, and alerts you only when you are needed: a highlighted line, a badge on the button and a desktop notification
+  with its face on it.
+- **The login.** While Claude Code is logged out the assistant cannot work either, so the monitor itself puts the alert
+  in its chat, and what happened meanwhile is passed on once the login is back. The account is known to it only as
+  logged in or not, and whether it is the same as before (a hash kept in memory): no address or name reaches the model.
 - These events cost tokens only when one happens; nothing about them is written to disk.
 
 ## Desktop app

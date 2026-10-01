@@ -16,8 +16,13 @@ const AGENT = process.env.MONITOR_AGENT || ''
 const TOOLS = [
   {
     name: 'status',
-    description: 'Every project and agent on this PC right now: name, kind (monitor agent or VS Code session), state, what it is doing, whether it looks stuck, its recent tool errors; the requests waiting for an answer (with their ids); the Claude plan usage. Call it first, and again before acting on anything.',
+    description: 'Every project (with its folder) and agent on this PC right now: name, kind (monitor agent or VS Code session), state, what it is on and doing, whether it looks stuck, failed its last turn or waits for the login, its recent tool errors; the requests waiting for an answer (with their ids and, for a VS Code session, how long before it goes back to VS Code); whether Claude Code is logged in; the Claude plan usage. Call it first, and again before acting on anything.',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'conversation',
+    description: 'The last of one agent\'s conversation: what it was asked, what it said, the tools it used and what failed. Read it before judging what an agent is doing, why it failed, or what should come next. Name it by the name shown in status.',
+    inputSchema: { type: 'object', properties: { agent: { type: 'string' } }, required: ['agent'] },
   },
   {
     name: 'send_message',
@@ -26,7 +31,7 @@ const TOOLS = [
   },
   {
     name: 'answer_request',
-    description: 'Allow or deny a waiting permission request by its id from status. Only for routine, reversible work inside the project the agent belongs to; leave anything destructive, outside the project, about secrets or money, or not clearly safe to the person. Always give the reason; it is shown to the person.',
+    description: 'Allow or deny a waiting permission request by its id from status. Allow routine work inside the agent\'s own project folder that can be undone (reading, editing project files, builds, tests, the project\'s scripts and dependencies, local git that can be undone); leave pushes, history rewrites, deletes beyond build output, anything outside the project, secrets, deploys, money or anything not clearly safe to the person, with your recommendation. Always give the reason; it is shown to the person.',
     inputSchema: { type: 'object', properties: { id: { type: 'string' }, decision: { type: 'string', enum: ['allow', 'deny'] }, reason: { type: 'string' } }, required: ['id', 'decision', 'reason'] },
   },
   {
