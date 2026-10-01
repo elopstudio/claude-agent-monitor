@@ -564,6 +564,13 @@ form.inline button.ok{background:var(--run);border-color:var(--run);color:var(--
 .dock .st-working .g{color:var(--run)}
 .dock .st-waiting .g{color:var(--wait)}
 .dock .asking .g{color:var(--wait);font-weight:900}
+/* how busy it is shows at a glance: one working is full, one waiting a little faded, one resting faded more;
+   one asking, the open one and the one under the pointer stay full */
+.dock .dchip{transition:opacity .15s}
+.dock .dchip.st-waiting:not(.asking):not(.on){opacity:.78}
+.dock .dchip.st-resting:not(.asking):not(.on){opacity:.48}
+.dock .dchip.st-resting .dopen svg{filter:grayscale(.6)}
+.dock .dchip:hover,.dock .dchip:focus-within{opacity:1}
 .dock .dx{appearance:none;border:0;background:none;color:var(--faint);font-size:15px;line-height:1;padding:4px 10px 4px 6px;cursor:pointer}
 .dock .dx:hover{color:var(--text)}
 body.docked main{padding-bottom:56px}
