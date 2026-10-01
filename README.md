@@ -24,10 +24,13 @@ Downloads for Windows and macOS, and what the monitor does, are at **[crew.elops
 ELOP Crew is made by ELOP Studio and works with Claude Code. It is not affiliated with or endorsed by Anthropic;
 Claude and Claude Code are trademarks of Anthropic.
 
-The page is in English by default. Switch to Korean with the **EN / 한국어** toggle in the header
-(remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
+**☰** at the right of the header opens the menu: the language, the theme, **👤 Account** and **ⓘ About**.
 
-**ⓘ About** in the header says what the program is, its version, who makes it (ELOP Studio), where the source code
+The page is in English by default. Switch to Korean with **EN / 한국어** in the menu (remembered in the browser) or open
+`http://127.0.0.1:4777/?lang=ko`. The theme is **System** (as the computer is set), **Light** or **Dark**, also remembered;
+in the desktop app its own header, title bar and settings window follow the pick too.
+
+**ⓘ About** in the menu says what the program is, its version, who makes it (ELOP Studio), where the source code
 lives, where to report a problem, and its licence (PolyForm Noncommercial, with the full text). Its **Shortcuts** tab
 lists every key the page answers to — approvals and questions, the agent dialog, the project tabs — and, in the desktop
 app, the app's own (show or hide the window, zoom, reload, back and forward).
@@ -200,7 +203,7 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 
 ## Claude account
 
-**👤 Account** at the top shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
+**👤 Account** in the menu shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
 is used: the current 5-hour session and the week, with when each resets. The numbers come from the same place as
 Claude Code's `/usage`. Anthropic turns callers away when that is asked often, so the monitor asks at most every five
 minutes (Refresh: once a minute), and after a refusal it waits longer each time, up to 30 minutes. Meanwhile — and

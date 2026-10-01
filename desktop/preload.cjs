@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('monitorApp', {
   state: () => call('state'),
   settings: () => call('settings'),
   account: () => call('account'),
+  // the theme picked in the page's menu (system, light or dark): the window's header, title bar and settings follow
+  theme: (v) => call('theme:' + v),
   // the app reports zoom and history changes (keyboard shortcuts included)
   onChange: (fn) => ipcRenderer.on('monitor-app-state', (_e, s) => fn(s)),
   // the plan's limits, as the monitor last heard them

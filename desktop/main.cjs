@@ -104,6 +104,12 @@ async function startServer() {
 // under it. Zoom, reload and history apply to the page only, so the strip keeps its size like the buttons do.
 const STRIP = 36
 const DARK = { color: '#171b22', symbolColor: '#e8eaef', height: STRIP }, LIGHT = { color: '#ffffff', symbolColor: '#171a21', height: STRIP }
+// the theme picked in the page's menu, for the whole app (its header strip, the title bar, settings); kept in the settings
+function setTheme(v) {
+  v = ['light', 'dark'].includes(v) ? v : 'system'
+  if (nativeTheme.themeSource !== v) nativeTheme.themeSource = v
+  if ((readSettings().theme || 'system') !== v) writeSettings({ ...readSettings(), theme: v })
+}
 const overlay = () => (nativeTheme.shouldUseDarkColors ? DARK : LIGHT)
 nativeTheme.on('updated', () => { if (win && !MAC) { try { win.setTitleBarOverlay(overlay()) } catch {} } })
 // no system title bar: Windows draws minimise / maximise / close over the strip, macOS its traffic lights on the left
@@ -137,6 +143,7 @@ function appAction(action) {
 ipcMain.handle('monitor-app', (_e, action) => {
   if (action === 'settings') { showSettings(); return pageState() }
   // the usage in the strip opens the page's account dialog
+  if (String(action).startsWith('theme:')) { setTheme(String(action).slice(6)); return pageState() }
   if (action === 'account') { if (page) page.webContents.executeJavaScript("document.getElementById('acct-btn')?.click()").catch(() => {}); return pageState() }
   if (action !== 'state') appAction(String(action))
   return pageState()
@@ -436,6 +443,7 @@ if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', showWindow)
   app.whenReady().then(async () => {
+    setTheme(readSettings().theme)   // the theme picked last time, before any window shows
     try { await startServer() } catch (e) {
       dialog.showErrorBox('ELOP Crew', '모니터 서버를 시작하지 못했습니다.\n\n' + (e && e.message || e))
       app.quit()
