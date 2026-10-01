@@ -38,6 +38,7 @@
           "account.mjs",
           "cloud.mjs",
           "tokens.mjs",
+          "processes.mjs",
           "package.json",
           "LICENSE",
           "public/**/*",
