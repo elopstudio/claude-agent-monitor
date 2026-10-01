@@ -1017,6 +1017,60 @@ async function forkSession(body) {
   return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: { en: shown?.nick || '', ko: shown?.nickKo || '' }, desc: shown?.desc || '', mode: modes.get(target.sessionId)?.mode || 'default' })
 }
 
+/* ── A folder's earlier conversations, to carry one on as a new agent ── */
+
+// Claude Code keeps a folder's transcripts in ~/.claude/projects/<its path, every other character a dash>. Listed: the
+// newest 30 with anything said in them, each with its title (Claude's own, or the first thing asked, masked) and when
+// it last changed. Nothing of it is kept.
+const transcriptDirOf = (cwd) => path.join(PROJECTS_DIR, path.resolve(cwd).replace(/[^a-zA-Z0-9]/g, '-'))
+async function titleOf(file, size) {
+  const fh = await fsp.open(file, 'r')
+  try {
+    const read = async (pos, n) => { const b = Buffer.alloc(n); await fh.read(b, 0, n, pos); return b.toString('utf8').split('\n') }
+    const n = Math.min(size, 65536)
+    for (const l of (await read(size - n, n)).reverse()) {
+      if (!l.includes('-title"')) continue
+      try { const o = JSON.parse(l); const v = o.customTitle || o.aiTitle; if (v) return mask(clip(String(v), 80)) } catch {}
+    }
+    for (const l of await read(0, n)) {
+      if (!l.includes('"type":"user"')) continue
+      try {
+        const o = JSON.parse(l), c = o.message?.content
+        const v = typeof c === 'string' ? c : Array.isArray(c) ? c.filter((x) => x?.type === 'text').map((x) => x.text).join(' ') : ''
+        if (v && !o.isMeta && !v.startsWith('<')) return mask(clip(v.replace(/\s+/g, ' ').trim(), 80))
+      } catch {}
+    }
+    return ''
+  } finally { await fh.close() }
+}
+async function pastSessions(body) {
+  const dir = transcriptDirOf(String(body.cwd || ''))
+  let files = []
+  try { files = (await fsp.readdir(dir)).filter((f) => /^[0-9a-f-]{36}\.jsonl$/i.test(f)) } catch { return [200, { list: [] }] }
+  const stats = (await Promise.all(files.map((f) => fsp.stat(path.join(dir, f)).then((st) => ({ f, at: st.mtimeMs, size: st.size }), () => null)))).filter(Boolean)
+  const live = new Set((await readRegistry()).map((x) => x.sessionId))
+  const list = []
+  for (const s of stats.sort((x, y) => y.at - x.at)) {
+    if (list.length >= 30) break
+    let title = ''
+    try { title = await titleOf(path.join(dir, s.f), s.size) } catch {}
+    if (!title) continue   // nothing was said in it
+    const sessionId = s.f.slice(0, -6)
+    list.push({ sessionId, at: s.at, title, live: live.has(sessionId), inUse: !!agents.byAgentSession(sessionId) })
+  }
+  return [200, { list }]
+}
+async function resumeSession(body) {
+  const cwd = path.resolve(String(body.cwd || '')), sessionId = String(body.sessionId || '')
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return [400, {}]
+  if (!fs.existsSync(path.join(transcriptDirOf(cwd), sessionId + '.jsonl'))) return [404, {}]
+  if (agents.byAgentSession(sessionId)) return [409, { error: 'already open' }]
+  // still open in VS Code (or a terminal): copied, as a take-over is, so the two never write to one transcript
+  const open = (await readRegistry()).find((x) => x.sessionId === sessionId)
+  if (open) return forkSession({ session: open.name })
+  return agents.adopt({ cwd, sessionId, note: 'an earlier conversation of this folder, carried on' })
+}
+
 async function sendMessage(body) {
   const name = String(body.session || '')
   const files = attachedPaths(body.files)
@@ -1251,6 +1305,8 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname.startsWith('/api/account/')) { const [code, o] = await account.handle(url); json(code, o); return }
       if (url.pathname.startsWith('/api/cloud/')) { const [code, o] = await cloud.handle(url); json(code, o); return }
       if (url.pathname === '/api/agents/fork') { const [code, o] = await forkSession(body); json(code, o); return }
+      if (url.pathname === '/api/agents/past') { const [code, o] = await pastSessions(body); json(code, o); return }
+      if (url.pathname === '/api/agents/resume') { const [code, o] = await resumeSession(body); json(code, o); return }
       if (url.pathname.startsWith('/api/agents/')) { const [code, o] = await agents.handle(url, body); json(code, o); return }
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }

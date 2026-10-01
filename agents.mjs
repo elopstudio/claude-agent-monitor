@@ -55,6 +55,17 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       fs.writeFileSync(FILE, JSON.stringify([...agents.values()].map((a) => Object.fromEntries(KEEP.map((k) => [k, a[k]]))), null, 1))
     } catch {}
   }
+  // Agents put away as they were ended (End agent → keep in the archive): who each was and which conversation, never
+  // what was said, so a new agent can carry that conversation on later. .runtime/archive.json, newest first, up to 100.
+  const ARCHIVE = path.join(dataDir || root, '.runtime', 'archive.json')
+  const ARCHIVE_KEEP = ['cwd', 'key', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'sessionId']
+  const isSessionId = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ''))
+  function archived() {
+    try { const l = JSON.parse(fs.readFileSync(ARCHIVE, 'utf8')); return Array.isArray(l) ? l.filter((x) => x && x.id && isSessionId(x.sessionId)) : [] } catch { return [] }
+  }
+  function saveArchive(list) {
+    try { fs.mkdirSync(path.dirname(ARCHIVE), { recursive: true }); fs.writeFileSync(ARCHIVE, JSON.stringify(list.slice(0, 100), null, 1)) } catch {}
+  }
   async function load() {
     let list = []
     try { list = JSON.parse(fs.readFileSync(FILE, 'utf8')) } catch { return }
@@ -480,9 +491,42 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     return [200, { id, name: a.name }]
   }
 
+  // a conversation carried on as it is, under its own id: one from the archive, or an earlier one of the folder that
+  // nothing has open now (one still open in VS Code is copied instead, as a take-over is — see fork)
+  async function adopt({ cwd, sessionId, nick, desc, avatar, mode, model, effort, note }) {
+    if (!isSessionId(sessionId)) return [400, {}]
+    try { if (!fs.statSync(cwd).isDirectory()) return [400, { error: 'no such folder' }] } catch { return [400, { error: 'no such folder' }] }
+    if (byAgentSession(sessionId)) return [409, { error: 'already open' }]
+    const id = crypto.randomBytes(4).toString('hex')
+    const a = {
+      fast: false, avatar: avatarOf(avatar), nick: nick && typeof nick === 'object' ? nickOf(nick.en, nick.ko) : nickOf(nick, nick), desc: descOf(desc),
+      id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode: MODES.includes(mode) ? mode : 'default',
+      model: String(model || '').replace(/[^\w.:[\]-]/g, ''), effort: effortOf(effort),
+      newSessionId: crypto.randomUUID(), sessionId, proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
+      events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
+    }
+    if (historyOf) { try { a.events = await historyOf(sessionId) } catch {} }
+    a.events.push({ kind: 'note', text: note || 'an earlier conversation, carried on', at: Date.now() })
+    agents.set(id, a)
+    save()
+    // carried on: it is no longer put away
+    saveArchive(archived().filter((x) => x.sessionId !== sessionId))
+    spawnAgent(a)
+    notifyPages()
+    return [200, { id, name: a.name }]
+  }
+
   async function handle(url, body) {
     const a = agents.get(String(body.id || ''))
     if (url.pathname === '/api/agents/start') return start(body)
+    if (url.pathname === '/api/agents/archived') return [200, { list: archived().map((x) => ({ ...x, exists: fs.existsSync(String(x.cwd || '')), inUse: !!byAgentSession(x.sessionId) })) }]
+    if (url.pathname === '/api/agents/unarchive') { saveArchive(archived().filter((x) => x.id !== String(body.archiveId || ''))); return [200, {}] }
+    if (url.pathname === '/api/agents/restore') {
+      const x = archived().find((y) => y.id === String(body.archiveId || ''))
+      if (!x) return [404, {}]
+      if (byAgentSession(x.sessionId)) return [409, { error: 'already open' }]
+      return adopt({ ...x, note: 'brought back from the archive — carrying on the same conversation' })
+    }
     if (!a) return [404, {}]
     if (url.pathname === '/api/agents/send') {
       const text = clip(body.text, 8000), files = attachedPaths(body.files)
@@ -523,7 +567,13 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       notifyPages()
       return [200, {}]
     }
-    if (url.pathname === '/api/agents/close') { stop(a); agents.delete(a.id); save(); notifyPages(); return [200, {}] }
+    if (url.pathname === '/api/agents/close') {
+      // kept in the archive when asked — only one with a conversation to carry on
+      if (body.archive && isSessionId(a.sessionId) && a.kind !== 'assistant') {
+        saveArchive([{ id: crypto.randomBytes(4).toString('hex'), ...Object.fromEntries(ARCHIVE_KEEP.map((k) => [k, a[k]])), archivedAt: Date.now() }, ...archived().filter((x) => x.sessionId !== a.sessionId)])
+      }
+      stop(a); agents.delete(a.id); save(); notifyPages(); return [200, {}]
+    }
     return [404, {}]
   }
 
@@ -588,5 +638,5 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // a line in the assistant's chat that is not a message: an alert, or something it did on its own
   const noteTo = (id, ev) => { const a = agents.get(id); if (a) emit(a, ev) }
 
-  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText, fork, ensureAssistant, assistantState, noteTo, loaded }
+  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText, fork, adopt, ensureAssistant, assistantState, noteTo, loaded }
 }

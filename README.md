@@ -285,7 +285,15 @@ on your own Claude Code login. Its dialog's conversation tab is the full chat:
   or a message, so no session is made and nothing is used up, and the list is kept for 5 minutes. The commands that only
   mean something in a terminal (colours, the focus view) are left out. The assistant's chat has the same list. A VS
   Code session's box does not, since the text only reaches that session as a message;
-- **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
+- **End agent** asks first: **Keep in archive and end**, or **Just end**. Either way it stops and leaves the page, and its
+  transcript stays in `~/.claude/projects`. The archive (`.runtime/archive.json`, up to 100) keeps who it was (name, look,
+  what it does, folder, mode, model, effort) and which conversation it had, never what was said;
+- **Carry on an earlier conversation…** in the New agent dialog lists the archive and the chosen folder's earlier
+  conversations: the newest 30 with anything said in them, each with Claude's own title or the first thing asked (masked),
+  read from the folder's transcripts and not kept. These can be VS Code's or a terminal's too. Picking one starts an
+  agent on that conversation. One from the archive comes back under its old name and look, as itself, and leaves the
+  archive (× takes one out without bringing it back). One still open in VS Code is copied, as **Take over** does, so
+  the two never write to one transcript. One already open in the monitor cannot be picked;
 
 The list of these agents survives a restart. `.runtime/agents.json` keeps who each one is (folder, name, what it does, look,
 permission mode, model, session id) and never what was said. When the server starts again they come back stopped,
