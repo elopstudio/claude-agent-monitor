@@ -312,6 +312,8 @@ The round button at the bottom right (labelled **Assistant** where there is room
 assistant: one fixed monitor agent (Sonnet by default) that looks after all the others. It is not shown with any
 project and works in a folder of its own under `.runtime/assistant`, so it does not touch your code unless you ask.
 Its message box is the conversation tab's — attach files, and ⚙ for its permission mode, model and effort.
+Replies appear as they are written. Claude often hands a reply over in a few big pieces (after a tool call, hundreds of
+characters at once), so the chat lets each piece out over a moment, as if typed, and catches up within about a second.
 
 It works through tools only it has (`hooks/assistant-mcp.mjs`, used without a prompt): **status** (every project and
 agent, stuck or erroring ones, the requests waiting, the plan's usage), **send_message** to an agent, **nudge** a stuck

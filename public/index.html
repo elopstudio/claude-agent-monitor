@@ -3255,9 +3255,12 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     } else if (ev.kind === 'block' && ev.type === 'text') {
       const key = ev.msg + ':' + ev.index;
       let b = assist.blocks.get(key);
-      if (!b) { if (!ev.text) return; b = el('div', 'bub ai'); assist.blocks.set(key, b); l.insertBefore(b, l.querySelector('.typing')); }
-      b.replaceChildren(mdNode(ev.text));
-      if (ev.done) { b.append(el('div', 'ts', time(ev.at))); counts = true; }
+      if (!b) { if (!ev.text) return; b = el('div', 'bub ai'); b.shown = 0; assist.blocks.set(key, b); l.insertBefore(b, l.querySelector('.typing')); }
+      b.full = ev.text; b.done = !!ev.done; b.at = ev.at;
+      if (ev.done) counts = true;
+      // claude often hands over a reply in a few big pieces (after a tool call, hundreds of characters at once): a live
+      // reply is let out over a moment, as if typed, catching up within about a second; one read back appears whole
+      if (fresh) assistReveal(b); else { b.shown = b.full.length; b.replaceChildren(mdNode(b.full)); if (b.done) b.append(el('div', 'ts', time(b.at))); }
     } else if (ev.kind === 'tool') {
       const n = str(ev.name).replace(/^mcp__assistant__/, '');
       l.insertBefore(el('div', 'tchip', '· ' + (t('assistTool_' + n) !== 'assistTool_' + n ? t('assistTool_' + n) : n)), l.querySelector('.typing'));
@@ -3271,6 +3274,19 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     }
     if (counts && (ev.at || 0) > assist.seen && !assist.open) { assist.unread++; assistBadge(); }
     if (stick || fresh === false) toBottom();
+  }
+  function assistReveal(b) {
+    if (b.timer) return;
+    const step = () => {
+      const left = b.full.length - b.shown;
+      if (left > 0) b.shown += Math.max(3, Math.ceil(left / 12));   // ~12 steps of 40 ms to catch up, never slower than 75 chars/s
+      const stick = atBottom();
+      b.replaceChildren(mdNode(b.full.slice(0, b.shown)));
+      if (b.shown >= b.full.length && b.done) { b.append(el('div', 'ts', p2c(new Date(b.at || Date.now()).getHours()) + ':' + p2c(new Date(b.at || Date.now()).getMinutes()))); }
+      if (stick) toBottom();
+      b.timer = b.shown < b.full.length ? setTimeout(step, 40) : null;
+    };
+    step();
   }
   function assistConnect() {
     if (assist.es) return;
