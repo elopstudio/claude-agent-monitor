@@ -33,7 +33,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'forkFrom']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
@@ -161,7 +161,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       return
     }
     if (o.type === 'system' && o.subtype === 'init') {
-      if (o.session_id && o.session_id !== a.sessionId) { a.sessionId = o.session_id; save() }
+      if (o.session_id && o.session_id !== a.sessionId) { a.sessionId = o.session_id; delete a.forkFrom; save() }
       if (o.model) a.model = o.model
       if (o.permissionMode) a.mode = o.permissionMode
       notifyPages()
@@ -226,13 +226,16 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     // quick start: only the monitor's own tool, none of the user's MCP servers and connectors
     if (a.fast) args.push('--strict-mcp-config')
     if (a.sessionId) args.push('--resume', a.sessionId)
+    // taken over from a VS Code session: a copy of that conversation with an id of its own, so the original can
+    // stay open in VS Code without the two writing to one transcript; claude tells the new id on its first turn
+    else if (a.forkFrom) args.push('--resume', a.forkFrom, '--fork-session')
     else args.push('--session-id', a.newSessionId)
     let child
     // a claudePath that cannot be run at all throws right here, not as an 'error' event
     try { child = spawn(claudeExecutable(), args, { cwd: a.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env }) }
     catch (e) { emit(a, { kind: 'note', text: 'could not start claude: ' + e.message }); a.proc = null; setState(a, 'stopped'); return }
     a.proc = child
-    if (!a.sessionId) { a.sessionId = a.newSessionId; save() }   // from now on this session is resumed, never created again
+    if (!a.sessionId && !a.forkFrom) { a.sessionId = a.newSessionId; save() }   // from now on this session is resumed, never created again
     let rest = ''
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', (chunk) => {
@@ -328,6 +331,27 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     return [200, { id, name: a.name }]
   }
 
+  // a VS Code session's conversation, carried on as a monitor agent in the same folder, under the same name and mode
+  async function fork({ cwd, sessionId, nick, mode }) {
+    if (!/^[0-9a-f-]{36}$/i.test(String(sessionId || ''))) return [400, {}]
+    try { if (!fs.statSync(cwd).isDirectory()) return [400, { error: 'no such folder' }] } catch { return [400, { error: 'no such folder' }] }
+    const id = crypto.randomBytes(4).toString('hex')
+    const a = {
+      fast: false, avatar: null, nick: clip(String(nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
+      id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode: MODES.includes(mode) ? mode : 'default', model: '', effort: '',
+      newSessionId: crypto.randomUUID(), sessionId: '', forkFrom: sessionId, proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
+      events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
+    }
+    // the conversation so far, so the dialog shows where it left off
+    if (historyOf) { try { a.events = await historyOf(sessionId) } catch {} }
+    a.events.push({ kind: 'note', text: 'taken over from VS Code — the original session is still there; close it in VS Code if you will not use it', at: Date.now() })
+    agents.set(id, a)
+    save()
+    spawnAgent(a)
+    notifyPages()
+    return [200, { id, name: a.name }]
+  }
+
   async function handle(url, body) {
     const a = agents.get(String(body.id || ''))
     if (url.pathname === '/api/agents/start') return start(body)
@@ -412,5 +436,5 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   const sendText = (id, text) => { const a = agents.get(String(id)); return !!a && send(a, text, []) }
 
   load()
-  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText }
+  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText, fork }
 }

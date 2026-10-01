@@ -955,6 +955,16 @@ function attachedPaths(list) {
     .filter((p) => p.startsWith(root) && fs.existsSync(p)).map((p) => p.replace(/\\/g, '/'))
 }
 
+// "Take over in the monitor": a VS Code session's conversation carried on as a monitor agent (a copy, see
+// agents.fork), in its folder, under the name the page shows for it and with its permission mode
+async function forkSession(body) {
+  const target = (await readRegistry()).find((x) => x.name === String(body.session || ''))
+  if (!target) return [404, {}]
+  if (agents.byAgentSession(target.sessionId)) return [400, { error: 'already a monitor agent' }]
+  const shown = (await cachedState()).projects.flatMap((p) => p.sessions).find((x) => x.name === target.name)
+  return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: shown?.nickKo || shown?.nick || '', mode: modes.get(target.sessionId)?.mode || 'default' })
+}
+
 async function sendMessage(body) {
   const name = String(body.session || '')
   const files = attachedPaths(body.files)
@@ -1180,6 +1190,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/hook/prompt') { json(200, await agents.prompt(body)); return }
       if (url.pathname.startsWith('/api/account/')) { const [code, o] = await account.handle(url); json(code, o); return }
       if (url.pathname.startsWith('/api/cloud/')) { const [code, o] = await cloud.handle(url); json(code, o); return }
+      if (url.pathname === '/api/agents/fork') { const [code, o] = await forkSession(body); json(code, o); return }
       if (url.pathname.startsWith('/api/agents/')) { const [code, o] = await agents.handle(url, body); json(code, o); return }
       if (url.pathname === '/hook') { const r = await hookEvent(body, res); if (!res.writableEnded && !res.destroyed) json(200, r); return }
       if (url.pathname === '/hook/wait') { json(200, await waitForMessage(String(body.session_id || ''))); return }

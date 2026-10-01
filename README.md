@@ -203,6 +203,12 @@ An agent that has shown no sign of activity for 10 minutes while working is mark
 For the monitor's own agents the details offer **Stop and carry on**: the turn is stopped and the same session is asked
 to continue. A VS Code session has to be stopped in its panel (Esc).
 
+The page cannot set a VS Code session's permission mode, model or effort — VS Code runs it, and hooks have no way
+to change them. **Take over in the monitor**, above its conversation, carries the conversation on as a monitor agent
+in the same folder, under the same name and permission mode, where all of those can be set and the turn stopped. It
+is a copy (`claude --resume <id> --fork-session`), so the VS Code session can stay open without the two writing to one
+transcript; close it in VS Code if you will not use it.
+
 ## The mobile app (optional)
 
 The Agent Monitor app on your phone reaches the monitor on your PCs through [cam.elopstudio.com](https://cam.elopstudio.com/account):
