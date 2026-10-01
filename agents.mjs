@@ -38,7 +38,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'loginLost', 'forkFrom', 'forkedFrom']
+  const KEEP = ['id', 'kind', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'loginLost', 'forkFrom', 'forkedFrom']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
@@ -62,6 +62,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (!saved?.id || agents.has(saved.id) || !fs.existsSync(String(saved.cwd || ''))) continue
       const a = {
         ...saved, avatar: avatarOf(saved.avatar),
+        kind: saved.kind || (saved.id === 'assistant' ? 'assistant' : undefined),
         // a list saved before the session id was recorded: the id it was started with is the one to resume
         // taken over but not forked yet (no first turn before the restart): fork again from the VS Code session —
         // its newSessionId was never created, and resuming that left the agent with "No conversation found"
@@ -524,6 +525,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       agents.set(a.id, a)
       save()
     }
+    a.kind = 'assistant'   // a list saved by 312f266 lost it (KEEP had no kind): the fixed id is enough
     a.system = system   // the role as this version of the monitor writes it, never saved
     return a
   }
