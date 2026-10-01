@@ -275,6 +275,16 @@ on your own Claude Code login. Its dialog's conversation tab is the full chat:
   **Haiku**), a fixed version (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 4.5), or **Other…** for any model name.
   **Effort** (low, medium, high, extra high, max, or Claude Code's default) is the third pill and changes at once too;
 - attached images go into the message as images; other files by path;
+- **Slash commands**: a message that starts with `/` opens a list of Claude Code's commands for the agent's folder,
+  the same ones it offers in the terminal and in VS Code: the built-ins (`/compact`, `/context`, `/usage`,
+  `/model`, `/effort`, `/clear`, `/init`, `/code-review`…), your own and the project's skills and commands, and
+  plugins'. It filters as you type the name. ↑↓ pick, Tab puts the command in the box, Enter does too and sends one that
+  takes nothing after its name, and Esc closes the list. Claude itself runs the command, and its answer shows in the
+  conversation. `/model` and `/effort` move the pills, and `/clear` starts a new conversation (the old one stays on
+  disk). The list comes from claude: a claude is started in that folder only to ask for it, without hooks, MCP servers
+  or a message, so no session is made and nothing is used up, and the list is kept for 5 minutes. The commands that only
+  mean something in a terminal (colours, the focus view) are left out. The assistant's chat has the same list. A VS
+  Code session's box does not, since the text only reaches that session as a message;
 - **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
 
 The list of these agents survives a restart. `.runtime/agents.json` keeps who each one is (folder, name, what it does, look,

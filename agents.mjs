@@ -182,7 +182,9 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     }
     if (o.type === 'system' && o.subtype === 'init') {
       if (o.session_id && o.session_id !== a.sessionId) { a.sessionId = o.session_id; delete a.forkFrom; save() }
-      if (o.model) a.model = o.model
+      // the model claude says it runs is written down only when it changed under it (/model): an alias picked
+      // here (sonnet) stays an alias rather than becoming the version it stands for today
+      if (o.model) { if (a.initModel && o.model !== a.initModel) a.model = o.model; a.initModel = o.model }
       if (o.permissionMode) a.mode = o.permissionMode
       notifyPages()
       return
@@ -209,6 +211,17 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       return
     }
     if (o.type === 'assistant' && o.error === 'authentication_failed') a.loginFailed = true
+    // a slash command's answer (/context, /usage, /model…) is no model reply: claude writes it as one whole message
+    // with no stream before it, so it is shown here, as the agent's text
+    if (o.type === 'assistant' && o.message?.model === '<synthetic>' && !o.parent_tool_use_id && Array.isArray(o.message.content)) {
+      const text = o.message.content.filter((c) => c?.type === 'text').map((c) => c.text).join('\n')
+      if (text) emit(a, { kind: 'block', msg: String(o.message.id || crypto.randomUUID()), index: 0, type: 'text', text: mask(clip2(text, 20000)), done: true })
+      const eff = /^Set effort level to (\w+)/.exec(text)
+      if (eff) { a.effort = effortOf(eff[1]); save(); notifyPages() }
+      return
+    }
+    // /clear: a new conversation in the same process; its id comes with the next init
+    if (o.type === 'conversation_reset') { emit(a, { kind: 'note', text: 'a new conversation — the earlier one stays on disk' }); return }
     if (o.type === 'assistant' && !o.parent_tool_use_id && Array.isArray(o.message?.content)) {
       for (const c of o.message.content) {
         if (c?.type === 'tool_use') {
@@ -238,6 +251,47 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (failed) { loggedOut(a); return }
       if (a.restartAfterTurn) { a.restartAfterTurn = false; a.respawn = true; stop(a) }
     }
+  }
+
+  // The slash commands claude offers in a folder (its built-ins, the user's and the project's skills and commands,
+  // plugins'), for the "/" list in the message box: a claude started only to ask its initialize request, without
+  // hooks or MCP servers and without a message, so no session is made and no one is billed. Kept a few minutes per folder.
+  // The few that only mean something in the terminal (colours, the focus view) are left out, as claude itself does.
+  const TERMINAL_ONLY = new Set(['color', 'focus', 'reload-plugins', 'heapdump'])
+  const commandCache = new Map()   // cwd → { at, list | promise }
+  function commandsIn(cwd) {
+    const hit = commandCache.get(cwd)
+    if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.list
+    const list = new Promise((resolve) => {
+      let child, rest = '', done = false
+      const end = (v) => { if (done) return; done = true; clearTimeout(timer); try { child?.kill() } catch {}; resolve(v) }
+      const timer = setTimeout(() => end([]), 20000)
+      try {
+        child = spawn(claudeExecutable(), ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--strict-mcp-config', '--settings', JSON.stringify({ disableAllHooks: true })],
+          { cwd, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true, env: process.env })
+      } catch { return end([]) }
+      child.on('error', () => end([]))
+      child.on('exit', () => end([]))
+      child.stdout.setEncoding('utf8')
+      child.stdout.on('data', (chunk) => {
+        const parts = (rest + chunk).split('\n')
+        rest = parts.pop()
+        for (const l of parts) {
+          let o
+          try { o = JSON.parse(l) } catch { continue }
+          if (o.type !== 'control_response') continue
+          const cmds = (o.response?.response || o.response || {}).commands
+          end((Array.isArray(cmds) ? cmds : []).filter((c) => c && typeof c.name === 'string' && !c.name.startsWith('__') && !TERMINAL_ONLY.has(c.name)).slice(0, 300).map((c) => ({
+            name: clip(c.name, 80), desc: clip(String(c.description || '').replace(/\s+/g, ' '), 240), hint: clip(String(c.argumentHint || ''), 80),
+            aliases: Array.isArray(c.aliases) ? c.aliases.filter((x) => typeof x === 'string').slice(0, 5) : [], builtin: !!c.builtin,
+          })))
+        }
+      })
+      try { child.stdin.write(JSON.stringify({ type: 'control_request', request_id: 'cmds', request: { subtype: 'initialize' } }) + '\n') } catch { end([]) }
+    })
+    commandCache.set(cwd, { at: Date.now(), list })
+    list.then((v) => { if (!v.length) commandCache.delete(cwd) })   // none came back: ask again next time
+    return list
   }
 
   function spawnAgent(a) {
@@ -436,6 +490,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       return send(a, text, files) ? [200, {}] : [500, {}]
     }
     if (url.pathname === '/api/agents/stop') { stop(a); return [200, {}] }
+    if (url.pathname === '/api/agents/commands') return [200, { commands: await commandsIn(a.cwd) }]
     // looks stuck: stop it, wait until claude is really gone, then ask it to carry on in the same session
     if (url.pathname === '/api/agents/nudge') {
       const proc = a.proc, text = clip(body.text, 2000)
@@ -449,7 +504,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     if (url.pathname === '/api/agents/settings') {
       // takes effect from the next message: the process is restarted on the same session
       if (MODES.includes(body.mode)) a.mode = body.mode
-      if (typeof body.model === 'string') a.model = body.model.replace(/[^\w.:[\]-]/g, '')
+      if (typeof body.model === 'string') { a.model = body.model.replace(/[^\w.:[\]-]/g, ''); a.initModel = '' }
       if (typeof body.effort === 'string') a.effort = effortOf(body.effort)
       if (typeof body.nick === 'string' || typeof body.nickKo === 'string') a.nick = nickOf(body.nick, typeof body.nickKo === 'string' ? body.nickKo : body.nick)
       if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
