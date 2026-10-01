@@ -52,13 +52,15 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       const a = {
         ...saved, avatar: avatarOf(saved.avatar),
         // a list saved before the session id was recorded: the id it was started with is the one to resume
-        sessionId: saved.sessionId || (saved.newSessionId && historyOf ? saved.newSessionId : ''), mode: MODES.includes(saved.mode) ? saved.mode : 'default',
+        // taken over but not forked yet (no first turn before the restart): fork again from the VS Code session —
+        // its newSessionId was never created, and resuming that left the agent with "No conversation found"
+        sessionId: saved.forkFrom ? '' : saved.sessionId || (saved.newSessionId && historyOf ? saved.newSessionId : ''), mode: MODES.includes(saved.mode) ? saved.mode : 'default',
         proc: null, state: 'stopped', stateSince: Date.now(), lastAt: 0, events: [], streams: new Set(), msg: null,
         activity: null, activityAt: 0, turns: 0, stopping: false,
       }
       agents.set(a.id, a)
       // the conversation so far, from its transcript, so the dialog is not empty after a restart
-      if (a.sessionId && historyOf) { try { a.events = await historyOf(a.sessionId) } catch {} }
+      if ((a.sessionId || a.forkFrom) && historyOf) { try { a.events = await historyOf(a.sessionId || a.forkFrom) } catch {} }
       a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS
       a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : a.justAfter ? 'monitor restarted right after the last turn — asked to check on it' : 'monitor restarted — send a message to continue', at: Date.now() })
     }

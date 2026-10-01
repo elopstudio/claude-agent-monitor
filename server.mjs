@@ -405,8 +405,12 @@ async function buildState() {
   const boards = new Map()
   const bySession = new Map()
 
+  const agentPids = new Set((agents ? agents.sessions(now) : []).map((m) => m.pid).filter(Boolean))
   for (const s of reg) {
     if (agents?.byAgentSession(s.sessionId)) continue
+    // a claude the monitor runs, by its process: one just taken over is registered under the VS Code session's id
+    // until its first turn, and would otherwise show up as a second, ownerless card for that session
+    if (agentPids.has(s.pid)) continue
     const root = projectRoot(s.cwd)
     const key = projectKey(root)
     if (!projects.has(key)) projects.set(key, { key, root, sessions: [], messages: [] })
