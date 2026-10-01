@@ -18,6 +18,9 @@ npm start            # http://127.0.0.1:4777  (포트는 PORT=… 로 바꿉니�
 [데스크톱 앱](#데스크톱-앱)으로 설치하면 터미널 없이 전용 창과 트레이로 씁니다.
 Windows와 macOS 설치 파일, 소개는 **[crew.elopstudio.com](https://crew.elopstudio.com/?lang=ko)** 에 있습니다.
 
+**지금은 Claude Code 전용입니다.** Claude Code 의 세션 파일과 hook 을 읽고, 직접 띄우는 에이전트도 Claude Code 의 `claude` 프로그램입니다.
+Codex, Gemini CLI, Cursor 같은 다른 코딩 에이전트는 아직 지원하지 않습니다.
+
 ELOP Crew 는 이롭스튜디오가 만들었고 Claude Code 와 함께 씁니다. Anthropic 과 제휴하거나 Anthropic 이 보증한 제품이 아닙니다.
 Claude 와 Claude Code 는 Anthropic 의 상표입니다.
 

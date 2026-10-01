@@ -91,7 +91,7 @@
       {
         "provider": "github",
         "owner": "elopstudio",
-        "repo": "claude-agent-monitor",
+        "repo": "elop-crew",
         "releaseType": "release"
       }
     ]

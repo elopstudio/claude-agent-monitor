@@ -18,6 +18,9 @@ npm start            # http://127.0.0.1:4777  (override with PORT=…)
 Or install the [desktop app](#desktop-app): a window of its own and the tray, no terminal needed.
 Downloads for Windows and macOS, and what the monitor does, are at **[crew.elopstudio.com](https://crew.elopstudio.com)**.
 
+**Claude Code only, for now.** It reads Claude Code's own session files and hooks, and the agents it runs are Claude Code's
+`claude` program; other coding agents (Codex, Gemini CLI, Cursor…) are not supported yet.
+
 ELOP Crew is made by ELOP Studio and works with Claude Code. It is not affiliated with or endorsed by Anthropic;
 Claude and Claude Code are trademarks of Anthropic.
 

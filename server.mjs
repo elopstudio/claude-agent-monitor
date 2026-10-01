@@ -1441,7 +1441,7 @@ const server = http.createServer(async (req, res) => {
 
 cleanUploads(true)
 setInterval(() => cleanUploads(false), 60 * 60 * 1000).unref()
-server.listen(PORT, HOST, () => { writeRuntime(); console.log(`claude-agent-monitor → http://${HOST}:${PORT}`) })
+server.listen(PORT, HOST, () => { writeRuntime(); console.log(`ELOP Crew → http://${HOST}:${PORT}`) })
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { agents.shutdown(); removeRuntime(); process.exit(0) })
 // a host that runs the server in its own process (the desktop app) stops it this way before quitting
 globalThis.agentMonitorShutdown = () => { agents.shutdown(); cloud.stop(); removeRuntime(); try { server.close() } catch {} }

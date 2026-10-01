@@ -12,7 +12,7 @@ const URL = `http://127.0.0.1:${PORT}/`
 const CODE = app.isPackaged ? path.join(process.resourcesPath, 'monitor') : path.join(__dirname, '..')
 const ICON = path.join(__dirname, 'icon.png')
 const MAC = process.platform === 'darwin'
-const RELEASES = 'https://github.com/elopstudio/claude-agent-monitor/releases/latest'
+const RELEASES = 'https://github.com/elopstudio/elop-crew/releases/latest'
 
 /* ── settings: where the monitor keeps config.json, boards/ and its agent list ── */
 // read before startServer sets it for the server
