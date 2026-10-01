@@ -48,6 +48,18 @@ function lookFor(config, key, name, short) {
   const av = config.projects?.[key]?.avatars || {}
   return lookOf(av[short]) || lookOf(av[name])
 }
+// a name the user picked: one for both languages (a string, as before) or one per language ({ en, ko }, either may be
+// empty). A language left empty uses the other's name, so a name picked once is kept in both, as it always was.
+const nickClean = (v) => clip(String(v || '').replace(/[\x00-\x1f<>]/g, ''), 16)
+function nickStored(en, ko) {
+  en = nickClean(en); ko = nickClean(ko)
+  return !en && !ko ? '' : en === ko ? en : { en, ko }
+}
+function pinOf(v) {
+  const raw = typeof v === 'string' ? { en: nickClean(v), ko: nickClean(v) } : v && typeof v === 'object' ? { en: nickClean(v.en), ko: nickClean(v.ko) } : null
+  if (!raw || (!raw.en && !raw.ko)) return null
+  return { en: raw.en || raw.ko, ko: raw.ko || raw.en, raw }
+}
 // a line the user wrote about what the agent is for ("infra and CI/CD"): config.json projects.<key>.descs.<short name or name>
 const descOf = (v) => clip(String(v || '').replace(/[\x00-\x1f<>]/g, ' ').replace(/\s+/g, ' ').trim(), 80)
 function descFor(config, key, name, short) {
@@ -83,8 +95,9 @@ async function saveLook(body) {
   return editConfig((config) => {
   config.projects = config.projects || {}
   const p = (config.projects[key] = config.projects[key] || {})
-  if (typeof body.nick === 'string') {
-    const nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
+  // nickKo too from the page; a caller sending only nick names it in both languages
+  if (typeof body.nick === 'string' || typeof body.nickKo === 'string') {
+    const nick = nickStored(body.nick, typeof body.nickKo === 'string' ? body.nickKo : body.nick)
     p.names = p.names || {}
     if (nick) p.names[who] = nick; else delete p.names[who]
   }
@@ -326,11 +339,13 @@ function nameHash(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^
 // Runs over every session on the machine at once, so no two agents share a name even across projects
 // (the page shows them side by side on the "all agents" tab). fixedFor(s) returns a name pinned in config.json.
 function assignNicks(sessions, fixedFor) {
-  const taken = new Set(sessions.map(fixedFor).filter(Boolean).map((n) => String(n).toLowerCase()))
+  const taken = new Set(sessions.map(fixedFor).filter(Boolean).flatMap((f) => [f.en, f.ko]).map((n) => n.toLowerCase()))
   const free = (pair) => !pair.some((n) => taken.has(n.toLowerCase()))
   for (const s of [...sessions].sort((a, b) => a.startedAt - b.startedAt || a.fullId.localeCompare(b.fullId))) {
     const fixed = fixedFor(s)
-    if (fixed) { s.nick = s.nickKo = String(fixed); continue }   // a chosen name is used in both languages
+    // what the user typed, for the page's name fields: empty ones there mean "automatic"
+    s.named = fixed ? fixed.raw : { en: '', ko: '' }
+    if (fixed) { s.nick = fixed.en; s.nickKo = fixed.ko; continue }
     const start = nameHash(s.fullId) % NAMES.length
     let pick = null
     for (let i = 0; i < NAMES.length && !pick; i++) {
@@ -478,7 +493,7 @@ async function buildState() {
   }
 
   const allSessions = [...projects.values()].flatMap((p) => p.sessions.map((s) => ({ s, names: config.projects?.[p.key]?.names || {} })))
-  const pinned = new Map(allSessions.map(({ s, names }) => [s, names[s.name] || names[s.short] || s.pinNick || '']))
+  const pinned = new Map(allSessions.map(({ s, names }) => [s, pinOf(names[s.name] || names[s.short]) || pinOf(s.pinNick)]))
   assignNicks(allSessions.map((x) => x.s), (s) => pinned.get(s))
 
   const out = []
@@ -995,7 +1010,7 @@ async function forkSession(body) {
   const shown = (await cachedState()).projects.flatMap((p) => p.sessions).find((x) => x.name === target.name)
   // not in the middle of a turn: the copy would start from a transcript with a tool call still open
   if (shown?.state === 'working') return [409, { error: 'working' }]
-  return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: shown?.nickKo || shown?.nick || '', desc: shown?.desc || '', mode: modes.get(target.sessionId)?.mode || 'default' })
+  return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: { en: shown?.nick || '', ko: shown?.nickKo || '' }, desc: shown?.desc || '', mode: modes.get(target.sessionId)?.mode || 'default' })
 }
 
 async function sendMessage(body) {

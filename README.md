@@ -255,7 +255,10 @@ VS Code extension does it: the monitor runs the installed `claude` program in he
 (`claude -p --input-format stream-json --output-format stream-json --include-partial-messages`) in the folder you pick,
 on your own Claude Code login. Its dialog's conversation tab is the full chat:
 
-- **Name** and **Look** in the dialog are optional. Leave the name empty for an automatic one. The look is one of eight
+- **Name** and **Look** in the dialog are optional. The name has a field per language, Korean and English: both empty
+  gives an automatic name (a matched pair, so it follows the page's language), one filled gives that name in both, and
+  two give one per language. The same fields are on every agent's info tab, which shows only names you picked, so
+  saving something else there never fixes the automatic one. The look is one of eight
   colours and a headgear (antenna, twin, headphones, sprout, bolt), with a live preview. The crown is not on offer:
   it marks the leader, and a monitor agent that becomes the leader wears it in its own colour;
 - **What it does** is one line of your own on what the agent is for (say, "infrastructure and CI/CD"), up to 80

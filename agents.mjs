@@ -28,6 +28,9 @@ const avatarOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && AC
 export function createAgents({ root, dataDir, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
   // what the agent is for, one line written by the user (shown under its name)
   const descOf = (v) => clip(String(v || '').replace(/[\x00-\x1f<>]/g, ' ').replace(/\s+/g, ' ').trim(), 80)
+  // its name: one for both languages (a string) or one per language ({ en, ko }); the server reads both shapes
+  const nickClean = (v) => clip(String(v || '').replace(/[\x00-\x1f<>]/g, ''), 16)
+  const nickOf = (en, ko) => { en = nickClean(en); ko = nickClean(ko); return !en && !ko ? '' : en === ko ? en : { en, ko } }
   const agents = new Map()          // id → agent
 
   // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
@@ -320,7 +323,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     const id = crypto.randomBytes(4).toString('hex')
     const a = {
       // a look and a name picked in the new-agent dialog (both optional)
-      fast: !!body.fast, avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16), desc: descOf(body.desc),
+      fast: !!body.fast, avatar: avatarOf(body.avatar), nick: nickOf(body.nick, typeof body.nickKo === 'string' ? body.nickKo : body.nick), desc: descOf(body.desc),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode, model: String(body.model || '').replace(/[^\w.:[\]-]/g, '') || '', effort: effortOf(body.effort),
       newSessionId: crypto.randomUUID(), sessionId: '', proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
@@ -342,7 +345,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     try { if (!fs.statSync(cwd).isDirectory()) return [400, { error: 'no such folder' }] } catch { return [400, { error: 'no such folder' }] }
     const id = crypto.randomBytes(4).toString('hex')
     const a = {
-      fast: false, avatar: null, nick: clip(String(nick || '').replace(/[\x00-\x1f<>]/g, ''), 16), desc: descOf(desc),
+      fast: false, avatar: null, nick: nick && typeof nick === 'object' ? nickOf(nick.en, nick.ko) : nickOf(nick, nick), desc: descOf(desc),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode: MODES.includes(mode) ? mode : 'default', model: '', effort: '',
       newSessionId: crypto.randomUUID(), sessionId: '', forkFrom: sessionId, forkedFrom: sessionId, proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
@@ -382,10 +385,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (MODES.includes(body.mode)) a.mode = body.mode
       if (typeof body.model === 'string') a.model = body.model.replace(/[^\w.:[\]-]/g, '')
       if (typeof body.effort === 'string') a.effort = effortOf(body.effort)
-      if (typeof body.nick === 'string') a.nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
+      if (typeof body.nick === 'string' || typeof body.nickKo === 'string') a.nick = nickOf(body.nick, typeof body.nickKo === 'string' ? body.nickKo : body.nick)
       if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
       if (typeof body.desc === 'string') a.desc = descOf(body.desc)
-      if (typeof body.nick === 'string' || body.avatar !== undefined || typeof body.desc === 'string') { save(); notifyPages(); if (!('mode' in body) && !('model' in body) && !('effort' in body)) return [200, {}] }
+      if (typeof body.nick === 'string' || typeof body.nickKo === 'string' || body.avatar !== undefined || typeof body.desc === 'string') { save(); notifyPages(); if (!('mode' in body) && !('model' in body) && !('effort' in body)) return [200, {}] }
       save()
       const what = 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '') + (a.effort ? ' · effort ' + a.effort : '')
       if (!a.proc) { emit(a, { kind: 'note', text: what + ' — from the next message' }); notifyPages(); return [200, {}] }
