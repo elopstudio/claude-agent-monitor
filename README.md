@@ -29,7 +29,9 @@ Claude and Claude Code are trademarks of Anthropic.
 
 The page is in English by default. Switch to Korean with **EN / 한국어** in the menu (remembered in the browser) or open
 `http://127.0.0.1:4777/?lang=ko`. The theme is **System** (as the computer is set), **Light** or **Dark**, also remembered;
-in the desktop app its own header, title bar and settings window follow the pick too.
+in the desktop app its own header, title bar and settings window follow the pick too. Every list to pick from (mode,
+model, effort, a folder, a sort, the hotkey…) opens as the page's own, in the theme's colours rather than the system's,
+with its groups and a tick on the current one; ↑↓, Enter and Esc work as in a system list.
 
 **About** in the menu says what the program is, its version, who makes it (ELOP Studio), where the source code
 lives, where to report a problem, and its licence (PolyForm Noncommercial, with the full text). Its **Shortcuts** tab
