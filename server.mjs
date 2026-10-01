@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { createAgents } from './agents.mjs'
 import { createAccount } from './account.mjs'
 import { createCloud } from './cloud.mjs'
+import { createAssistant } from './assistant.mjs'
 import { tokensToday } from './tokens.mjs'
 import { createProcesses } from './processes.mjs'
 
@@ -541,9 +542,10 @@ async function buildState() {
   // requests waiting for a click — oldest first; the session is named, never its id
   const approvals = [...pending.values()].sort((a, b) => a.at - b.at).map((q) => {
     const hit = bySession.get(q.sessionId)
+    const mine = !hit && q.sessionId && q.sessionId === agents?.assistantState()?.sessionId   // the assistant's own
     return {
-      id: q.id, project: hit?.project || '', session: hit?.sess.name || '', short: hit?.sess.short || '',
-      nick: hit?.sess.nick || '', nickKo: hit?.sess.nickKo || '', isLeader: !!hit?.sess.isLeader, about: hit ? (hit.sess.role || hit.sess.title) : '',
+      id: q.id, project: hit?.project || '', session: hit?.sess.name || (mine ? 'monitor-assistant' : ''), short: hit?.sess.short || '',
+      nick: hit?.sess.nick || (mine ? 'Assistant' : ''), nickKo: hit?.sess.nickKo || (mine ? '비서' : ''), assistant: !!mine, isLeader: !!hit?.sess.isLeader, about: hit ? (hit.sess.role || hit.sess.title) : '',
       managed: !!q.managed, tool: q.tool, what: q.what, code: q.code, options: q.options, questions: q.questions || null, plan: q.plan || '', at: q.at, expiresAt: q.expiresAt,
     }
   })
@@ -956,6 +958,8 @@ const safeName = (n) => String(n || 'file').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_
 async function saveUpload(req, url) {
   const name = String(url.searchParams.get('session') || '')
   const target = (await readRegistry()).find((x) => x.name === name) || agents?.sessions().find((x) => x.name === name)
+    // the assistant is not among the agents shown; its files go in a folder of its own until it has a session id
+    || (name === 'monitor-assistant' && agents?.assistantState() ? { sessionId: agents.assistantState().sessionId || 'assistant' } : null)
   if (!target) return [404, {}]
   const chunks = []
   let size = 0
@@ -1193,6 +1197,12 @@ const agents = createAgents({
     return out.slice(-300)
   },
 })
+// the monitor's assistant behind the floating chat button (assistant.mjs)
+const assistant = createAssistant({
+  agents, dataDir: DATA, state: () => cachedState(), notifyPages,
+  decide: (id, answer) => decide(id, answer), sendTo: (session, text) => sendMessage({ session, text }),
+  requestSession: (id) => pending.get(id)?.sessionId,
+})
 const processes = createProcesses({ mask, clip })
 // every session's process, with what the page knows of it, for the processes dialog and for ending one of its children
 async function processRoots() {
@@ -1236,6 +1246,8 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/upload') { const [code, o] = await saveUpload(req, url); json(code, o); return }
       const body = await readBody(req)
       if (url.pathname === '/hook/prompt') { json(200, await agents.prompt(body)); return }
+      if (url.pathname === '/hook/assistant') { json(200, { text: await assistant.tool(body) }); return }
+      if (url.pathname === '/api/assistant/start') { json(200, await assistant.start()); return }
       if (url.pathname.startsWith('/api/account/')) { const [code, o] = await account.handle(url); json(code, o); return }
       if (url.pathname.startsWith('/api/cloud/')) { const [code, o] = await cloud.handle(url); json(code, o); return }
       if (url.pathname === '/api/agents/fork') { const [code, o] = await forkSession(body); json(code, o); return }
@@ -1262,6 +1274,11 @@ const server = http.createServer(async (req, res) => {
       // the account's email is private like the conversations: the token is needed to read it
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       json(200, await account.info(url.searchParams.get('fresh') === '1'))
+      return
+    }
+    if (url.pathname === '/api/assistant') {
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      json(200, { assistant: assistant.info() })
       return
     }
     if (url.pathname === '/api/cloud') {

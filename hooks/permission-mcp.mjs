@@ -10,8 +10,8 @@ import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 
 // the running monitor leaves its port and token in ~/.claude-agent-monitor (the folder next to the code is the old place)
-const RUNTIME = [path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json'), path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')]
-  .find((p) => fs.existsSync(p)) || ''
+const RUNTIME = [process.env.MONITOR_LINK || '', path.join(os.homedir(), '.claude-agent-monitor', 'bridge.json'), path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.runtime', 'bridge.json')]
+  .find((p) => p && fs.existsSync(p)) || ''
 const AGENT = process.env.MONITOR_AGENT || ''
 
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n')

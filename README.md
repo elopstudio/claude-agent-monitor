@@ -291,6 +291,26 @@ when each agent's last turn ended for this.
 stopped agent is opened — by the time the first message is written it is ready. **Quick start** leaves out your MCP
 servers and connectors, which starts faster still. Set `"claudePath"` in `config.json` if the program is not found.
 
+## The assistant
+
+The round button at the bottom right (labelled **Assistant** where there is room) opens a chat with the monitor's own
+assistant: one fixed monitor agent (Sonnet by default) that looks after all the others. It is not shown with any
+project and works in a folder of its own under `.runtime/assistant`, so it does not touch your code unless you ask.
+Its message box is the conversation tab's — attach files, and ⚙ for its permission mode, model and effort.
+
+It works through tools only it has (`hooks/assistant-mcp.mjs`, used without a prompt): **status** (every project and
+agent, stuck or erroring ones, the requests waiting, the plan's usage), **send_message** to an agent, **nudge** a stuck
+monitor agent, **answer_request** on a waiting permission request, and **notify_user**. Anything else it wants to do
+asks you like any agent.
+
+- **Answering for you.** It may allow or deny routine, reversible work inside an agent's own project. It is told to
+  leave to you anything destructive, outside the project, about credentials, money, deploys or force pushes, and every
+  question or plan; it can never answer its own requests. Each answer it gives appears in the chat with its reason.
+- **Speaking up.** The monitor tells it, at most every 15 seconds and only while it is free, about a request waiting
+  more than 2 minutes, an agent that looks stuck, and the plan passing 80 % and 95 %. It handles what it safely can and
+  alerts you only when you are needed: a highlighted line, a badge on the button and a desktop notification.
+- These events cost tokens only when one happens; nothing about them is written to disk.
+
 ## Desktop app
 
 `desktop/` packages the monitor as a Windows and macOS app: no terminal, and nothing depends on VS Code staying open.

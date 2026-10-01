@@ -60,13 +60,18 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
         // taken over but not forked yet (no first turn before the restart): fork again from the VS Code session —
         // its newSessionId was never created, and resuming that left the agent with "No conversation found"
         forkedFrom: saved.forkedFrom || saved.forkFrom || '',   // lists saved before forkedFrom: a fork still pending knows it
-        sessionId: saved.forkFrom ? '' : saved.sessionId || (saved.newSessionId && historyOf ? saved.newSessionId : ''), mode: MODES.includes(saved.mode) ? saved.mode : 'default',
+        sessionId: saved.forkFrom ? '' : saved.sessionId || '', mode: MODES.includes(saved.mode) ? saved.mode : 'default',
         proc: null, state: 'stopped', stateSince: Date.now(), lastAt: 0, events: [], streams: new Set(), msg: null,
         activity: null, activityAt: 0, turns: 0, stopping: false,
       }
       agents.set(a.id, a)
       // the conversation so far, from its transcript, so the dialog is not empty after a restart
       if ((a.sessionId || a.forkFrom) && historyOf) { try { a.events = await historyOf(a.sessionId || a.forkFrom) } catch {} }
+      // saved before the id was kept on claude's word: an id it was started with counts only if its conversation exists
+      if (historyOf && !a.forkFrom) {
+        if (!a.sessionId && saved.newSessionId) { try { const h = await historyOf(saved.newSessionId); if (h.length) { a.sessionId = saved.newSessionId; a.events = h } } catch {} }
+        else if (a.sessionId && a.sessionId === saved.newSessionId && !a.events.length) a.sessionId = ''
+      }
       a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS
       a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : a.justAfter ? 'monitor restarted right after the last turn — asked to check on it' : 'monitor restarted — send a message to continue', at: Date.now() })
     }
@@ -224,11 +229,18 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   }
 
   function spawnAgent(a) {
-    const mcp = JSON.stringify({ mcpServers: { monitor: { command: process.execPath, args: [path.join(root, 'hooks', 'permission-mcp.mjs')], env: { MONITOR_AGENT: a.id, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } } } })
+    // MONITOR_LINK: a second monitor (the test app) has its own link file, and its agents' tools must reach it, not the installed one
+    const nodeEnv = { MONITOR_AGENT: a.id, ...(process.env.MONITOR_LINK ? { MONITOR_LINK: process.env.MONITOR_LINK } : {}), ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) }
+    const servers = { monitor: { command: process.execPath, args: [path.join(root, 'hooks', 'permission-mcp.mjs')], env: nodeEnv } }
+    // the assistant (see assistant.mjs) also gets the monitor's own tools: look at every agent, message, answer, alert
+    if (a.kind === 'assistant') servers.assistant = { command: process.execPath, args: [path.join(root, 'hooks', 'assistant-mcp.mjs')], env: nodeEnv }
+    const mcp = JSON.stringify({ mcpServers: servers })
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--include-partial-messages', '--verbose',
       '--permission-mode', a.mode, '--mcp-config', mcp, '--permission-prompt-tool', 'mcp__monitor__approve',
       // lets "All OK" (bypassPermissions) be chosen, at the start or later; it is on only while that mode is picked
       '--allow-dangerously-skip-permissions']
+    // the assistant: its role, and its monitor tools used without a prompt (anything else still asks the person)
+    if (a.kind === 'assistant' && a.system) args.push('--append-system-prompt', a.system, '--allowedTools', 'mcp__assistant')
     if (a.model) args.push('--model', a.model)
     if (a.effort) args.push('--effort', a.effort)
     // quick start: only the monitor's own tool, none of the user's MCP servers and connectors
@@ -243,7 +255,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     try { child = spawn(claudeExecutable(), args, { cwd: a.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env }) }
     catch (e) { emit(a, { kind: 'note', text: 'could not start claude: ' + e.message }); a.proc = null; setState(a, 'stopped'); return }
     a.proc = child
-    if (!a.sessionId && !a.forkFrom) { a.sessionId = a.newSessionId; save() }   // from now on this session is resumed, never created again
+    // the session id is kept only once claude has said it (its first output, above): an agent started and then
+    // restarted before its first turn has no conversation yet, and resuming one left it with "No conversation found"
     let rest = ''
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', (chunk) => {
@@ -262,6 +275,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       a.controls = null
       if (a.respawn) { a.respawn = false; a.stopping = false; spawnAgent(a); setState(a, 'idle'); return }
       if (!a.stopping && code) emit(a, { kind: 'note', text: 'claude exited (' + code + ')' + (errTail ? ': ' + mask(clip(errTail, 300)) : '') })
+      if (/No conversation found with session ID/i.test(errTail) && a.sessionId) {
+        a.sessionId = ''; a.newSessionId = crypto.randomUUID(); a.midTurn = false; save()
+        emit(a, { kind: 'note', text: 'its earlier conversation could not be found — the next message starts a new one' })
+      }
       a.stopping = false
       setState(a, 'stopped')
     })
@@ -430,7 +447,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
 
   // agents for the state API, shaped like registry sessions
   function sessions(now) {
-    return [...agents.values()].map((a) => ({
+    return [...agents.values()].filter((a) => a.kind !== 'assistant').map((a) => ({
       // forkedFrom: the VS Code session it was taken over from, for good (forkFrom only lasts until its first turn)
       managed: true, agentId: a.id, pid: a.proc?.pid || 0, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
@@ -445,6 +462,26 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   const cwdOf = (id) => agents.get(String(id))?.cwd || null
   const sendText = (id, text) => { const a = agents.get(String(id)); return !!a && send(a, text, []) }
 
-  load()
-  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText, fork }
+  const loaded = load()   // the saved list is read before anything asks for an agent by id
+  // the monitor's own assistant: one fixed agent, kept in the list like the others, never shown with a project
+  function ensureAssistant({ cwd, system, model, nick }) {
+    let a = agents.get('assistant')
+    if (!a) {
+      fs.mkdirSync(cwd, { recursive: true })
+      a = {
+        kind: 'assistant', fast: false, avatar: null, nick: nick || '', id: 'assistant', cwd, key: '', name: 'monitor-assistant', mode: 'default',
+        model: model || 'sonnet', effort: '', newSessionId: crypto.randomUUID(), sessionId: '', proc: null, state: 'idle', stateSince: Date.now(),
+        startedAt: Date.now(), lastAt: 0, events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
+      }
+      agents.set(a.id, a)
+      save()
+    }
+    a.system = system   // the role as this version of the monitor writes it, never saved
+    return a
+  }
+  const assistantState = () => { const a = agents.get('assistant'); return a ? { state: a.state, running: !!a.proc, mode: a.mode, model: a.model, effort: a.effort || '', sessionId: a.sessionId } : null }
+  // a line in the assistant's chat that is not a message: an alert, or something it did on its own
+  const noteTo = (id, ev) => { const a = agents.get(id); if (a) emit(a, ev) }
+
+  return { handle, stream, prompt, sessions, byAgentSession, shutdown, claudeExecutable, cwdOf, sendText, fork, ensureAssistant, assistantState, noteTo, loaded }
 }
