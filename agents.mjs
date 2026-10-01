@@ -398,7 +398,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // agents for the state API, shaped like registry sessions
   function sessions(now) {
     return [...agents.values()].map((a) => ({
-      managed: true, agentId: a.id, sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
+      managed: true, agentId: a.id, pid: a.proc?.pid || 0, sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
       statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))

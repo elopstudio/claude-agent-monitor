@@ -616,6 +616,31 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .keys dt{white-space:nowrap;color:var(--faint);font-size:11px}
 .keys dd{margin:0;overflow-wrap:anywhere}
 .keys kbd{display:inline-block;font:700 11.5px var(--mono);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;padding:0 6px;line-height:19px}
+/* the processes view */
+.bell.hot{color:var(--block);border-color:var(--block)}
+.info .when .procs-chip{font-variant-numeric:tabular-nums}
+.info .when .procs-chip.hot{color:var(--block);font-weight:700}
+.procs{padding:12px 16px 16px;display:grid;gap:10px}
+.procs .pbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.procs .pbar .psum{flex:1;min-width:0}
+.procs .pbar select{font:13px var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px}
+.procs .pgroup{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.procs .pgh{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface-2);font-size:13px}
+.procs .pgh svg{width:22px;height:22px}
+.procs .pgh .pproj{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.procs .pgh .ptot{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.procs .prow{display:grid;grid-template-columns:minmax(0,1fr) 56px 70px 70px auto;gap:10px;align-items:center;padding:5px 10px 5px calc(10px + var(--depth,0) * 16px);border-top:1px solid var(--line);font-size:12.5px}
+.procs .prow.hot .pcpu{color:var(--block);font-weight:900}
+.procs .prow.k-hook{opacity:.55}
+.procs .pwhat{display:flex;gap:6px;align-items:baseline;min-width:0}
+.procs .pwhat b{flex:none}
+.procs .pkind{flex:none;font-size:10.5px;font-weight:700;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.procs .pcmd{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:11px;color:var(--faint)}
+.procs .pcpu,.procs .pmem,.procs .pup{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.procs .pkill{appearance:none;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--block);border-radius:6px;padding:2px 9px;font:700 11.5px var(--sans);cursor:pointer}
+.procs .pkill:hover{border-color:var(--block)}
+.procs .pkill:disabled{opacity:.4;cursor:default}
+.procs .pnone{color:var(--muted);font-size:13px;padding:20px;text-align:center}
 .acct{padding:14px 16px 16px;display:grid;gap:12px;font-size:13px}
 .acct .part{display:grid;gap:12px}
 .acct .cloud{border-top:1px solid var(--line);padding-top:12px}
@@ -662,6 +687,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     </div>
     <div class="right">
       <div class="totals" id="totals"></div>
+      <button type="button" class="bell" id="proc-btn"></button>
       <button type="button" class="bell" id="acct-btn"></button>
       <button type="button" class="bell" id="about-btn"></button>
       <button type="button" class="bell" id="bell" hidden></button>
@@ -693,7 +719,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: 'LEAD', idleBubble: 'Resting', waitBubble: 'Waiting', last: 'Last · {x}',
       forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
-      board: 'Board', decidedBy: '{x} decided · {t}', pvShow: 'Preview', pvGone: 'This file is no longer here — attachments are kept for a day.', pvNone: 'No preview for this kind of file.', pvDownload: 'Download', pvCut: '(only the first {n} KB)', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
+      board: 'Board', decidedBy: '{x} decided · {t}', procs: 'Processes', procTitle: 'What the agents have running', procChip: '{n} process(es) started by agents · CPU {cpu} · {mem}', procNone: 'No agent has anything running', procSum: '{n} running · CPU {cpu} · {mem} · checked {t}', procGroup: '{n} · CPU {cpu} · {mem}', procByCpu: 'Most CPU first', procByMem: 'Most memory first', procHooks: 'Show the monitor\'s own helpers', procEnd: 'End', procEndAsk: 'End {x} and what it started? Unsaved work in it is lost.', procHint: 'Processes the Claude Code sessions started — shells, dev servers, MCP servers, background tasks. CPU is a share of the whole PC since the last look; command lines are masked. Only these can be ended here.', pk_shell: 'shell', pk_mcp: 'MCP', pk_hook: 'monitor', pvShow: 'Preview', pvGone: 'This file is no longer here — attachments are kept for a day.', pvNone: 'No preview for this kind of file.', pvDownload: 'Download', pvCut: '(only the first {n} KB)', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
       askTitle: 'NEEDS APPROVAL', asksFor: 'Asking to run {x}', asking: 'WAITING FOR YOU', unknownAgent: 'an agent outside the list', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', goneWhile: 'Not answered here in time — it went back to VS Code (or was answered there).', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
@@ -718,7 +744,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: '리더', idleBubble: '쉬는 중', waitBubble: '대기 중', last: '마지막 · {x}',
       forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
-      board: '작업판', decidedBy: '{x} 결정 · {t}', pvShow: '미리 보기', pvGone: '파일이 없습니다 — 첨부 파일은 하루만 보관합니다.', pvNone: '이 형식은 미리 볼 수 없습니다.', pvDownload: '내려받기', pvCut: '(앞 {n} KB 만)', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
+      board: '작업판', decidedBy: '{x} 결정 · {t}', procs: '프로세스', procTitle: '에이전트가 실행 중인 것', procChip: '에이전트가 띄운 프로세스 {n}개 · CPU {cpu} · {mem}', procNone: '에이전트가 띄워 둔 것이 없습니다', procSum: '{n}개 실행 중 · CPU {cpu} · {mem} · {t} 확인', procGroup: '{n}개 · CPU {cpu} · {mem}', procByCpu: 'CPU 많은 순', procByMem: '메모리 많은 순', procHooks: '모니터 자체 도우미도 보기', procEnd: '끄기', procEndAsk: '{x} 와 그것이 띄운 것까지 끌까요? 저장하지 않은 작업은 사라집니다.', procHint: 'Claude Code 세션이 띄운 프로세스입니다 — 셸, 개발 서버, MCP 서버, 백그라운드 작업. CPU 는 지난 확인 이후 PC 전체 대비 사용률이고, 명령줄은 가려서 보여 줍니다. 여기서는 이것들만 끌 수 있습니다.', pk_shell: '셸', pk_mcp: 'MCP', pk_hook: '모니터', pvShow: '미리 보기', pvGone: '파일이 없습니다 — 첨부 파일은 하루만 보관합니다.', pvNone: '이 형식은 미리 볼 수 없습니다.', pvDownload: '내려받기', pvCut: '(앞 {n} KB 만)', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
       askTitle: '승인 필요', asksFor: '{x} 실행 허락을 기다리는 중', asking: '승인 대기', unknownAgent: '목록에 없는 에이전트', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', goneWhile: '여기서 제시간에 답하지 못해 VS Code로 넘어갔습니다(또는 거기서 답했습니다).', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
@@ -881,6 +907,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     $('dock').setAttribute('aria-label', t('dockLabel'));
     if ($('bell')) $('bell').textContent = '🔔 ' + t('notifyOn');
     $('acct-btn').textContent = '👤 ' + t('acct');
+    procButton();
     $('about-btn').textContent = 'ⓘ ' + t('about');
     if (!$('live').classList.contains('on')) $('live-text').textContent = last ? t('offline') : t('connecting');
   }
@@ -1875,6 +1902,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     if (s.startedAt) when.append(el('span', null, t('up', { t: dur(s.startedAt) })));
     if (s.context) { const c = el('span', 'ctx', '🧠 ' + tokens(s.context)); c.title = t('dCtx'); when.append(c); }
     if (s.today && s.today.total) { const c = el('span', 'ctx', '⚡ ' + tokens(s.today.total)); c.title = t('dToday') + ' — ' + todayText(s.today); when.append(c); }
+    if (s.procs && s.procs.n) { const c = el('span', 'procs-chip' + (s.procs.cpu >= 25 ? ' hot' : ''), '⚙ ' + s.procs.n); c.title = t('procChip', { n: s.procs.n, cpu: pct(s.procs.cpu), mem: bytes(s.procs.mem) }); when.append(c); }
     const runningSubs = (s.subagents || []).filter((a) => a.running).length;
     if (runningSubs) { const c = el('span', 'subs-chip', '🤖 ' + runningSubs); c.title = t('subsRunning', { n: runningSubs }); when.append(c); }
     const errs = recentErrors(s);
@@ -2237,6 +2265,94 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     }
     return box;
   }
+  // what the agents have running: every session's shells, servers, tools and background tasks, heaviest first
+  const bytes = (n) => (n >= 1073741824 ? (n / 1073741824).toFixed(1) + ' GB' : Math.max(1, Math.round((n || 0) / 1048576)) + ' MB');
+  const pct = (v) => (v == null ? '–' : (v >= 10 ? Math.round(v) : v.toFixed(1)) + '%');
+  function procButton(data) {
+    const all = ((data || last)?.projects || []).flatMap((p) => p.sessions);
+    const n = all.reduce((a, x) => a + (x.procs?.n || 0), 0), cpu = all.reduce((a, x) => a + (x.procs?.cpu || 0), 0);
+    const b = $('proc-btn');
+    b.textContent = '⚙ ' + t('procs') + (n ? ' ' + n : '');
+    b.classList.toggle('hot', cpu >= 50);
+    b.title = n ? t('procChip', { n, cpu: pct(cpu), mem: bytes(all.reduce((a, x) => a + (x.procs?.mem || 0), 0)) }) : t('procNone');
+  }
+  function showProcesses() {
+    stopLive();
+    leaveDialog();
+    const d = $('detail');
+    const head = el('div', 'dh'), who = el('div', 'who');
+    who.append(el('b', null, t('procTitle')));
+    const close = iconButton('close', t('close'));
+    close.addEventListener('click', () => d.close());
+    head.append(who, close);
+    const bar = el('div', 'pbar');
+    const sort = document.createElement('select');
+    sort.append(new Option(t('procByCpu'), 'cpu'), new Option(t('procByMem'), 'mem'));
+    try { sort.value = localStorage.getItem('am.procSort') || 'cpu'; } catch (e) {}
+    const hooksBox = document.createElement('input');
+    hooksBox.type = 'checkbox';
+    const hooksLabel = el('label', 'phooks');
+    hooksLabel.append(hooksBox, document.createTextNode(' ' + t('procHooks')));
+    const summary = el('span', 'psum', t('liveConnecting'));
+    bar.append(summary, sort, hooksLabel);
+    const list = el('div', 'plist');
+    let data = null;
+    const up = (ms) => { if (!ms) return ''; const m = Math.round((Date.now() - ms) / 60000); return m < 60 ? t('m', { n: m }) : m < 1440 ? t('hm', { h: Math.floor(m / 60), m: m % 60 }) : t('d', { n: Math.floor(m / 1440) }); };
+    function draw() {
+      if (!data) return;
+      const key = sort.value;
+      const groups = data.sessions.filter((g) => g.procs.some((p) => p.kind !== 'hook') || hooksBox.checked)
+        .sort((a, c) => (c.total[key] || 0) - (a.total[key] || 0));
+      const n = data.sessions.reduce((a, g) => a + g.total.n, 0);
+      summary.textContent = t('procSum', { n, cpu: pct(data.sessions.reduce((a, g) => a + g.total.cpu, 0)), mem: bytes(data.sessions.reduce((a, g) => a + g.total.mem, 0)), t: ago(data.at) });
+      list.replaceChildren();
+      if (!groups.length) { list.append(el('div', 'pnone', t('procNone'))); return; }
+      for (const g of groups) {
+        const sec = el('section', 'pgroup');
+        const h = el('div', 'pgh');
+        h.append(robotNode(str(g.name), STATE[g.state] ? g.state : 'resting', !!g.isLeader, true), el('b', null, str(lang === 'ko' && g.nickKo || g.nick) || str(g.name)), el('span', 'pproj', str(g.project)),
+          el('span', 'ptot', t('procGroup', { n: g.total.n, cpu: pct(g.total.cpu), mem: bytes(g.total.mem) })));
+        sec.append(h);
+        for (const p of g.procs) {
+          if (p.kind === 'hook' && !hooksBox.checked) continue;
+          const row = el('div', 'prow' + (p.kind ? ' k-' + p.kind : '') + ((p.cpu || 0) >= 25 ? ' hot' : ''));
+          row.style.setProperty('--depth', p.depth);
+          const what = el('div', 'pwhat');
+          what.append(el('b', null, str(p.name)), ...(p.kind ? [el('span', 'pkind', t('pk_' + p.kind))] : []), el('span', 'pcmd', str(p.cmd)));
+          what.title = str(p.cmd);
+          const kill = el('button', 'pkill', t('procEnd'));
+          kill.type = 'button';
+          kill.addEventListener('click', async () => {
+            if (!confirm(t('procEndAsk', { x: str(p.name) + ' (' + p.pid + ')' }))) return;
+            kill.disabled = true;
+            const r = await agentCall('/api/processes/kill', { pid: p.pid });
+            if (!r) { kill.disabled = false; kill.textContent = t('acctFailed'); return; }
+            load();
+          });
+          row.append(what, el('span', 'pcpu', pct(p.cpu)), el('span', 'pmem', bytes(p.mem)), el('span', 'pup', up(p.start)), kill);
+          sec.append(row);
+        }
+        list.append(sec);
+      }
+    }
+    async function load() {
+      const get = () => fetch('/api/processes?token=' + encodeURIComponent(token), { cache: 'no-store' });
+      try { let r = await get(); if (r.status === 403) { await refreshToken(); r = await get(); } if (r.ok) data = await r.json(); } catch (e) {}
+      if (list.isConnected) draw();
+    }
+    sort.addEventListener('change', () => { try { localStorage.setItem('am.procSort', sort.value); } catch (e) {} draw(); });
+    hooksBox.addEventListener('change', draw);
+    const body = el('div', 'procs');
+    body.append(bar, list, el('div', 'hint', t('procHint')));
+    d.classList.remove('narrow');
+    d.replaceChildren(head, dbody(body));
+    if (!d.open) d.showModal();
+    floatInto(d);
+    close.focus();
+    load();
+    acctTimer = setInterval(load, 5000);   // cleared with the dialog, like the account's
+  }
+
   function showAbout() {
     stopLive();
     leaveDialog();
@@ -2598,6 +2714,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const totals = $('totals');
     totals.replaceChildren();
     const pill = (cls, g, label, v) => { const x = el('span', 'pill ' + cls); x.append(el('span', 'g', g), document.createTextNode(label + ' '), el('b', null, String(v))); return x; };
+    procButton(data);
     totals.append(pill('', '◆', t('projects'), data.projects.length), pill('', '●', t('sessions'), all.length), pill('run', '▶', t('working'), n('working')), pill('wait', '○', t('waiting'), n('waiting')), pill('rest', '–', t('resting'), n('resting')));
 
     if (selected !== ALL && !data.projects.some((p) => p.key === selected)) selected = ALL;
@@ -2725,6 +2842,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     b.hidden = !can;
     b.textContent = '🔔 ' + t('notifyOn');
   }
+  $('proc-btn').addEventListener('click', showProcesses);
   $('acct-btn').addEventListener('click', showAccount);
   $('about-btn').addEventListener('click', showAbout);
   $('bell').addEventListener('click', async () => { try { await Notification.requestPermission(); } catch (e) {} bell(); });

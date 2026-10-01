@@ -32,6 +32,11 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   `config.json`.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
+- **Processes.** **⚙ Processes** in the header, with a count, opens what the agents have running: every session's
+  shells, dev servers, MCP servers and background tasks, grouped by agent and heaviest first (CPU or memory), with how
+  long each has been running. Each card shows **⚙ N** too, red when it uses a lot of CPU. **End** stops one (and what it
+  started) after asking — only a session's own descendants, never the session itself or anything else on the PC. The
+  monitor's own helpers (hooks, the permission tool) are left out unless asked for; command lines are masked.
 - **Working in another project.** A card started in one project that has just changed files in another git repository
   (within 30 minutes) gets **↗ other-project**; that project's tab lists it under *Working here from other projects*, and
   a click goes back to where it belongs. Only file-changing tools count, not reading; the page gets the project's folder
@@ -82,6 +87,7 @@ The page polls every 3 seconds (every 15 seconds while the tab is hidden).
 | the same transcripts, and their subagents' | Read through once a day, then only what is appended — **the token counts of replies and nothing else**, for “tokens today” |
 | `boards/<project>.json` | The task board and per-session roles, written by the project's leader — optional |
 | `config.json` | Project labels, leader assignment, tab order — optional (see `config.example.json`) |
+| the process list (Windows: `Win32_Process`; macOS: `ps`) | What each session started — name, command line (masked), CPU, memory, start time — only while a page asks, at most every few seconds |
 | `~/.claude.json` | The signed-in account (name, e-mail, organisation) and the usage Claude Code last saved — only while the account dialog is open |
 | `~/.claude/.credentials.json` | The Claude sign-in token and plan, to ask Anthropic for the usage — only while the account dialog is open |
 

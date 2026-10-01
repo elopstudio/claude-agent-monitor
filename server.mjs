@@ -21,6 +21,7 @@ import { createAgents } from './agents.mjs'
 import { createAccount } from './account.mjs'
 import { createCloud } from './cloud.mjs'
 import { tokensToday } from './tokens.mjs'
+import { createProcesses } from './processes.mjs'
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url))   // the code: public/, hooks/
 // the data: config.json, boards/, .runtime/ — the code's own folder unless MONITOR_HOME says otherwise
@@ -426,6 +427,7 @@ async function buildState() {
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     sess.away = awayOf(info, s.cwd, key, now)
+    sess.procs = processes.summary(s.pid)   // what it has running: counts only, no commands
     const p = projects.get(key)
     p.sessions.push(sess)
     bySession.set(s.sessionId, { sess, project: key })
@@ -452,6 +454,7 @@ async function buildState() {
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     sess.away = awayOf(info, m.cwd, m.key, now)
+    sess.procs = processes.summary(m.pid)
     projects.get(m.key).sessions.push(sess)
     bySession.set(m.sessionId, { sess, project: m.key })
   }
@@ -1132,6 +1135,15 @@ const agents = createAgents({
     return out.slice(-300)
   },
 })
+const processes = createProcesses({ mask, clip })
+// every session's process, with what the page knows of it, for the processes dialog and for ending one of its children
+async function processRoots() {
+  const st = await cachedState()
+  const known = new Map(st.projects.flatMap((p) => p.sessions.map((x) => [x.name, { name: x.name, nick: x.nick, nickKo: x.nickKo, project: p.key, isLeader: !!x.isLeader, managed: !!x.managed, state: x.state }])))
+  const roots = (await readRegistry()).filter((r) => known.has(r.name)).map((r) => ({ pid: r.pid, info: known.get(r.name) }))
+  for (const m of agents ? agents.sessions(Date.now()) : []) if (m.pid && known.has(m.name)) roots.push({ pid: m.pid, info: known.get(m.name) })
+  return roots
+}
 const account = createAccount({ claudeExecutable: agents.claudeExecutable, dataDir: DATA })
 
 /* ── HTTP ─────────────────────────────────────── */
@@ -1175,6 +1187,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/run') { const [code, o] = await runCommand(body); json(code, o); return }
       if (url.pathname === '/api/look') { json(await saveLook(body), {}); return }
       if (url.pathname === '/api/order') { json(await saveOrder(body), {}); return }
+      if (url.pathname === '/api/processes/kill') { json(await processes.kill(Number(body.pid), await processRoots()), {}); return }
       if (url.pathname === '/api/board') { const code = await editBoard(body); json(code, {}); return }
       if (url.pathname === '/api/decide') { json(decide(String(body.id || ''), String(body.answer || ''), Number(body.pick), body.answers) ? 200 : 404, {}); return }
       res.writeHead(404).end(); return
@@ -1196,6 +1209,12 @@ const server = http.createServer(async (req, res) => {
       // whose account this PC is linked to is private too
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       json(200, await cloud.info(url.searchParams.get('fresh') === '1'))
+      return
+    }
+    if (url.pathname === '/api/processes') {
+      // command lines are private like the conversations: the token is needed, and they come masked
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      json(200, await processes.list(await processRoots()))
       return
     }
     if (url.pathname === '/api/upload-file') {
