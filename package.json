@@ -1,6 +1,6 @@
 {
   "name": "elop-crew",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "private": true,
   "description": "ELOP Crew, the AI Agent Monitor for Claude Code: a local dashboard for Claude Code sessions, grouped as project → leader → agents (Claude Code only for now)",
   "license": "PolyForm-Noncommercial-1.0.0",
