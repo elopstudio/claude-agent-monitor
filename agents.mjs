@@ -33,7 +33,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'forkFrom']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'forkFrom', 'forkedFrom']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
@@ -54,6 +54,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
         // a list saved before the session id was recorded: the id it was started with is the one to resume
         // taken over but not forked yet (no first turn before the restart): fork again from the VS Code session —
         // its newSessionId was never created, and resuming that left the agent with "No conversation found"
+        forkedFrom: saved.forkedFrom || saved.forkFrom || '',   // lists saved before forkedFrom: a fork still pending knows it
         sessionId: saved.forkFrom ? '' : saved.sessionId || (saved.newSessionId && historyOf ? saved.newSessionId : ''), mode: MODES.includes(saved.mode) ? saved.mode : 'default',
         proc: null, state: 'stopped', stateSince: Date.now(), lastAt: 0, events: [], streams: new Set(), msg: null,
         activity: null, activityAt: 0, turns: 0, stopping: false,
@@ -341,7 +342,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     const a = {
       fast: false, avatar: null, nick: clip(String(nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode: MODES.includes(mode) ? mode : 'default', model: '', effort: '',
-      newSessionId: crypto.randomUUID(), sessionId: '', forkFrom: sessionId, proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
+      newSessionId: crypto.randomUUID(), sessionId: '', forkFrom: sessionId, forkedFrom: sessionId, proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
     }
     // the conversation so far, so the dialog shows where it left off
@@ -424,7 +425,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // agents for the state API, shaped like registry sessions
   function sessions(now) {
     return [...agents.values()].map((a) => ({
-      managed: true, agentId: a.id, pid: a.proc?.pid || 0, sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
+      // forkedFrom: the VS Code session it was taken over from, for good (forkFrom only lasts until its first turn)
+      managed: true, agentId: a.id, pid: a.proc?.pid || 0, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
       statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))

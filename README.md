@@ -211,7 +211,11 @@ The page cannot set a VS Code session's permission mode, model or effort — VS 
 to change them. **Take over in the monitor**, above its conversation, carries the conversation on as a monitor agent
 in the same folder, under the same name and permission mode, where all of those can be set and the turn stopped. It
 is a copy (`claude --resume <id> --fork-session`), so the VS Code session can stay open without the two writing to one
-transcript; close it in VS Code if you will not use it.
+transcript; close it in VS Code if you will not use it. While it stays open, its card says **IN MONITOR** and its
+dialog points to the monitor agent instead of offering to take it over again — a session is taken over once. It
+cannot be taken over while it is working (the copy would start with a tool call still open); wait for the turn to
+end. A copy taken over just before the monitor restarts, before its first turn, forks again on its next message.
+Both copies work on the same folder, so keep to one of them.
 
 ## The mobile app (optional)
 
@@ -249,7 +253,7 @@ Without a link the monitor never contacts cam.elopstudio.com. `CAM_URL` points i
 **+ New agent** (in a project's header, in each project's section on the all-agents tab — that project's folder already picked — or at the top of that tab) starts an agent without VS Code, the way the
 VS Code extension does it: the monitor runs the installed `claude` program in headless mode
 (`claude -p --input-format stream-json --output-format stream-json --include-partial-messages`) in the folder you pick,
-on your own Claude Code login. Its card is marked **MONITOR**; its dialog's conversation tab is the full chat:
+on your own Claude Code login. Its dialog's conversation tab is the full chat:
 
 - **Name** and **Look** in the dialog are optional. Leave the name empty for an automatic one. The look is one of eight
   colours and a headgear (antenna, twin, headphones, sprout, bolt), with a live preview. The crown is not on offer:

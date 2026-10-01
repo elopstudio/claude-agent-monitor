@@ -406,6 +406,7 @@ async function buildState() {
   const bySession = new Map()
 
   const agentPids = new Set((agents ? agents.sessions(now) : []).map((m) => m.pid).filter(Boolean))
+  const takenOver = new Map((agents ? agents.sessions(now) : []).filter((m) => m.forkedFrom).map((m) => [m.forkedFrom, m.name]))
   for (const s of reg) {
     if (agents?.byAgentSession(s.sessionId)) continue
     // a claude the monitor runs, by its process: one just taken over is registered under the VS Code session's id
@@ -431,6 +432,8 @@ async function buildState() {
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0
     sess.away = awayOf(info, s.cwd, key, now)
+    // taken over in the monitor and still open in VS Code: the page says which copy is the old one
+    sess.takenOver = takenOver.get(s.sessionId) || ''
     sess.procs = processes.summary(s.pid, s.name)   // what it has running: counts only, no commands
     const p = projects.get(key)
     p.sessions.push(sess)
@@ -965,7 +968,12 @@ async function forkSession(body) {
   const target = (await readRegistry()).find((x) => x.name === String(body.session || ''))
   if (!target) return [404, {}]
   if (agents.byAgentSession(target.sessionId)) return [400, { error: 'already a monitor agent' }]
+  // once is enough: a second copy of the same conversation would be a third agent working on it
+  const copy = agents.sessions(Date.now()).find((m) => m.forkedFrom === target.sessionId)
+  if (copy) return [409, { error: 'already taken over', name: copy.name }]
   const shown = (await cachedState()).projects.flatMap((p) => p.sessions).find((x) => x.name === target.name)
+  // not in the middle of a turn: the copy would start from a transcript with a tool call still open
+  if (shown?.state === 'working') return [409, { error: 'working' }]
   return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: shown?.nickKo || shown?.nick || '', mode: modes.get(target.sessionId)?.mode || 'default' })
 }
 
