@@ -285,6 +285,11 @@ restarted and asked to pick up where it left off, in the language it was using w
 than 2 minutes before is asked whether that turn was waiting for this restart — say it started the installer of a new
 version and ended its turn — and, if so, to check that it worked and tell you; otherwise it just says so. The list keeps
 when each agent's last turn ended for this.
+An agent whose turn fails because Claude Code is not logged in any more (a login that ran out, a switch to another
+account) is stopped, since a claude that keeps running keeps the login it started with, and its conversation says it
+will carry on by itself. Once Claude Code is logged in again, it is started afresh and told to pick up where it left
+off. It is tried once with the login there is, in case it failed on an old one, and after that only when the login
+changes, so a login that still does not work is not tried over and over. A message sent to it by hand goes at once.
 **End agent** also removes it from that list.
 
 `claude` takes a while to start, so the monitor starts it as soon as an agent is created, and when the dialog of a

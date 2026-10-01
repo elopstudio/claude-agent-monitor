@@ -38,10 +38,16 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'forkFrom', 'forkedFrom']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'loginLost', 'forkFrom', 'forkedFrom']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
+  // Claude Code logged out under a running agent (a login that ran out, a switch to another account): its turn fails with
+  // "Not logged in". The agent is stopped, since a process that keeps running keeps the login it started with, and once
+  // Claude Code is logged in again it is started afresh and carries on with what it was doing
+  const LOGIN_LOST = /Not logged in|Please run \/login|authentication_failed|OAuth token (has )?expired|invalid.{0,20}(api key|bearer token)/i
+  const LOGGED_BACK = 'Claude Code was logged out while you were working (a login that ran out, or a switch to another account), so your last turn failed with "Not logged in". It is logged in again now. Please carry on where you left off, and keep replying in the language you have been using with the user.'
+  const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
   let shuttingDown = false   // stopping everything on the way out is not the end of their turns
   function save() {
     try {
@@ -201,6 +207,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       }
       return
     }
+    if (o.type === 'assistant' && o.error === 'authentication_failed') a.loginFailed = true
     if (o.type === 'assistant' && !o.parent_tool_use_id && Array.isArray(o.message?.content)) {
       for (const c of o.message.content) {
         if (c?.type === 'tool_use') {
@@ -224,6 +231,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // a failed turn says why (an API error, a limit…) instead of ending silently
       emit(a, { kind: 'turn', ok: !o.is_error, subtype: String(o.subtype || ''), ms: o.duration_ms || 0, ...(o.is_error ? { text: mask(clip(String(o.result || (o.errors || []).join('; ') || o.subtype || ''), 400)) } : {}) })
       setState(a, 'idle')
+      const failed = o.is_error && (a.loginFailed || LOGIN_LOST.test(String(o.result || (o.errors || []).join('; '))))
+      a.loginFailed = false
+      if (!o.is_error) a.loginTriedAt = 0
+      if (failed) { loggedOut(a); return }
       if (a.restartAfterTurn) { a.restartAfterTurn = false; a.respawn = true; stop(a) }
     }
   }
@@ -312,6 +323,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   }
 
   function send(a, text, files) {
+    // a message sent by hand to an agent waiting for the login: it goes now, in a new process with the login there is
+    if (a.loginLost) { a.loginLost = 0; save() }
     if (!a.proc) spawnAgent(a)
     if (!a.proc) return false
     const msg = userMessage(text, files)
@@ -321,6 +334,41 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     setState(a, 'working')
     return true
   }
+
+  // its turn failed for want of a login: stop it, and say it will carry on by itself
+  function loggedOut(a) {
+    a.loginLost = Date.now()
+    save()
+    stop(a)
+    emit(a, { kind: 'note', text: 'Claude Code is not logged in — this agent carries on by itself once it is logged in again' })
+    notifyPages()
+  }
+  // is Claude Code logged in now, and when were its login files last written
+  function loginNow() {
+    let at = 0, cred = null, state = null
+    const credFile = path.join(CONFIG_DIR, '.credentials.json')
+    const stateFile = process.env.CLAUDE_CONFIG_DIR ? path.join(CONFIG_DIR, '.claude.json') : path.join(os.homedir(), '.claude.json')
+    try { cred = JSON.parse(fs.readFileSync(credFile, 'utf8')); at = fs.statSync(credFile).mtimeMs } catch {}
+    // on macOS the token is in the keychain: the account in .claude.json is all there is to see
+    try { state = JSON.parse(fs.readFileSync(stateFile, 'utf8')); if (process.platform === 'darwin') at = Math.max(at, fs.statSync(stateFile).mtimeMs) } catch {}
+    return { ok: !!process.env.ANTHROPIC_API_KEY || !!(state?.oauthAccount && (cred?.claudeAiOauth?.accessToken || process.platform === 'darwin')), at }
+  }
+  // every 15 s while an agent waits for the login. It is tried again once logged in — at once if the login was
+  // written since it failed, else once (it may have failed on a login it held from before) — and then not again
+  // until the login changes, so a login that still does not work is not tried over and over
+  setInterval(() => {
+    const waiting = [...agents.values()].filter((a) => a.loginLost)
+    if (!waiting.length || shuttingDown) return
+    const now = Date.now(), login = loginNow()
+    if (!login.ok) return
+    for (const a of waiting) {
+      if (a.proc || now - a.loginLost < 20000) continue
+      if (!(login.at > a.loginLost || !a.loginTriedAt) || now - (a.loginTriedAt || 0) < 60000) continue
+      a.loginTriedAt = now
+      emit(a, { kind: 'note', text: 'Claude Code is logged in again — carrying on' })
+      send(a, LOGGED_BACK, [])
+    }
+  }, 15000).unref?.()
 
   function stop(a) {
     if (!a.proc) return
