@@ -12,7 +12,8 @@ const home = path.join(os.tmpdir(), 'agent-monitor-try')
 const data = path.join(home, 'data')
 const profile = path.join(home, 'profile')
 
-// the installed app's data folder: where its settings say, else the default
+// the installed app's data folder: where its settings say, else the default (its settings stay in the folder of its
+// old name, Agent Monitor — see main.cjs)
 const appData = process.env.APPDATA || path.join(os.homedir(), 'Library', 'Application Support')
 let real = path.join(os.homedir(), '.claude-agent-monitor')
 try {

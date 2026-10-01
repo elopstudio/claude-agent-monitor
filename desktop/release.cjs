@@ -48,7 +48,7 @@ async function ensureRelease() {
   // the tag is made on GitHub from this commit, so it has to be there already
   const commit = git('rev-parse', 'HEAD')
   if (!(await github('GET', `/commits/${commit}`))) fail(`push ${commit.slice(0, 7)} before releasing it`)
-  await github('POST', '/releases', { tag_name: tag, target_commitish: commit, name: `Agent Monitor ${pkg.version}` })
+  await github('POST', '/releases', { tag_name: tag, target_commitish: commit, name: `ELOP Crew ${pkg.version}` })
   console.log(`release: created ${tag} at ${commit.slice(0, 7)}`)
 }
 

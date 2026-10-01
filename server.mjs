@@ -1272,7 +1272,7 @@ const account = createAccount({ claudeExecutable: agents.claudeExecutable, dataD
 
 const INDEX = path.join(ROOT, 'public', 'index.html')
 const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || '' } catch { return '' } })()
-// this PC linked to an account on cam.elopstudio.com
+// this PC linked to an account on crew.elopstudio.com
 // the mobile app's calls come through the relay and are answered by this server's own API, with its token added there
 const cloud = createCloud({ dataDir: DATA, version: VERSION, notifyPages, local: { port: PORT, token: () => TOKEN } })
 // the about dialog's files: the maker's logo for light and dark, and the licence

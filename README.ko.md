@@ -1,4 +1,6 @@
-# claude-agent-monitor
+# ELOP Crew
+
+Claude Code 용 **AI Agent Monitor** (예전 이름 Agent Monitor)
 
 [English](README.md) | **한국어**
 
@@ -14,7 +16,10 @@ npm start            # http://127.0.0.1:4777  (포트는 PORT=… 로 바꿉니�
 ```
 
 [데스크톱 앱](#데스크톱-앱)으로 설치하면 터미널 없이 전용 창과 트레이로 씁니다.
-Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elopstudio.com/?lang=ko)** 에 있습니다.
+Windows와 macOS 설치 파일, 소개는 **[crew.elopstudio.com](https://crew.elopstudio.com/?lang=ko)** 에 있습니다.
+
+ELOP Crew 는 이롭스튜디오가 만들었고 Claude Code 와 함께 씁니다. Anthropic 과 제휴하거나 Anthropic 이 보증한 제품이 아닙니다.
+Claude 와 Claude Code 는 Anthropic 의 상표입니다.
 
 화면은 기본이 영어입니다. 헤더의 **EN / 한국어** 버튼으로 바꾸면 브라우저가 기억하고,
 `http://127.0.0.1:4777/?lang=ko` 로 열어도 됩니다.
@@ -111,7 +116,7 @@ Windows와 macOS 설치 파일, 소개는 **[cam.elopstudio.com](https://cam.elo
 - `Host` 가 `127.0.0.1`, `localhost`, `[::1]` 이 아닌 요청은 거부합니다(421).
   그래서 다른 웹 페이지가 자기 도메인을 이 컴퓨터로 돌려 API 에 닿는 일(DNS rebinding)은 막힙니다.
 - 이 모든 것은 PC 안에만 있습니다. 다만 [모바일 앱](#모바일-앱-선택)을 쓰려고 PC를 연결하면, 앱이 요청하는 것(같은 API,
-  대화 보기 포함)은 cam.elopstudio.com 의 중계를 거칩니다.
+  대화 보기 포함)은 crew.elopstudio.com 의 중계를 거칩니다.
 
 ## 상태
 
@@ -205,25 +210,25 @@ VS Code 세션을 열어 둬도 같은 기록에 둘이 함께 쓰는 일이 없
 
 ## 모바일 앱 (선택)
 
-휴대폰의 Agent Monitor 앱이 [cam.elopstudio.com](https://cam.elopstudio.com/account)을 거쳐 PC의 모니터에 붙습니다.
+휴대폰의 ELOP Crew 앱이 [crew.elopstudio.com](https://crew.elopstudio.com/account)을 거쳐 PC의 모니터에 붙습니다.
 에이전트가 주소록처럼 나오고, 에이전트마다 채팅방에서 대화를 보고 메시지를 보내며, 승인 요청과 질문에 답합니다.
 계정 창 아래쪽에서 이 PC를 그 계정에 연결하고, 로그인은 GitHub나 Google로 합니다. 모니터는 PC 몇 대든 무료이고,
 요금제는 앱에서 연결할 수 있는 PC 수입니다(Free 1대, Pro 3대, Team 10대).
 
 - **이 PC 연결** 을 누르면 새 Ed25519 키 쌍을 만들고 `KXQ4-7MTR` 같은 코드를 보여 주며, 그 코드로
-  `cam.elopstudio.com/activate` 를 엽니다. 로그인하고 같은 코드인지 확인한 뒤 **연결** 을 누르면 모니터가 몇 초 안에 알아챕니다.
+  `crew.elopstudio.com/activate` 를 엽니다. 로그인하고 같은 코드인지 확인한 뒤 **연결** 을 누르면 모니터가 몇 초 안에 알아챕니다.
   코드는 10분 동안 유효합니다. 내 모니터가 보여 주는 코드만 연결하세요.
 - 연결된 뒤에는 서버로 가는 요청마다 개인키로 서명합니다. 비밀번호나 토큰은 없고, 서버에는 공개키만 남습니다.
 - **이 PC 연결 해제** 는 서버에 알리고 키를 지웁니다. 웹 계정 페이지에서 해제한 PC도 다음 확인 때(늦어도 10분 안에) 알고 키를 지웁니다.
 
 데이터 폴더의 `cloud.json` 에는 서버 주소, 기기 id, 개인키만 둡니다. 사람에 관한 정보는 두지 않습니다.
 이름과 요금제는 계정 창이 열려 있을 때 물어서 메모리에만 둡니다. 서버에는 PC 종류("Windows PC", "Mac"), 운영체제, 모니터 버전만 보냅니다. 호스트 이름에는 사람 이름이 들어 있는 경우가 많아 보내지 않습니다. PC 이름은 계정 페이지에서 바꿀 수 있습니다.
-**중계.** 연결돼 있는 동안 모니터는 cam.elopstudio.com 에 WebSocket 을 열어 둡니다(데스크톱 앱, 또는 Node 22 이상. 계정 창에
+**중계.** 연결돼 있는 동안 모니터는 crew.elopstudio.com 에 WebSocket 을 열어 둡니다(데스크톱 앱, 또는 Node 22 이상. 계정 창에
 지금 앱에서 연결 가능한지 나옵니다). 앱의 요청은 이 연결로 들어와 화면이 쓰는 것과 같은 모니터 API 가 답합니다. 그래서 앱에서 보고
 보내는 것(에이전트, 대화, 메시지, 파일, 승인, 명령)은 그 서버를 지나갑니다. 오가는 동안 암호화(TLS)되고 서버에 저장·기록되지 않지만,
 종단간 암호화는 아닙니다. Claude 로그인(`/api/account/*`)과 PC 연결 설정(`/api/cloud*`)은 앱에 열지 않고, 모니터 토큰은 요청마다
 PC 에서 붙이고 응답에서 빼므로 PC 밖으로 나가지 않습니다. **이 PC 연결 해제** 로 중계가 멈춥니다. 사이트가 무엇을 얼마나 두는지는
-[개인정보처리방침](https://cam.elopstudio.com/privacy)에 있습니다. 연결하지 않으면 cam.elopstudio.com 에 접속하지 않습니다.
+[개인정보처리방침](https://crew.elopstudio.com/privacy)에 있습니다. 연결하지 않으면 crew.elopstudio.com 에 접속하지 않습니다.
 `CAM_URL` 로 다른 서버를 가리킬 수 있습니다(개발용: `http://127.0.0.1:8790`).
 
 ## 모니터가 직접 띄우는 에이전트
@@ -310,7 +315,7 @@ claude 는 처음 로그인을 그대로 들고 있기 때문입니다. 대화�
 `desktop/` 은 모니터를 윈도우 앱과 macOS 앱으로 묶습니다. 터미널이 필요 없고, VS Code 를 닫아도 영향을 받지 않습니다.
 아래 설명은 윈도우 기준이고, Mac 에서 다른 점은 **macOS** 에 모아 두었습니다.
 
-**설치.** `Agent Monitor Setup <버전>.exe` 를 실행합니다(아래 `npm run dist` 로 만듭니다). 지금 사용자 계정에만 설치되어
+**설치.** `ELOP Crew Setup <버전>.exe` 를 실행합니다(아래 `npm run dist` 로 만듭니다). 지금 사용자 계정에만 설치되어
 관리자 권한이 필요 없고, 설치가 끝나면 바로 켜집니다. 코드 서명이 없어서 윈도우가 경고할 수 있습니다: *추가 정보 → 실행*.
 
 **처음 켤 때.** Claude Code 설정에 모니터 hook 이 없으면 앱이 설치할지 묻습니다(`~/.claude/settings.json` 에서 모니터 항목만
@@ -341,10 +346,15 @@ Claude Code hook(상태, 설치/갱신) · 업데이트(확인, 설치) · 버�
 - 데이터 폴더(`config.json`, `boards/`, `.runtime/`)의 기본 위치는 `~/.claude-agent-monitor` 입니다. 리더가 작업판을 쓰는
   폴더로 바꿔 두세요. `npm start` 에서는 `MONITOR_HOME` 이 같은 역할을 합니다.
 - hook 은 `~/.claude-agent-monitor/bridge.json` 으로 돌고 있는 모니터를 찾으므로, 모니터가 어디서 돌든 연결됩니다.
+- **Agent Monitor 에서 올 때.** 이 앱의 예전 이름은 Agent Monitor 입니다. 업데이트해도 그대로 이어집니다. 앱 설정은 예전 이름의
+  폴더(`%APPDATA%\Agent Monitor`, Mac 은 `~/Library/Application Support/Agent Monitor`)에 그대로 두고, 윈도우에서는 설치 폴더,
+  프로그램 파일(`Agent Monitor.exe`. hook 과 로그인 시 시작 항목이 이 파일을 가리킵니다), 로그인 시 시작 항목도 그대로이며 바로 가기 이름만 바뀝니다.
 
 **macOS.**
-- **설치.** `Agent-Monitor-<버전>-arm64.dmg`(Apple 실리콘) 또는 `-x64.dmg`(인텔)를 열고 앱을 응용 프로그램 폴더로 끌어다 놓습니다.
+- **설치.** `ELOP-Crew-<버전>-arm64.dmg`(Apple 실리콘) 또는 `-x64.dmg`(인텔)를 열고 앱을 응용 프로그램 폴더로 끌어다 놓습니다.
   다른 곳에서 켜면 먼저 응용 프로그램 폴더로 옮길지 묻습니다. hook 이 앱의 위치를 기억하기 때문입니다.
+- **Agent Monitor 에서 올 때.** 새로 받은 앱은 예전 `Agent Monitor.app` 옆에 `ELOP Crew.app` 으로 놓이고, 같은 설정을 씁니다.
+  예전 앱을 지우면 새 앱이 hook 을 다시 설치할지 묻습니다(hook 이 예전 앱 안을 가리켰기 때문입니다). 로그인 시 시작을 켜 두었다면 설정에서 다시 켜 주세요.
 - Apple 개발자 ID 서명이 없어서 처음 켤 때 "개발자를 확인할 수 없습니다" 로 막힙니다. **오른쪽 클릭 → 열기** 로 한 번 열거나,
   **시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기** 에서 허용합니다.
 - 창 버튼(빨강, 노랑, 초록)은 제목 줄 왼쪽에 있습니다. 단축키는 윈도우의 **Ctrl** 대신 **⌘** 를 씁니다(**⌘ − / 0 / =**, **⌘R**).
@@ -363,8 +373,8 @@ cd desktop
 npm install          # 앱에만 필요한 Electron 과 electron-builder — 모니터 본체는 계속 의존성이 없습니다
 npm start            # 소스에서 바로 실행
 npm run try          # 설치된 앱과 따로, 이 저장소 코드로 띄워 릴리스 전에 확인(아래)
-npm run dist         # dist/Agent Monitor Setup <버전>.exe
-npm run dist:mac     # Mac 에서: dist/Agent-Monitor-<버전>-{arm64,x64}.{dmg,zip}
+npm run dist         # dist/ELOP Crew Setup <버전>.exe
+npm run dist:mac     # Mac 에서: dist/ELOP-Crew-<버전>-{arm64,x64}.{dmg,zip}
 ```
 
 `npm run try` 는 설치된 앱 옆에 **테스트 앱**을 띄웁니다. 포트(4799), 프로필, 데이터 폴더가 따로이고, 헤더와 트레이에 **테스트** 라고

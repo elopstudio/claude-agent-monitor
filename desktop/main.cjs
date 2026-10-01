@@ -1,4 +1,4 @@
-// Agent Monitor as a desktop app: runs the monitor server inside the app, shows it in its own window,
+// ELOP Crew (AI Agent Monitor) as a desktop app: runs the monitor server inside the app, shows it in its own window,
 // and lives in the tray — so it no longer depends on a terminal or on VS Code staying open.
 const { app, BaseWindow, BrowserWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain, Notification, globalShortcut, screen } = require('electron')
 const path = require('node:path')
@@ -19,7 +19,14 @@ const RELEASES = 'https://github.com/elopstudio/claude-agent-monitor/releases/la
 const GIVEN_HOME = process.env.MONITOR_HOME || ''
 // `npm run try`: a test app beside the installed one — no notifications, global shortcut or hook installs of its own
 const TRY = process.env.MONITOR_TRY === '1'
-const NAME = TRY ? 'Agent Monitor (테스트)' : 'Agent Monitor'
+const NAME = TRY ? 'ELOP Crew (테스트)' : 'ELOP Crew'
+// The app was called Agent Monitor before it became ELOP Crew, and Electron names its folder and its Windows id after
+// the app. Both keep the old name, so an update keeps the settings, the window's place and the page's storage, and
+// Windows its autostart entry (filed under the id), taskbar and notification settings. A --user-data-dir (npm run try) wins.
+// package.json keeps the Windows program file's name too (Agent Monitor.exe): the hooks and that autostart entry run it.
+const OLD_NAME = 'Agent Monitor'
+if (!app.commandLine.hasSwitch('user-data-dir')) app.setPath('userData', path.join(app.getPath('appData'), OLD_NAME))
+if (process.platform === 'win32') app.setAppUserModelId('electron.app.' + OLD_NAME)
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json')
 function readSettings() { try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) } catch { return {} } }
 function writeSettings(s) { fs.mkdirSync(path.dirname(settingsFile()), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2)) }
@@ -67,7 +74,7 @@ async function offerHooks(always) {
   // read again: the box may have been open while the zoom or the window's place changed
   if (r.response !== 0) { if (!always) writeSettings({ ...readSettings(), ...(outdated ? { hooksUpdateDeclined: HOOKS_REV } : { hooksDeclined: true }) }); return }
   try { installHooks(); await ask({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
-  catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
+  catch (e) { dialog.showErrorBox('ELOP Crew', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
   if (tray) tray.setContextMenu(trayMenu())
 }
 
@@ -174,7 +181,7 @@ function showWindow() {
   const dark = nativeTheme.shouldUseDarkColors
   const at = savedBounds()
   win = new BaseWindow({
-    width: 1440, height: 920, ...(at || {}), minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
+    width: 1440, height: 920, ...(at || {}), minWidth: 720, minHeight: 480, title: 'ELOP Crew', icon: ICON,
     backgroundColor: dark ? '#0f1116' : '#f2f3f7',
     ...titleBar(),
   })
@@ -216,7 +223,7 @@ function showAbout() {
 }
 function trayMenu() {
   return Menu.buildFromTemplate([
-    { label: 'Agent Monitor 열기', click: showWindow },
+    { label: 'ELOP Crew 열기', click: showWindow },
     { label: '설정…', click: showSettings },
     { label: '프로그램 정보', click: showAbout },
     ...(update.status === 'ready' ? [{ label: '업데이트 ' + update.version + ' 설치하고 다시 시작', click: installUpdate }] : []),
@@ -359,11 +366,11 @@ function setupUpdates() {
     if (!MAC) { setUpdate('downloading', { version: i.version, percent: 0 }); return }
     const fresh = update.version !== i.version
     setUpdate('available', { version: i.version })
-    if (fresh) notify('Agent Monitor ' + i.version + ' 나옴', '누르면 받는 곳을 엽니다.', () => shell.openExternal(RELEASES))
+    if (fresh) notify('ELOP Crew ' + i.version + ' 나옴', '누르면 받는 곳을 엽니다.', () => shell.openExternal(RELEASES))
   })
   updater.on('update-not-available', () => setUpdate('latest'))
   updater.on('download-progress', (p) => { update.percent = Math.round(p.percent || 0); if (settingsWin) settingsWin.webContents.send('monitor-settings-changed') })
-  updater.on('update-downloaded', (i) => { setUpdate('ready', { version: i.version }); notify('Agent Monitor ' + i.version + ' 받음', '트레이 메뉴나 설정에서 다시 시작하면 바로 적용됩니다. 앱을 끌 때도 적용됩니다.') })
+  updater.on('update-downloaded', (i) => { setUpdate('ready', { version: i.version }); notify('ELOP Crew ' + i.version + ' 받음', '트레이 메뉴나 설정에서 다시 시작하면 바로 적용됩니다. 앱을 끌 때도 적용됩니다.') })
   // no release published yet is not a failure
   updater.on('error', (e) => setUpdate(/404|No published versions|Unable to find latest/i.test(String(e && e.message)) ? 'none' : 'error'))
   checkUpdates()
@@ -382,7 +389,7 @@ let settingsWin = null
 function showSettings() {
   if (settingsWin) { settingsWin.show(); settingsWin.focus(); return }
   settingsWin = new BrowserWindow({
-    width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: 'Agent Monitor 설정', icon: ICON,
+    width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: 'ELOP Crew 설정', icon: ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
     ...titleBar(),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'settings-preload.cjs') },
@@ -401,7 +408,7 @@ ipcMain.handle('monitor-settings', async (_e, action, key, value) => {
   if (action === 'openBrowser') shell.openExternal(URL)
   if (action === 'about') showAbout()
   if (action === 'installHooks') {
-    try { installHooks() } catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
+    try { installHooks() } catch (e) { dialog.showErrorBox('ELOP Crew', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
   }
   if (action === 'pickData') {
     const r = await dialog.showOpenDialog(settingsWin, { title: '데이터 폴더 (config.json, boards/)', defaultPath: dataDir(), properties: ['openDirectory', 'createDirectory'] })
@@ -430,16 +437,16 @@ else {
   app.on('second-instance', showWindow)
   app.whenReady().then(async () => {
     try { await startServer() } catch (e) {
-      dialog.showErrorBox('Agent Monitor', '모니터 서버를 시작하지 못했습니다.\n\n' + (e && e.message || e))
+      dialog.showErrorBox('ELOP Crew', '모니터 서버를 시작하지 못했습니다.\n\n' + (e && e.message || e))
       app.quit()
       return
     }
     // run from the disk image or Downloads, the hooks would point at a copy that goes away: offer to move it first
     if (MAC && app.isPackaged && !app.isInApplicationsFolder() && !readSettings().moveDeclined) {
-      const r = await ask({ type: 'question', buttons: ['응용 프로그램으로 옮기기', '그대로 쓰기'], defaultId: 0, cancelId: 1, message: 'Agent Monitor를 응용 프로그램 폴더로 옮길까요?', detail: 'Claude Code hook이 이 앱의 위치를 기억합니다. 디스크 이미지나 다운로드 폴더에서 그대로 쓰면, 그 사본이 없어질 때 hook도 멈춥니다.' })
+      const r = await ask({ type: 'question', buttons: ['응용 프로그램으로 옮기기', '그대로 쓰기'], defaultId: 0, cancelId: 1, message: 'ELOP Crew를 응용 프로그램 폴더로 옮길까요?', detail: 'Claude Code hook이 이 앱의 위치를 기억합니다. 디스크 이미지나 다운로드 폴더에서 그대로 쓰면, 그 사본이 없어질 때 hook도 멈춥니다.' })
       // a box closed by quitting is not a yes
       if (quitting) return
-      if (r.response === 0) { try { if (app.moveToApplicationsFolder()) return } catch (e) { dialog.showErrorBox('Agent Monitor', '옮기지 못했습니다.\n\n' + (e && e.message || e)) } }
+      if (r.response === 0) { try { if (app.moveToApplicationsFolder()) return } catch (e) { dialog.showErrorBox('ELOP Crew', '옮기지 못했습니다.\n\n' + (e && e.message || e)) } }
       else writeSettings({ ...readSettings(), moveDeclined: true })
     }
     tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }))

@@ -1,4 +1,6 @@
-# claude-agent-monitor
+# ELOP Crew
+
+**AI Agent Monitor** for Claude Code (formerly Agent Monitor)
 
 **English** | [한국어](README.ko.md)
 
@@ -14,7 +16,10 @@ npm start            # http://127.0.0.1:4777  (override with PORT=…)
 ```
 
 Or install the [desktop app](#desktop-app): a window of its own and the tray, no terminal needed.
-Downloads for Windows and macOS, and what the monitor does, are at **[cam.elopstudio.com](https://cam.elopstudio.com)**.
+Downloads for Windows and macOS, and what the monitor does, are at **[crew.elopstudio.com](https://crew.elopstudio.com)**.
+
+ELOP Crew is made by ELOP Studio and works with Claude Code. It is not affiliated with or endorsed by Anthropic;
+Claude and Claude Code are trademarks of Anthropic.
 
 The page is in English by default. Switch to Korean with the **EN / 한국어** toggle in the header
 (remembered in the browser) or open `http://127.0.0.1:4777/?lang=ko`.
@@ -122,7 +127,7 @@ any other session.
 - Requests whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` are refused (421), so a web page cannot
   reach the API by pointing its own domain at this machine (DNS rebinding).
 - All of this stays on the PC unless you link it for the [mobile app](#the-mobile-app-optional): then what the app
-  asks for (the same API, conversation view included) goes through cam.elopstudio.com's relay.
+  asks for (the same API, conversation view included) goes through crew.elopstudio.com's relay.
 
 ## States
 
@@ -222,13 +227,13 @@ Both copies work on the same folder, so keep to one of them.
 
 ## The mobile app (optional)
 
-The Agent Monitor app on your phone reaches the monitor on your PCs through [cam.elopstudio.com](https://cam.elopstudio.com/account):
+The ELOP Crew app on your phone reaches the monitor on your PCs through [crew.elopstudio.com](https://crew.elopstudio.com/account):
 its agents as contacts, a chat with each, their conversations, and answers to permission requests and questions.
 The account dialog's lower half links this PC to your account there; you sign in with GitHub or Google. The monitor
 is free on any number of PCs; a plan is how many of them the app can reach (Free 1, Pro 3, Team 10).
 
 - **Link this PC** makes a new Ed25519 key pair and shows a code such as `KXQ4-7MTR`, and opens
-  `cam.elopstudio.com/activate` with it. Sign in, check the page shows the same code, and press **Link**. The monitor
+  `crew.elopstudio.com/activate` with it. Sign in, check the page shows the same code, and press **Link**. The monitor
   notices within a few seconds. A code lasts ten minutes. Only link a code your own monitor is showing.
 - Once linked, every request to the server is signed with the private key. There is no password or token. The server
   keeps only the public key.
@@ -240,15 +245,15 @@ Their name and plan are asked for when the dialog is open and kept in memory onl
 it is ("Windows PC", "Mac"; not the hostname, which often carries a name, and you can rename it on the account page),
 the operating system and the monitor's version.
 
-**The relay.** While linked, the monitor keeps a WebSocket to cam.elopstudio.com (the desktop app, or Node 22 or
+**The relay.** While linked, the monitor keeps a WebSocket to crew.elopstudio.com (the desktop app, or Node 22 or
 later; the dialog says whether the app can reach this PC now). The app's calls come through it and are answered by
 this monitor's own API, as the page's are. What the app sees and sends — agents, conversations, messages, files,
 approvals, commands — therefore passes through that server, encrypted in transit (TLS) and not stored or logged
 there, but not end-to-end encrypted. The monitor keeps two things to itself: its Claude sign-in (`/api/account/*`)
 and its linking (`/api/cloud*`). It adds its local token to each call and takes it out of every answer, so the
 token never leaves the PC. **Unlink this PC** stops the relay. The site's
-[privacy page](https://cam.elopstudio.com/privacy) lists what it keeps.
-Without a link the monitor never contacts cam.elopstudio.com. `CAM_URL` points it at another server (for development:
+[privacy page](https://crew.elopstudio.com/privacy) lists what it keeps.
+Without a link the monitor never contacts crew.elopstudio.com. `CAM_URL` points it at another server (for development:
 `http://127.0.0.1:8790`).
 
 ## Agents the monitor runs itself
@@ -344,7 +349,7 @@ asks you like any agent.
 `desktop/` packages the monitor as a Windows and macOS app: no terminal, and nothing depends on VS Code staying open.
 The notes below are written for Windows; what differs on a Mac is under **macOS**.
 
-**Install.** Run `Agent Monitor Setup <version>.exe` (build it with `npm run dist`, below). It installs for the current
+**Install.** Run `ELOP Crew Setup <version>.exe` (build it with `npm run dist`, below). It installs for the current
 user — no admin rights — and starts. The installer is not code-signed, so Windows SmartScreen may warn: *More info → Run anyway*.
 
 **First run.** If Claude Code's settings do not have the monitor's hooks yet, the app offers to add them
@@ -379,10 +384,17 @@ and open the page in the browser.
 - The data folder (`config.json`, `boards/`, `.runtime/`) defaults to `~/.claude-agent-monitor`; point it at the folder
   your leaders write their boards to. `MONITOR_HOME` does the same for `npm start`.
 - The hooks find the running monitor through `~/.claude-agent-monitor/bridge.json`, wherever it runs from.
+- **From Agent Monitor.** The app was called Agent Monitor before. An update keeps everything: the app's settings stay in
+  the folder of the old name (`%APPDATA%\Agent Monitor`, on a Mac `~/Library/Application Support/Agent Monitor`), and on
+  Windows the install folder, the program file (`Agent Monitor.exe`, which the hooks and the start-at-login entry point at)
+  and the start-at-login entry stay as they were; the shortcuts are renamed.
 
 **macOS.**
-- **Install.** Open `Agent-Monitor-<version>-arm64.dmg` (Apple silicon) or `-x64.dmg` (Intel) and drag the app to
+- **Install.** Open `ELOP-Crew-<version>-arm64.dmg` (Apple silicon) or `-x64.dmg` (Intel) and drag the app to
   Applications. Started from anywhere else, it offers to move itself there first: the hooks remember where the app is.
+- **From Agent Monitor.** The new download is `ELOP Crew.app`, beside the old `Agent Monitor.app`; it uses the same
+  settings. Once the old app is deleted, the new one offers to install the hooks again (they pointed into the old app);
+  turn **start at login** on again in the settings if it was on.
 - The app is not signed with an Apple Developer ID, so the first start is refused ("cannot verify the developer").
   Open it once with **right-click → Open**, or allow it in **System Settings → Privacy & Security → Open Anyway**.
 - The window buttons (red, yellow, green) sit at the left of the title strip. The shortcuts use **⌘** where Windows uses
@@ -401,8 +413,8 @@ cd desktop
 npm install          # Electron and electron-builder, only for the app — the monitor itself stays dependency-free
 npm start            # run it from source
 npm run try          # this checkout beside the installed app, to test before a release (below)
-npm run dist         # dist/Agent Monitor Setup <version>.exe
-npm run dist:mac     # on a Mac: dist/Agent-Monitor-<version>-{arm64,x64}.{dmg,zip}
+npm run dist         # dist/ELOP Crew Setup <version>.exe
+npm run dist:mac     # on a Mac: dist/ELOP-Crew-<version>-{arm64,x64}.{dmg,zip}
 ```
 
 `npm run try` opens a **test app** next to the installed one: its own port (4799), profile and data folder, marked

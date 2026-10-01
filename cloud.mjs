@@ -1,4 +1,4 @@
-// This PC linked to an Agent Monitor account on cam.elopstudio.com, so the Agent Monitor mobile app can reach it.
+// This PC linked to an ELOP Crew account on crew.elopstudio.com, so the ELOP Crew mobile app can reach it.
 // Linking works the way `tailscale up` links a machine: the monitor makes an Ed25519 key pair and asks for a short
 // code, the person approves the code in the browser (signed in with GitHub or Google, within the PCs their plan
 // allows), and the monitor collects its device id. Each request to the server is signed with the private key.
@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
-const CAM_URL = (process.env.CAM_URL || 'https://cam.elopstudio.com').replace(/\/+$/, '')
+const CAM_URL = (process.env.CAM_URL || 'https://crew.elopstudio.com').replace(/\/+$/, '')
 const CHECK_EVERY = 60 * 1000          // the page may ask every few seconds; the server is asked at most once a minute
 const HEARTBEAT = 10 * 60 * 1000       // and every ten minutes in the background, so the account shows when this PC was last on
 const TIMEOUT = 10 * 1000
