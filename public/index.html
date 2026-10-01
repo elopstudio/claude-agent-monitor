@@ -634,6 +634,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .procs .prow{display:grid;grid-template-columns:minmax(0,1fr) 56px 70px 70px auto;gap:10px;align-items:center;padding:5px 10px 5px calc(10px + var(--depth,0) * 16px);border-top:1px solid var(--line);font-size:12.5px}
 .procs .prow.hot .pcpu{color:var(--block);font-weight:900}
 .procs .prow.k-hook{opacity:.55}
+.procs .prow.k-agent{background:var(--surface-2)}
 .procs .pwhat{display:flex;gap:6px;align-items:baseline;min-width:0}
 .procs .pwhat b{flex:none}
 .procs .pkind{flex:none;font-size:10.5px;font-weight:700;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
@@ -742,7 +743,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: 'LEAD', idleBubble: 'Resting', waitBubble: 'Waiting', last: 'Last · {x}',
       forWorking: 'Working for {t}', sinceWaiting: 'Waiting since {t} ago', sinceResting: 'Resting since {t} ago', up: 'Up {t}',
       chat: 'Team chat', noChat: 'No recent messages', noSummary: '(no summary)', reply: '(reply)', ago: '{t} ago', justNow: 'just now',
-      board: 'Board', decidedBy: '{x} decided · {t}', procs: 'Processes', procTitle: 'What the agents have running', procChip: '{n} process(es) started by agents · CPU {cpu} · {mem}', procNone: 'No agent has anything running', procSum: '{n} running · CPU {cpu} · {mem} · checked {t}', procGroup: '{n} · CPU {cpu} · {mem}', procByCpu: 'Most CPU first', procByMem: 'Most memory first', procHooks: 'Show the monitor\'s own helpers', procEnd: 'End', procEndAsk: 'End {x} and what it started? Unsaved work in it is lost.', procHint: 'Processes the Claude Code sessions started — shells, dev servers, MCP servers, background tasks. CPU is a share of the whole PC since the last look; memory is what Task Manager shows (what the process has to itself); command lines are masked. Only these can be ended here.', procChartCpu: 'CPU · last 15 minutes', procChartMem: 'Memory · last 15 minutes', procPc: 'Whole PC', procOther: 'Other agents', procWait: 'The chart fills in as the numbers come in, one point every few seconds.', procAgo: '{n} min ago', procNow: 'now', pk_shell: 'shell', pk_mcp: 'MCP', pk_hook: 'monitor', pvShow: 'Preview', pvGone: 'This file is no longer here — attachments are kept for a day.', pvNone: 'No preview for this kind of file.', pvDownload: 'Download', pvCut: '(only the first {n} KB)', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
+      board: 'Board', decidedBy: '{x} decided · {t}', procs: 'Processes', procTitle: 'What the agents have running', procChip: '{n} process(es) started · with the agent itself CPU {cpu} · {mem}', procNone: 'No agent is running', procSum: '{a} agent(s), {n} started · CPU {cpu} · {mem} · checked {t}', procGroup: 'total CPU {cpu} · {mem} · {n} started', procByCpu: 'Most CPU first', procByMem: 'Most memory first', procHooks: 'Show the monitor\'s own helpers', procEnd: 'End', procEndAsk: 'End {x} and what it started? Unsaved work in it is lost.', procHint: 'Processes the Claude Code sessions started — shells, dev servers, MCP servers, background tasks. CPU is a share of the whole PC since the last look; memory is what Task Manager shows (what the process has to itself); command lines are masked. Each group\'s first row is the agent itself: it is in the totals and the chart, but it is not ended here — only what it started is.', procChartCpu: 'CPU · last 15 minutes', procChartMem: 'Memory · last 15 minutes', procPc: 'Whole PC', procOther: 'Other agents', procWait: 'The chart fills in as the numbers come in, one point every few seconds.', procAgo: '{n} min ago', procNow: 'now', pk_agent: 'agent', pk_shell: 'shell', pk_mcp: 'MCP', pk_hook: 'monitor', pvShow: 'Preview', pvGone: 'This file is no longer here — attachments are kept for a day.', pvNone: 'No preview for this kind of file.', pvDownload: 'Download', pvCut: '(only the first {n} KB)', byUser: 'You', boardUpdated: 'updated {t} ago', inProgress: 'In progress', queued: 'Queued', done: 'Done', decisions: 'Needs a decision',
       more: '+{n} more', none: 'None', noBoard: 'No board yet. The project’s leader can write {f} (see boards/example.json).', noSessions: 'No Claude Code sessions are running.',
       askTitle: 'NEEDS APPROVAL', asksFor: 'Asking to run {x}', asking: 'WAITING FOR YOU', unknownAgent: 'an agent outside the list', allow: 'Allow', deny: 'Deny', inEditor: 'Answer in VS Code', left: '{n}s left, then it goes back to VS Code',
       failed: 'Could not send the answer.', gone: 'Already answered or timed out', goneWhile: 'Not answered here in time — it went back to VS Code (or was answered there).', sendAnswers: 'Send answers', needAnswers: 'Answer every question first', otherPh: 'Other — type your own answer', pickMany: '(pick any)', approvePlan: 'Approve plan', keepPlanning: 'Keep planning', didAnswer: '✓ Answers sent', didPlan: '✓ Plan approved', didKeep: '↺ Asked to keep planning', questionKind: 'QUESTION', planKind: 'PLAN',
@@ -767,7 +768,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       leader: '리더', idleBubble: '쉬는 중', waitBubble: '대기 중', last: '마지막 · {x}',
       forWorking: '작업 중 {t}째', sinceWaiting: '대기 {t} 전부터', sinceResting: '쉬는 중 {t} 전부터', up: '켜진 지 {t}',
       chat: '팀 대화', noChat: '최근 메시지 없음', noSummary: '(요약 없음)', reply: '(답장)', ago: '{t} 전', justNow: '방금',
-      board: '작업판', decidedBy: '{x} 결정 · {t}', procs: '프로세스', procTitle: '에이전트가 실행 중인 것', procChip: '에이전트가 띄운 프로세스 {n}개 · CPU {cpu} · {mem}', procNone: '에이전트가 띄워 둔 것이 없습니다', procSum: '{n}개 실행 중 · CPU {cpu} · {mem} · {t} 확인', procGroup: '{n}개 · CPU {cpu} · {mem}', procByCpu: 'CPU 많은 순', procByMem: '메모리 많은 순', procHooks: '모니터 자체 도우미도 보기', procEnd: '끄기', procEndAsk: '{x} 와 그것이 띄운 것까지 끌까요? 저장하지 않은 작업은 사라집니다.', procHint: 'Claude Code 세션이 띄운 프로세스입니다 — 셸, 개발 서버, MCP 서버, 백그라운드 작업. CPU 는 지난 확인 이후 PC 전체 대비 사용률이고, 메모리는 작업 관리자와 같은 기준(그 프로세스 혼자 쓰는 메모리)이며, 명령줄은 가려서 보여 줍니다. 여기서는 이것들만 끌 수 있습니다.', procChartCpu: 'CPU · 최근 15분', procChartMem: '메모리 · 최근 15분', procPc: 'PC 전체', procOther: '그 밖의 에이전트', procWait: '몇 초마다 한 번씩 재서 차트를 채웁니다.', procAgo: '{n}분 전', procNow: '지금', pk_shell: '셸', pk_mcp: 'MCP', pk_hook: '모니터', pvShow: '미리 보기', pvGone: '파일이 없습니다 — 첨부 파일은 하루만 보관합니다.', pvNone: '이 형식은 미리 볼 수 없습니다.', pvDownload: '내려받기', pvCut: '(앞 {n} KB 만)', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
+      board: '작업판', decidedBy: '{x} 결정 · {t}', procs: '프로세스', procTitle: '에이전트가 실행 중인 것', procChip: '띄운 프로세스 {n}개 · 에이전트 포함 CPU {cpu} · {mem}', procNone: '실행 중인 에이전트가 없습니다', procSum: '에이전트 {a}개 · 띄운 것 {n}개 · CPU {cpu} · {mem} · {t} 확인', procGroup: '합계 CPU {cpu} · {mem} · 띄운 것 {n}개', procByCpu: 'CPU 많은 순', procByMem: '메모리 많은 순', procHooks: '모니터 자체 도우미도 보기', procEnd: '끄기', procEndAsk: '{x} 와 그것이 띄운 것까지 끌까요? 저장하지 않은 작업은 사라집니다.', procHint: 'Claude Code 세션이 띄운 프로세스입니다 — 셸, 개발 서버, MCP 서버, 백그라운드 작업. CPU 는 지난 확인 이후 PC 전체 대비 사용률이고, 메모리는 작업 관리자와 같은 기준(그 프로세스 혼자 쓰는 메모리)이며, 명령줄은 가려서 보여 줍니다. 묶음마다 첫 줄은 에이전트 본체로, 합계와 차트에 들어가지만 여기서 끄지는 않습니다 — 끌 수 있는 것은 에이전트가 띄운 것뿐입니다.', procChartCpu: 'CPU · 최근 15분', procChartMem: '메모리 · 최근 15분', procPc: 'PC 전체', procOther: '그 밖의 에이전트', procWait: '몇 초마다 한 번씩 재서 차트를 채웁니다.', procAgo: '{n}분 전', procNow: '지금', pk_agent: '에이전트 본체', pk_shell: '셸', pk_mcp: 'MCP', pk_hook: '모니터', pvShow: '미리 보기', pvGone: '파일이 없습니다 — 첨부 파일은 하루만 보관합니다.', pvNone: '이 형식은 미리 볼 수 없습니다.', pvDownload: '내려받기', pvCut: '(앞 {n} KB 만)', byUser: '사용자', boardUpdated: '{t} 전 갱신', inProgress: '진행 중', queued: '대기', done: '완료', decisions: '결정 대기',
       more: '외 {n}건', none: '없음', noBoard: '아직 작업판이 없습니다. 프로젝트 리더가 {f} 를 쓰면 여기에 보입니다 (boards/example.json 참고).', noSessions: '실행 중인 Claude Code 세션이 없습니다.',
       askTitle: '승인 필요', asksFor: '{x} 실행 허락을 기다리는 중', asking: '승인 대기', unknownAgent: '목록에 없는 에이전트', allow: '허용', deny: '거부', inEditor: 'VS Code에서 답하기', left: '{n}초 뒤 VS Code로 넘어갑니다',
       failed: '답을 보내지 못했습니다.', gone: '이미 처리됐거나 시간이 지났습니다', goneWhile: '여기서 제시간에 답하지 못해 VS Code로 넘어갔습니다(또는 거기서 답했습니다).', sendAnswers: '답 보내기', needAnswers: '모든 질문에 먼저 답해 주세요', otherPh: '기타 — 직접 입력', pickMany: '(여러 개 선택 가능)', approvePlan: '계획 승인', keepPlanning: '계속 계획하기', didAnswer: '✓ 답을 보냈습니다', didPlan: '✓ 계획을 승인했습니다', didKeep: '↺ 계속 계획하라고 했습니다', questionKind: '질문', planKind: '계획',
@@ -2437,10 +2438,10 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (!data) return;
       drawChart();
       const key = sort.value;
-      const groups = data.sessions.filter((g) => g.procs.some((p) => p.kind !== 'hook') || hooksBox.checked)
-        .sort((a, c) => (c.total[key] || 0) - (a.total[key] || 0));
+      // every agent counts now, the agent itself being in its total — not only the ones that started something
+      const groups = data.sessions.slice().sort((a, c) => (c.total[key] || 0) - (a.total[key] || 0));
       const n = data.sessions.reduce((a, g) => a + g.total.n, 0);
-      summary.textContent = t('procSum', { n, cpu: pct(data.sessions.reduce((a, g) => a + g.total.cpu, 0)), mem: bytes(data.sessions.reduce((a, g) => a + g.total.mem, 0)), t: ago(data.at) });
+      summary.textContent = t('procSum', { a: data.sessions.length, n, cpu: pct(data.sessions.reduce((a, g) => a + g.total.cpu, 0)), mem: bytes(data.sessions.reduce((a, g) => a + g.total.mem, 0)), t: ago(data.at) });
       list.replaceChildren();
       if (!groups.length) { list.append(el('div', 'pnone', t('procNone'))); return; }
       for (const g of groups) {
@@ -2449,7 +2450,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
         h.append(robotNode(str(g.name), STATE[g.state] ? g.state : 'resting', !!g.isLeader, true), el('b', null, str(lang === 'ko' && g.nickKo || g.nick) || str(g.name)), el('span', 'pproj', str(g.project)),
           el('span', 'ptot', t('procGroup', { n: g.total.n, cpu: pct(g.total.cpu), mem: bytes(g.total.mem) })));
         sec.append(h);
-        for (const p of g.procs) {
+        // the agent itself first, what it started under it
+        const own = { ...g.self, name: g.self.name || 'claude', kind: 'agent', depth: 0, own: true };
+        for (const p of [own, ...g.procs.map((x) => ({ ...x, depth: x.depth + 1 }))]) {
           if (p.kind === 'hook' && !hooksBox.checked) continue;
           const row = el('div', 'prow' + (p.kind ? ' k-' + p.kind : '') + ((p.cpu || 0) >= 25 ? ' hot' : ''));
           row.style.setProperty('--depth', p.depth);
@@ -2465,7 +2468,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
             if (!r) { kill.disabled = false; kill.textContent = t('acctFailed'); return; }
             load();
           });
-          row.append(what, el('span', 'pcpu', pct(p.cpu)), el('span', 'pmem', bytes(p.mem)), el('span', 'pup', up(p.start)), kill);
+          row.append(what, el('span', 'pcpu', pct(p.cpu)), el('span', 'pmem', bytes(p.mem)), el('span', 'pup', up(p.start)), p.own ? el('span') : kill);
           sec.append(row);
         }
         list.append(sec);

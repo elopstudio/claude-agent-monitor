@@ -55,7 +55,7 @@ export function createProcesses({ mask, clip }) {
     for (const [pid, w] of watched) {
       if (s.at - w.seen > 120000) { watched.delete(pid); continue }
       if (!s.byPid.has(pid)) continue
-      const t = totals(descendants(s, pid)), had = by[w.name] || [0, 0]
+      const t = totals(descendants(s, pid), s.byPid.get(pid)), had = by[w.name] || [0, 0]
       by[w.name] = [had[0] + Math.round(t.cpu * 10) / 10, had[1] + t.mem]
     }
     // the whole PC: every process but the idle one (pid 0), and the memory in use
@@ -104,18 +104,20 @@ export function createProcesses({ mask, clip }) {
     walk(pid, 0, new Set([pid]))
     return out
   }
-  const totals = (list) => {
+  // what a session costs: the agent itself (the claude process) and what it started, the monitor's helpers aside;
+  // n counts only what it started
+  const totals = (list, self) => {
     const work = list.filter((p) => p.kind !== 'hook')
-    return { n: work.length, cpu: work.reduce((a, p) => a + (p.cpu || 0), 0), mem: work.reduce((a, p) => a + p.mem, 0), hooks: list.length - work.length }
+    return { n: work.length, cpu: (self?.cpu || 0) + work.reduce((a, p) => a + (p.cpu || 0), 0), mem: (self?.mem || 0) + work.reduce((a, p) => a + p.mem, 0), hooks: list.length - work.length }
   }
   // for a card: how much the session has running, from the last snapshot (refreshed in the background)
   function summary(pid, name) {
     watch(pid, name)
     const s = current(20000)
     if (!s || !pid || !s.byPid.has(pid)) return null
-    return totals(descendants(s, pid))
+    return totals(descendants(s, pid), s.byPid.get(pid))
   }
-  // for the processes dialog: every session's descendants, the session itself first
+  // for the processes dialog: every session — the agent itself, then what it started
   async function list(roots) {
     for (const r of roots) watch(r.pid, r.info?.name)
     const s = await fresh(4000)
@@ -124,7 +126,7 @@ export function createProcesses({ mask, clip }) {
       at: s.at, cores: CORES, memTotal: os.totalmem(), history,
       sessions: roots.filter((r) => r.pid && s.byPid.has(r.pid)).map((r) => {
         const self = s.byPid.get(r.pid), procs = descendants(s, r.pid)
-        return { ...r.info, self: { cpu: self.cpu, mem: self.mem, start: self.start }, total: totals(procs), procs }
+        return { ...r.info, self: { pid: self.pid, name: self.name, cpu: self.cpu, mem: self.mem, start: self.start, cmd: mask(clip(self.cmd, 400)) }, total: totals(procs, self), procs }
       }),
     }
   }

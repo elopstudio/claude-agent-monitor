@@ -32,9 +32,10 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   `config.json`.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
-- **Processes.** **⚙ Processes** in the header, with a count, opens what the agents have running: every session's
-  shells, dev servers, MCP servers and background tasks, grouped by agent and heaviest first (CPU or memory), with how
-  long each has been running. Each card shows **⚙ N** too, red when it uses a lot of CPU. **End** stops one (and what it
+- **Processes.** **⚙ Processes** in the header, with a count, opens what the agents have running: each agent
+  itself (the claude process) and every shell, dev server, MCP server and background task it started, grouped by agent
+  and heaviest first (CPU or memory), with how long each has been running. An agent's totals and its share of the chart
+  count the agent and what it started. Each card shows **⚙ N** too, red when it uses a lot of CPU. **End** stops one (and what it
   started) after asking — only a session's own descendants, never the session itself or anything else on the PC. The
   monitor's own helpers (hooks, the permission tool) are left out unless asked for; command lines are masked. A chart
   above the list shows the last 15 minutes live, each agent's share stacked (the five busiest, the rest as one), with
