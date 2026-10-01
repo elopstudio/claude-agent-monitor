@@ -812,7 +812,9 @@ function liveEntries(o, sidechain = false) {
       if (c?.type === 'text' && c.text?.trim()) pushUser(c.text)
       if (c?.type === 'tool_result') {
         const raw = typeof c.content === 'string' ? c.content : Array.isArray(c.content) ? c.content.map((x) => x?.type === 'text' ? x.text : '[' + (x?.type || 'data') + ']').join('\n') : ''
-        out.push({ role: 'result', id: String(c.tool_use_id || ''), error: !!c.is_error, text: mask(clip2(raw, LIVE_RESULT)), at })
+        // images in it (a screenshot read with Read…) go by count only: the page fetches them from /img/result
+        const images = Array.isArray(c.content) ? c.content.filter((x) => x?.type === 'image').length : 0
+        out.push({ role: 'result', id: String(c.tool_use_id || ''), error: !!c.is_error, text: mask(clip2(raw, LIVE_RESULT)), ...(images ? { images } : {}), at })
       }
     }
   } else if (o.type === 'assistant' && Array.isArray(content)) {
@@ -866,6 +868,42 @@ function userEntry(raw, at) {
 
 // like clip() but keeps line breaks
 const clip2 = (v, n) => { const t = String(v ?? ''); return t.length > n ? t.slice(0, n) + '\n… (' + (t.length - n) + ' more characters)' : t }
+
+// An image a tool returned (a screenshot read with Read, an image an MCP tool made), from the session's transcript, for
+// the conversation view. Not under /api/, so the phone app's relay never carries it: an image cannot be masked, so it
+// is shown on this PC only. Nothing is kept beyond a few recent ones in memory.
+const resultImages = new Map()   // transcript + tool id → [{ type, data }]
+async function resultImage(req, res, url) {
+  const name = url.searchParams.get('session') || '', id = url.searchParams.get('tool') || '', i = Number(url.searchParams.get('i')) || 0
+  if (!/^[\w-]{1,80}$/.test(id)) { res.writeHead(400).end(); return }
+  const target = (await readRegistry()).find((x) => x.name === name) || agents?.sessions().find((x) => x.name === name)
+  const file = target && await findTranscript(target.sessionId)
+  if (!file) { res.writeHead(404).end(); return }
+  const key = file + '\n' + id
+  let list = resultImages.get(key)
+  if (!list) {
+    list = []
+    const needle = '"tool_use_id":"' + id + '"'
+    // newest first: the result is usually near the end
+    const text = await fsp.readFile(file, 'utf8')
+    for (const l of text.split('\n').reverse()) {
+      if (!l.includes(needle)) continue
+      try {
+        for (const c of JSON.parse(l).message?.content || []) {
+          if (c?.type === 'tool_result' && c.tool_use_id === id && Array.isArray(c.content)) list = c.content.filter((x) => x?.type === 'image' && x.source?.type === 'base64').map((x) => x.source)
+        }
+      } catch {}
+      if (list.length) break
+    }
+    resultImages.set(key, list)
+    if (resultImages.size > 30) resultImages.delete(resultImages.keys().next().value)
+  }
+  const img = list[i]
+  const type = /^image\/(png|jpeg|gif|webp)$/.test(img?.media_type || '') ? img.media_type : ''
+  if (!type) { res.writeHead(404).end(); return }
+  res.writeHead(200, { 'content-type': type, 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' })
+  res.end(Buffer.from(String(img.data || ''), 'base64'))
+}
 
 async function streamSession(req, res, name, sub) {
   const target = (await readRegistry()).find((x) => x.name === name) || agents?.sessions().find((x) => x.name === name)
@@ -1244,7 +1282,7 @@ const agents = createAgents({
         if (e.role === 'assistant') out.push({ kind: 'block', msg: 'h' + n++, index: 0, type: 'text', text: e.text, done: true, at: e.at })
         else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], refs: e.refs || [], at: e.at })
         else if (e.role === 'tool') out.push({ kind: 'tool', id: e.id, name: e.name, action: e.action, input: e.input, at: e.at })
-        else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, at: e.at })
+        else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, ...(e.images ? { images: e.images } : {}), at: e.at })
         else if (e.role === 'note') out.push({ kind: 'note', text: e.text, at: e.at })
       }
     }
@@ -1357,6 +1395,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/agent-stream') {
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       agents.stream(req, res, url.searchParams.get('id') || '')
+      return
+    }
+    if (url.pathname === '/img/result') {
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      await resultImage(req, res, url)
       return
     }
     if (url.pathname === '/api/live') {

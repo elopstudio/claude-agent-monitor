@@ -77,6 +77,10 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   above it scrolls with the dialog (one scrollbar), with **Stop** and **End agent** kept in view at its top. Where the
   message will be delivered (at once, after this turn) is on the send button's tooltip; only a problem shows, inside the
   box. The new-agent dialog takes its first message in the same box.
+- **Images from tools.** An image a tool returned (a screenshot read with Read, an image an MCP tool made) shows under that
+  tool's result in the conversation; a click opens it full size. It is read from the session's transcript when the page
+  asks for it and is not kept. It is shown on this PC only: an image cannot be masked, so the phone app's relay never
+  carries it.
 - **Attachments up close.** A click on an attached file — in the box before sending, or in the conversation — opens a
   preview: images and text files show in place, a PDF in the viewer, anything else can be downloaded. Sent files are
   read back through the page's token, only from the monitor's own uploads folder, and are kept there for a day.

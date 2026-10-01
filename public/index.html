@@ -69,6 +69,10 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
 .brand{display:flex;align-items:center;gap:12px}
 .brand .logo{width:46px;height:46px;flex:none}
+/* the wordmark: ELOP small and spaced, Crew heavy in a violet gradient */
+.top h1.wordmark{display:flex;align-items:baseline;gap:7px;line-height:1}
+.wordmark .w-elop{font-size:13px;font-weight:800;letter-spacing:.18em;color:var(--muted)}
+.wordmark .w-crew{font-size:27px;font-weight:900;letter-spacing:-.035em;background:linear-gradient(100deg,#6d7cff 10%,#a46bff 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .top h1{margin:0;font-size:22px;font-weight:900;letter-spacing:-.02em}
 .brand .name{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tagline{color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap}
@@ -610,6 +614,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .composer .csend:disabled{opacity:.45;cursor:default}
 /* the "/" list: Claude Code's slash commands, above the box while the first word is typed */
 .composer{position:relative}
+/* images a tool returned, under its result */
+.rimgs{display:flex;gap:8px;flex-wrap:wrap;padding:6px 0 2px}
+.rimgs img{max-width:min(100%,360px);max-height:240px;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:var(--surface-2)}
 .composer .slash{position:absolute;left:0;right:0;bottom:calc(100% + 6px);max-height:min(300px,50vh);overflow-y:auto;background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:4px;z-index:30;cursor:default}
 .composer .slash button{appearance:none;display:block;width:100%;text-align:left;border:0;background:none;color:var(--text);padding:6px 10px;border-radius:9px;cursor:pointer;font:13px var(--sans)}
 .composer .slash button.on{background:var(--accent-soft)}
@@ -788,7 +795,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     <div class="brand">
       <span class="logo st-working" id="logo"></span>
       <div>
-        <div class="name"><h1 data-i18n="title"></h1><span class="tagline" data-i18n="tagline"></span><span class="for-claude" data-i18n="forClaude"></span></div>
+        <div class="name"><h1 class="wordmark" aria-label="ELOP Crew"><span class="w-elop">ELOP</span><span class="w-crew">Crew</span></h1><span class="tagline" data-i18n="tagline"></span></div>
         <div class="sub"><span class="live" id="live"><i></i><span id="live-text"></span></span><span id="asof"></span></div>
       </div>
     </div>
@@ -1230,6 +1237,21 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
           const host = tools.get(e.id);
           if (host) { host.append(out); if (e.error) host.classList.add('failed'); }
           else add(out);
+          // the images it returned, shown under it (from this PC's server only); a click opens one full size
+          if (e.images > 0 && !sub) {
+            if (!str(e.text).replace(/\[image\]/g, '').trim()) out.hidden = true;   // only the placeholder: the images say it
+            const row = el('div', 'rimgs');
+            for (let i = 0; i < Math.min(e.images, 6); i++) {
+              const src = '/img/result?session=' + encodeURIComponent(str(s.name)) + '&tool=' + encodeURIComponent(str(e.id)) + '&i=' + i + '&token=' + encodeURIComponent(token);
+              const img = document.createElement('img');
+              img.loading = 'lazy'; img.alt = ''; img.src = src;
+              img.addEventListener('error', () => img.remove());
+              img.addEventListener('click', () => fetch(src).then((r) => r.blob()).then((blob) => openPreview({ name: str(e.name || 'image') + '.' + (blob.type.split('/')[1] || 'png'), blob })).catch(() => {}));
+              row.append(img);
+            }
+            if (host) host.append(row); else out.after(row);
+            if (host) host.open = true;
+          }
         }
       }
       for (const e of entries) if (e.at > lastAt) lastAt = e.at;
@@ -1245,7 +1267,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       if (ev.kind === 'state') { agentState = ev.state; if (ev.state !== 'working') thinking = false; if (liveCtl) liveCtl.update(last); if (onAgentState) onAgentState(ev.state); return; }
       if (ev.kind === 'user') return put([{ role: 'user', text: ev.text, files: ev.files, refs: ev.refs, at: ev.at }]);
       if (ev.kind === 'tool') return put([{ role: 'tool', id: ev.id, name: ev.name, action: ev.action, input: ev.input, at: ev.at }]);
-      if (ev.kind === 'result') return put([{ role: 'result', id: ev.id, error: ev.error, text: ev.text, at: ev.at }]);
+      if (ev.kind === 'result') return put([{ role: 'result', id: ev.id, error: ev.error, text: ev.text, images: ev.images, at: ev.at }]);
       if (ev.kind === 'note') return put([{ role: 'note', text: ev.text, at: ev.at }]);
       if (ev.kind === 'turn') return put([{ role: 'note', text: (ev.ok ? '✓ ' : '⚠ ') + t('turnDone', { t: (ev.ms / 1000).toFixed(1) }) + (ev.text ? ' — ' + str(ev.text) : ''), at: ev.at }]);
       if (ev.kind === 'block' && ev.type === 'thinking') { thinking = !ev.done; return; }

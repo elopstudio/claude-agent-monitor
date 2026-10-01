@@ -247,7 +247,9 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       for (const c of o.message.content) {
         if (c?.type !== 'tool_result') continue
         const raw = typeof c.content === 'string' ? c.content : Array.isArray(c.content) ? c.content.map((x) => x?.type === 'text' ? x.text : '[' + (x?.type || 'data') + ']').join('\n') : ''
-        emit(a, { kind: 'result', id: String(c.tool_use_id || ''), error: !!c.is_error, text: mask(clip2(raw, 3000)) })
+        // images in it go by count only; the page fetches them from the transcript (/img/result in server.mjs)
+        const images = Array.isArray(c.content) ? c.content.filter((x) => x?.type === 'image').length : 0
+        emit(a, { kind: 'result', id: String(c.tool_use_id || ''), error: !!c.is_error, text: mask(clip2(raw, 3000)), ...(images ? { images } : {}) })
       }
       return
     }
