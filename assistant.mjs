@@ -141,6 +141,7 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
         lines.push(`- ${who(s)}${s.isLeader ? ' [leader]' : ''} · ${s.managed ? 'monitor agent' : 'VS Code session'} · ${s.state}` +
           (s.title ? ` · on: ${s.title}` : '') + (s.role ? ` · role: ${s.role}` : '') + (act ? ` · ${act}` : '') +
           (s.loginLost ? ' · STOPPED, WAITING FOR THE LOGIN (carries on by itself once logged in)' : '') +
+          (s.limitHit ? ' · STOPPED AT THE USAGE LIMIT (carries on by itself ' + (s.limitHit.until ? 'after it resets at ' + new Date(s.limitHit.until).toTimeString().slice(0, 5) : 'once it has reset') + ')' : '') +
           (s.lastFail ? ` · last turn failed ${mins(now - s.lastFail.at)} min ago: ${s.lastFail.text}` : '') +
           (s.stalledFor ? ` · LOOKS STUCK for ${mins(now - s.stalledFor)} min` : '') +
           (s.errors ? ` · ${s.errors}/${s.results} recent tool results failed` : '') + (s.mode ? ` · mode ${s.mode}` : ''))
@@ -234,7 +235,7 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
   }
 
   // what is passed on: each thing once, and again only after it went away and came back
-  const told = { asks: new Set(), stuck: new Set(), usage: new Map(), login: new Set(), fail: new Map() }
+  const told = { asks: new Set(), stuck: new Set(), usage: new Map(), login: new Set(), fail: new Map(), limit: new Map() }
   const workingSince = new Map()   // agent → when it was first seen working this turn
   let lastWho = ''                 // the last account seen logged in (a hash), to tell a switch from a return
   let queue = []
@@ -277,14 +278,17 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
     }
     for (const id of told.asks) if (!asks.some((a) => a.id === id)) told.asks.delete(id)
     const sessions = allSessions(data)
-    const held = []
+    const held = [], limited = []
     for (const s of sessions) {
       if (s.stalledFor && !told.stuck.has(s.name)) { told.stuck.add(s.name); tell('stuck', `${who(s)} (${s.project}, ${s.managed ? 'monitor agent' : 'VS Code session'}) is working but has shown no sign of activity for ${mins(now - s.stalledFor)} min`) }
       if (!s.stalledFor) told.stuck.delete(s.name)
       if (s.loginLost && !told.login.has(s.name)) { told.login.add(s.name); held.push(who(s) + ' (' + s.project + ')') }
       if (!s.loginLost) told.login.delete(s.name)
       // a failed turn, once each (the login has its own line)
-      if (s.lastFail && !s.loginLost && told.fail.get(s.name) !== s.lastFail.at) { told.fail.set(s.name, s.lastFail.at); tell('failed', `${who(s)} (${s.project}): its last turn failed — ${s.lastFail.text}`) }
+      // stopped at the usage limit, once each time (it carries on by itself after the reset)
+      if (s.limitHit && told.limit.get(s.name) !== s.limitHit.at) { told.limit.set(s.name, s.limitHit.at); limited.push(s) }
+      if (!s.limitHit) told.limit.delete(s.name)
+      if (s.lastFail && !s.loginLost && !s.limitHit && told.fail.get(s.name) !== s.lastFail.at) { told.fail.set(s.name, s.lastFail.at); tell('failed', `${who(s)} (${s.project}): its last turn failed — ${s.lastFail.text}`) }
       // a turn of some length that ended well: what it was on, for the assistant to judge whether the person needs it
       if (s.state === 'working') { if (!workingSince.has(s.name)) workingSince.set(s.name, now) }
       else if (workingSince.has(s.name)) {
@@ -294,6 +298,16 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
       }
     }
     for (const name of workingSince.keys()) if (!sessions.some((s) => s.name === name)) workingSince.delete(name)
+    if (limited.length) {
+      const ends = limited.map((s) => s.limitHit.until).filter(Boolean), at = ends.length ? new Date(Math.min(...ends)).toTimeString().slice(0, 5) : ''
+      const names = limited.map(who).join(', ')
+      tell('usage', 'Stopped at the Claude usage limit (they carry on by themselves ' + (at ? 'after it resets at ' + at : 'once it has reset') + '): ' + limited.map((s) => who(s) + ' (' + s.project + ')').join(', '))
+      // the assistant is held by the same limit and cannot say it: the monitor puts it in the chat
+      if (o.usage) agents.noteTo('assistant', { kind: 'notice', level: 'warn', alert: true, text: lang?.() === 'Korean'
+        ? 'Claude 사용량 한도에 걸렸습니다' + (at ? ' — ' + at + '에 풀리면' : ' — 풀리면') + ' 멈춘 에이전트가 스스로 이어 갑니다: ' + names
+        : 'The Claude usage limit is reached' + (at ? ' — once it resets at ' + at + ',' : ' — once it resets,') + ' the stopped agents carry on by themselves: ' + names })
+      notifyPages()
+    }
     if (held.length) tell('login', 'Stopped and waiting for the Claude Code login (they carry on by themselves once it is back): ' + held.join(', '))
     for (const x of data.usage?.limits || []) {
       const level = x.percent >= 95 ? 95 : x.percent >= 80 ? 80 : 0, k = x.kind + (x.model || '')
@@ -302,7 +316,7 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
     }
     // one message for all of it, when the assistant is free (and not for want of a login it cannot work without)
     const st = agents.assistantState()
-    if (queue.length && st && st.state !== 'working' && loginNow?.loggedIn !== false) {
+    if (queue.length && st && st.state !== 'working' && loginNow?.loggedIn !== false && !st.limitHit) {
       const text = '[Monitor events]\n' + queue.slice(-25).map((q) => '- ' + q).join('\n')
       queue = []
       agents.sendText('assistant', text)

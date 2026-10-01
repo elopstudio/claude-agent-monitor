@@ -40,7 +40,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'kind', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'loginLost', 'forkFrom', 'forkedFrom']
+  const KEEP = ['id', 'kind', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'loginLost', 'limitHit', 'forkFrom', 'forkedFrom']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
@@ -50,6 +50,30 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   const LOGIN_LOST = /Not logged in|Please run \/login|authentication_failed|OAuth token (has )?expired|invalid.{0,20}(api key|bearer token)/i
   const LOGGED_BACK = 'Claude Code was logged out while you were working (a login that ran out, or a switch to another account), so your last turn failed with "Not logged in". It is logged in again now. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+  // A usage limit reached ("You've hit your session limit · resets 4:50pm"): the turn fails, and nothing woke the agent
+  // once the limit had reset — on 1 Oct four agents and the assistant sat from 15:30 until long after 16:50. Now it is
+  // asked to carry on just after the time the message gave (without one: after half an hour, then longer each time).
+  const LIMIT_HIT = /hit your (session |weekly |opus |sonnet |usage )?limit|usage limit reached|limit reached\|\d{10}/i
+  const LIMIT_BACK = 'Your Claude usage limit was reached while you were working, so your last turn failed. The limit has reset now. Please carry on where you left off, and keep replying in the language you have been using with the user.'
+  const LIMIT_GRACE_MS = 90 * 1000, LIMIT_RETRY_MS = 30 * 60 * 1000
+  // when it resets, from its words: "resets 4:50pm", "resets Oct 4, 9am", or the older "…limit reached|1759377600"
+  // (a time of day is taken as this PC's, the zone the message names being the account's, usually the same)
+  function resetOf(text, now) {
+    const s = String(text || '')
+    const epoch = s.match(/\|(\d{10})\b/)
+    if (epoch) return Number(epoch[1]) * 1000
+    const m = s.match(/resets\s+(?:([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(?:at\s+)?)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\b/i)
+    if (!m) return 0
+    const d = new Date(now)
+    d.setHours(Number(m[3]) % 12 + (m[5].toLowerCase() === 'p' ? 12 : 0), Number(m[4] || 0), 0, 0)
+    if (m[1]) {
+      const month = new Date(m[1] + ' 1, 2000').getMonth()
+      if (Number.isNaN(month)) return 0
+      d.setMonth(month, Number(m[2]))
+      if (d.getTime() < now - 12 * 3600e3) d.setFullYear(d.getFullYear() + 1)
+    } else if (d.getTime() <= now) d.setDate(d.getDate() + 1)
+    return d.getTime()
+  }
   let shuttingDown = false   // stopping everything on the way out is not the end of their turns
   function save() {
     try {
@@ -93,6 +117,12 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
         else if (a.sessionId && a.sessionId === saved.newSessionId && !a.events.length) a.sessionId = ''
       }
       a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS
+      // its conversation ended on the usage limit (a list from before limits were kept, or one kept): carried on after
+      // the reset like one that hits it now — at once if that time has passed
+      const lastSaid = a.events.filter((e) => e.kind === 'block' || e.kind === 'user').pop()
+      if (!a.limitHit && !a.midTurn && lastSaid?.kind === 'block' && LIMIT_HIT.test(lastSaid.text) && Date.now() - (lastSaid.at || 0) < 24 * 3600e3) {
+        a.limitHit = { at: lastSaid.at || Date.now(), until: resetOf(lastSaid.text, lastSaid.at || Date.now()) || 0 }
+      }
       a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : a.justAfter ? 'monitor restarted right after the last turn — asked to check on it' : 'monitor restarted — send a message to continue', at: Date.now() })
     }
     for (const a of agents.values()) {
@@ -228,6 +258,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       return
     }
     if (o.type === 'assistant' && o.error === 'authentication_failed') a.loginFailed = true
+    if (o.type === 'assistant' && o.error === 'rate_limit') a.limitFailed = true
     // a slash command's answer (/context, /usage, /model…) is no model reply: claude writes it as one whole message
     // with no stream before it, so it is shown here, as the agent's text
     if (o.type === 'assistant' && o.message?.model === '<synthetic>' && !o.parent_tool_use_id && Array.isArray(o.message.content)) {
@@ -264,12 +295,15 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // a failed turn says why (an API error, a limit…) instead of ending silently
       emit(a, { kind: 'turn', ok: !o.is_error, subtype: String(o.subtype || ''), ms: o.duration_ms || 0, ...(o.is_error ? { text: mask(clip(String(o.result || (o.errors || []).join('; ') || o.subtype || ''), 400)) } : {}) })
       setState(a, 'idle')
-      const failed = o.is_error && (a.loginFailed || LOGIN_LOST.test(String(o.result || (o.errors || []).join('; '))))
-      a.loginFailed = false
+      const why = String(o.result || (o.errors || []).join('; '))
+      const failed = o.is_error && (a.loginFailed || LOGIN_LOST.test(why))
+      const limited = o.is_error && !failed && (a.limitFailed || LIMIT_HIT.test(why))
+      a.loginFailed = false; a.limitFailed = false
       // why its last turn failed (an API error, a limit, the login), for the page and the assistant; cleared by a good one
       a.lastFail = o.is_error ? { text: mask(clip(String(o.result || (o.errors || []).join('; ') || o.subtype || ''), 200)), at: Date.now() } : null
-      if (!o.is_error) a.loginTriedAt = 0
+      if (!o.is_error) { a.loginTriedAt = 0; a.limitTries = 0; if (a.limitHit) { a.limitHit = null; save() } }
       if (failed) { loggedOut(a); return }
+      if (limited) limitReached(a, why)
       if (a.restartAfterTurn) { a.restartAfterTurn = false; a.respawn = true; stop(a) }
     }
   }
@@ -404,6 +438,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   function send(a, text, files) {
     // a message sent by hand to an agent waiting for the login: it goes now, in a new process with the login there is
     if (a.loginLost) { a.loginLost = 0; save() }
+    // and one stopped at the usage limit: a turn that fails again marks it again, with the new time
+    if (a.limitHit) { a.limitHit = null; save() }
     if (!a.proc) spawnAgent(a)
     if (!a.proc) return false
     const msg = userMessage(text, files)
@@ -422,6 +458,17 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     emit(a, { kind: 'note', text: 'Claude Code is not logged in — this agent carries on by itself once it is logged in again' })
     notifyPages()
   }
+  // its turn failed at the usage limit: noted with when the limit resets, to carry on then (its claude stays: the
+  // limit is the account's, not the process's)
+  function limitReached(a, why) {
+    const now = Date.now()
+    a.limitHit = { at: now, until: resetOf(why, now) || 0 }
+    a.limitTries = (a.limitTries || 0) + 1
+    save()
+    const at = a.limitHit.until ? new Date(a.limitHit.until).toTimeString().slice(0, 5) : ''
+    emit(a, { kind: 'note', text: 'usage limit reached — this agent carries on by itself ' + (at ? 'after it resets at ' + at : 'once it has reset (tried again in a while)') })
+    notifyPages()
+  }
   // is Claude Code logged in now, and when were its login files last written
   function loginNow() {
     let at = 0, cred = null, state = null
@@ -436,9 +483,21 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // written since it failed, else once (it may have failed on a login it held from before) — and then not again
   // until the login changes, so a login that still does not work is not tried over and over
   setInterval(() => {
+    if (shuttingDown) return
+    const now = Date.now()
+    // stopped at the usage limit: carried on just after it resets (a minute and a half late, to be on the safe side);
+    // with no time to go by, after half an hour, then an hour, up to two
+    for (const a of agents.values()) {
+      const l = a.limitHit
+      if (!l || a.loginLost || a.state === 'working') continue
+      const due = l.until ? l.until + LIMIT_GRACE_MS : l.at + LIMIT_RETRY_MS * Math.min(4, a.limitTries || 1)
+      if (now < due) continue
+      emit(a, { kind: 'note', text: 'the usage limit should have reset — carrying on' })
+      send(a, LIMIT_BACK, [])
+    }
     const waiting = [...agents.values()].filter((a) => a.loginLost)
-    if (!waiting.length || shuttingDown) return
-    const now = Date.now(), login = loginNow()
+    if (!waiting.length) return
+    const login = loginNow()
     if (!login.ok) return
     for (const a of waiting) {
       if (a.proc || now - a.loginLost < 20000) continue
@@ -619,7 +678,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   function sessions(now) {
     return [...agents.values()].filter((a) => a.kind !== 'assistant').map((a) => ({
       // forkedFrom: the VS Code session it was taken over from, for good (forkFrom only lasts until its first turn)
-      managed: true, agentId: a.id, pid: a.proc?.pid || 0, loginLost: a.loginLost || 0, lastFail: a.lastFail || null, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
+      managed: true, agentId: a.id, pid: a.proc?.pid || 0, loginLost: a.loginLost || 0, limitHit: a.limitHit || null, lastFail: a.lastFail || null, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
       statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))
@@ -660,7 +719,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     }
     return a
   }
-  const assistantState = () => { const a = agents.get('assistant'); return a ? { state: a.state, running: !!a.proc, mode: a.mode, model: a.model, effort: a.effort || '', sessionId: a.sessionId, avatar: a.avatar || null } : null }
+  const assistantState = () => { const a = agents.get('assistant'); return a ? { state: a.state, running: !!a.proc, mode: a.mode, model: a.model, effort: a.effort || '', sessionId: a.sessionId, avatar: a.avatar || null, limitHit: a.limitHit || null } : null }
   // a line in the assistant's chat that is not a message: an alert, or something it did on its own
   const noteTo = (id, ev) => { const a = agents.get(id); if (a) emit(a, ev) }
 

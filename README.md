@@ -339,7 +339,7 @@ An agent whose turn fails because Claude Code is not logged in any more (a login
 account) is stopped, since a claude that keeps running keeps the login it started with, and its conversation says it
 will carry on by itself. Once Claude Code is logged in again, it is started afresh and told to pick up where it left
 off. It is tried once with the login there is, in case it failed on an old one, and after that only when the login
-changes, so a login that still does not work is not tried over and over. A message sent to it by hand goes at once.
+changes, so a login that still does not work is not tried over and over. A message sent to it by hand goes at once. An agent whose turn fails at the usage limit ("You've hit your session limit · resets 4:50pm") is asked to carry on just after the time that message gives (without one: after half an hour, then longer each time); one that ended on the limit before a restart is picked up from its conversation, at once if the reset has passed. The assistant, held by the same limit, cannot say so itself, so the monitor puts the reset time and the agents waiting for it in its chat.
 **End agent** also removes it from that list.
 
 `claude` takes a while to start, so the monitor starts it as soon as an agent is created, and when the dialog of a

@@ -521,7 +521,7 @@ async function buildState() {
     const sess = {
       id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', pinNick: m.nick || '', avatar: m.avatar || null, desc: m.desc || '', state: m.state,
       statusSince: m.statusSince, startedAt: m.startedAt, kind: 'monitor', managed: true, agentId: m.agentId, running: m.running,
-      loginLost: m.loginLost || 0, lastFail: m.lastFail || null,
+      loginLost: m.loginLost || 0, limitHit: m.limitHit || null, lastFail: m.lastFail || null,
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model, effort: m.effort,
       listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
