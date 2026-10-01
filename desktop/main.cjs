@@ -1,6 +1,6 @@
 // Agent Monitor as a desktop app: runs the monitor server inside the app, shows it in its own window,
 // and lives in the tray — so it no longer depends on a terminal or on VS Code staying open.
-const { app, BaseWindow, BrowserWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain, Notification, globalShortcut } = require('electron')
+const { app, BaseWindow, BrowserWindow, WebContentsView, Tray, Menu, shell, dialog, nativeImage, nativeTheme, ipcMain, Notification, globalShortcut, screen } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const http = require('node:http')
@@ -64,7 +64,8 @@ async function offerHooks(always) {
     detail: '승인·질문에 답하기, 권한 모드 표시, 에이전트에게 메시지 보내기, 리더에게 팀원 알려 주기에 필요합니다.\n' + CLAUDE_SETTINGS + ' 의 모니터 항목만 추가·교체하고, 다른 설정은 그대로 둡니다 (백업: settings.json.before-agent-monitor).\n' + (findNode() ? 'hook은 이 PC의 Node.js로 실행됩니다.' : 'Node.js가 없어서 hook은 이 앱으로 실행됩니다.'),
   })
   if (quitting) return   // a box closed by quitting is not an answer
-  if (r.response !== 0) { if (!always) writeSettings({ ...settings, ...(outdated ? { hooksUpdateDeclined: HOOKS_REV } : { hooksDeclined: true }) }); return }
+  // read again: the box may have been open while the zoom or the window's place changed
+  if (r.response !== 0) { if (!always) writeSettings({ ...readSettings(), ...(outdated ? { hooksUpdateDeclined: HOOKS_REV } : { hooksDeclined: true }) }); return }
   try { installHooks(); await ask({ type: 'info', message: 'hook을 설치했습니다.', detail: '실행 중인 Claude Code 세션에도 곧바로 적용됩니다.' }) }
   catch (e) { dialog.showErrorBox('Agent Monitor', 'hook을 설치하지 못했습니다.\n\n' + (e && e.message || e)) }
   if (tray) tray.setContextMenu(trayMenu())
@@ -150,14 +151,34 @@ function shortcuts(wc) {
   })
 }
 let tray = null, quitting = false
+// the window opens where it was and as big as it was, maximised if it was — unless that place is on no screen now
+// (a monitor unplugged since), when it opens at the default size on the main one
+function savedBounds() {
+  const b = readSettings().bounds
+  if (!b || !(b.width >= 720 && b.height >= 480) || ![b.x, b.y].every(Number.isFinite)) return null
+  const a = screen.getDisplayMatching(b).workArea
+  const onScreen = b.x < a.x + a.width - 80 && b.x + b.width > a.x + 80 && b.y >= a.y - 8 && b.y < a.y + a.height - 80
+  return onScreen ? { x: b.x, y: b.y, width: b.width, height: b.height } : null
+}
+let keepTimer = null
+function keepBounds() {
+  clearTimeout(keepTimer)
+  keepTimer = null
+  if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return
+  // the normal bounds even when maximised, so un-maximising after a restart goes back to the right size
+  writeSettings({ ...readSettings(), bounds: win.getNormalBounds(), maximized: win.isMaximized() })
+}
+const keepSoon = () => { clearTimeout(keepTimer); keepTimer = setTimeout(keepBounds, 600) }
 function showWindow() {
   if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); return }
   const dark = nativeTheme.shouldUseDarkColors
+  const at = savedBounds()
   win = new BaseWindow({
-    width: 1440, height: 920, minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
+    width: 1440, height: 920, ...(at || {}), minWidth: 720, minHeight: 480, title: 'Agent Monitor', icon: ICON,
     backgroundColor: dark ? '#0f1116' : '#f2f3f7',
     ...titleBar(),
   })
+  if (at && readSettings().maximized) win.maximize()
   const safe = { contextIsolation: true, sandbox: true }
   strip = new WebContentsView({ webPreferences: { ...safe, preload: path.join(__dirname, 'preload.cjs') } })
   page = new WebContentsView({ webPreferences: safe })
@@ -171,6 +192,7 @@ function showWindow() {
   win.on('resize', layout)
   win.on('maximize', layout)
   win.on('unmaximize', layout)
+  for (const e of ['resize', 'move', 'maximize', 'unmaximize']) win.on(e, keepSoon)
   const wc = page.webContents
   wc.on('did-finish-load', () => { wc.setZoomFactor(zoom()); report() })
   wc.on('did-navigate-in-page', report)
@@ -182,7 +204,7 @@ function showWindow() {
   wc.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
   wc.on('will-navigate', (e, url) => { if (!url.startsWith(URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url) } })
   // closing the window keeps the monitor running in the tray
-  win.on('close', (e) => { if (quitting) return; if (readSettings().closeToTray === false) { quit(); return } e.preventDefault(); win.hide() })
+  win.on('close', (e) => { keepBounds(); if (quitting) return; if (readSettings().closeToTray === false) { quit(); return } e.preventDefault(); win.hide() })
   win.on('closed', () => { win = page = strip = null })
   win.on('focus', () => { try { win.flashFrame(false) } catch {} })
   paintBadge()

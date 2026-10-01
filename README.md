@@ -301,6 +301,8 @@ itself. So a new PC needs only **Claude Code**, installed and signed in.
 - No Windows title bar. A thin title strip on the window buttons' line holds **← → ⟳**, **− 100% +** and **⚙ settings**;
   drag it to move the window. Zooming (buttons, **Ctrl + wheel**, **Ctrl + − / 0 / =**) scales the page only — the strip
   stays put — and is remembered. **Alt + ← / →** and **F5** work too; project tabs are history entries.
+- The window opens where it was left, at the same size, maximised if it was — after a restart or an update too. If
+  that place is on no screen any more (a monitor unplugged), it opens at the default size on the main screen.
 - Closing the window keeps the monitor in the tray, with its agents running (or quits, if you turn that off).
 - **Something waiting for you:** while requests wait, the taskbar button and the tray icon carry an orange dot and the
   tray tooltip counts them. A new request flashes the taskbar and sends a desktop notification if the window is not in
