@@ -348,7 +348,8 @@ servers and connectors, which starts faster still. Set `"claudePath"` in `config
 The round button at the bottom right (labelled **Assistant** where there is room) opens a chat with the monitor's own
 assistant: one fixed monitor agent (Sonnet by default) that looks after all the others. It is not shown with any
 project and works in a folder of its own under `.runtime/assistant`, so it does not touch your code unless you ask.
-Its message box is the conversation tab's — attach files, and ⚙ for its permission mode, model and effort, and its
+Its message box is the conversation tab's, with files to attach. The settings button beside minimise, at the top of the
+chat, opens its settings under the header: its permission mode, model and effort; **what it may do** (below); and its
 **look**: one of the eight colours and a headgear, the crown it wears by default among them (an agent's crown means the
 leader, but the assistant is never on the cards). The look is kept with it and drawn on the button, at the top of the
 chat and on its requests.
@@ -378,6 +379,13 @@ a VS Code session's has before it goes back to VS Code; whether Claude Code is l
 - **The login.** While Claude Code is logged out the assistant cannot work either, so the monitor itself puts the alert
   in its chat, and what happened meanwhile is passed on once the login is back. The account is known to it only as
   logged in or not, and whether it is the same as before (a hash kept in memory): no address or name reaches the model.
+- **What it may do** (its settings; kept in `config.json` under `assistant`, and held by the monitor, not only told
+  to it). **Answering requests:** *off* — it answers none and tells you what it recommends; *reading only* — it may
+  allow only what changes nothing (reading, listing, searching, git status/diff/log/show, tests; one command, no
+  chaining or redirection); *in the project* (the default) — as above. Whatever is picked, it can never allow a push or
+  history rewrite, a recursive delete, a publish or deploy, or anything about secrets. **It is told about:** each of
+  permission requests, questions and plans, finished work, failed turns, stuck agents, the login and the plan's usage
+  can be switched off; each one it is told costs a turn.
 - These events cost tokens only when one happens; nothing about them is written to disk.
 
 ## Desktop app

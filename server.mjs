@@ -1338,6 +1338,9 @@ const assistant = createAssistant({
   decide: (id, answer) => decide(id, answer), sendTo: (session, text) => sendMessage({ session, text }),
   requestSession: (id) => pending.get(id)?.sessionId,
   lang: () => LANGS[pageLang] || '',
+  // what the person lets it do (config.json "assistant"): how far it may answer requests, what it is told about
+  options: () => loadConfig().assistant,
+  saveOptions: (o) => editConfig((c) => { c.assistant = o }),
   // whether Claude Code is logged in, and to whom only as a hash kept in memory: no address or name reaches the model
   login: async () => {
     const i = await account.info(false)
@@ -1394,6 +1397,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/hook/prompt') { json(200, await agents.prompt(body)); return }
       if (url.pathname === '/hook/assistant') { json(200, { text: await assistant.tool(body) }); return }
       if (url.pathname === '/api/assistant/start') { json(200, await assistant.start()); return }
+      if (url.pathname === '/api/assistant/settings') { json(await assistant.setOptions(body), {}); return }
       if (url.pathname.startsWith('/api/account/')) { const [code, o] = await account.handle(url); json(code, o); return }
       if (url.pathname.startsWith('/api/cloud/')) { const [code, o] = await cloud.handle(url); json(code, o); return }
       if (url.pathname === '/api/agents/fork') { const [code, o] = await forkSession(body); json(code, o); return }

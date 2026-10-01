@@ -31,6 +31,9 @@ How you work
   two what happened and the next step you suggest — or take it (tell the agent to carry on, retry or report). Do not
   report routine progress nobody needs.
 
+The person decides how far you may answer requests (status shows it, and the monitor holds you to it): off — answer
+none, recommend instead; reading only — allow only what changes nothing; in the project — the rules below.
+
 Permission requests (they reach you at once; a VS Code session's request goes back to VS Code when its time runs
 out — status shows how long it has — so answer those first)
 Allow, without asking, work inside the agent's own project folder that can be undone:
@@ -67,11 +70,41 @@ Write to the person in the language the monitor tells you they use, briefly, wit
 Every answer you give a request is shown to the person with your reason; keep it short and concrete.
 You have no project of your own: do not edit files or run commands unless the person asks you to.`
 
+// what the person lets it do, from its settings: how far it may answer requests, and what it is told about (each event
+// it is told costs a turn, so any of them can be left out)
+const APPROVE = ['off', 'read', 'project']
+const EVENTS = ['asks', 'waiting', 'finished', 'failed', 'stuck', 'login', 'usage']
+function optionsOf(v) {
+  const o = { approve: APPROVE.includes(v?.approve) ? v.approve : 'project' }
+  for (const k of EVENTS) o[k] = v?.[k] !== false
+  return o
+}
+const APPROVE_TEXT = {
+  off: 'OFF — the person answers every request; do not answer any, recommend instead',
+  read: 'READING ONLY — allow only work that changes nothing (reading, listing, searching, git status/diff/log/show, running tests); leave everything else to the person with your recommendation',
+  project: 'IN THE PROJECT — allow routine work inside the agent\'s own project that can be undone, as your instructions say',
+}
+// changes nothing: one command (pipes allowed, no chaining or redirection) that only reads, lists, searches or tests
+const READ_TOOLS = /^(Read|Glob|Grep|LS|NotebookRead|WebSearch|TodoWrite)$/
+const READ_COMMAND = /^\s*(git\s+(status|diff|log|show|branch|blame|remote(\s+-v)?|rev-parse|describe|ls-files)\b|ls\b|dir\b|cat\b|type\b|head\b|tail\b|grep\b|rg\b|findstr\b|find\b|pwd\b|echo\b|wc\b|which\b|where\b|tree\b|Get-ChildItem\b|Get-Content\b|Select-String\b|Test-Path\b|(npm|pnpm|yarn)\s+(test|run\s+(test|lint|typecheck|check))\b|npx\s+(tsc\s+--noEmit|eslint|vitest\s+run|jest)\b|pytest\b|go\s+(test|vet)\b|cargo\s+(test|check|clippy)\b)/i
+// never the assistant's to allow, whatever it is let do: pushes and history rewrites, recursive deletes, publishing and
+// deploying, secrets — held by the monitor, not only asked of it
+const NEVER = /\bgit\s+(push|reset\s+--hard|rebase|filter-(branch|repo)|clean\s+-[a-z]*f)\b|--force\b|\s-f\b.*\bpush\b|\brm\s+-[a-z]*r|\bRemove-Item\b[^|;]*-Recurse|\brmdir\s+\/s|\b(npm|pnpm|yarn)\s+publish\b|\bdeploy\b|\brelease\b|(^|[\\/\s"'])\.env(\.|\b)|credential|secret|\.pem\b|id_rsa|\btoken\b/i
+const neverAllow = (a) => NEVER.test(String(a.code || '')) || NEVER.test(String(a.what || ''))
+const readOnly = (a) => READ_TOOLS.test(a.tool) || (/^(Bash|PowerShell)$/.test(a.tool) && !!a.code && !String(a.code).endsWith('…') && READ_COMMAND.test(a.code) && !/;|&&|\|\||>|<|`|\$\(|\b(rm|del|Remove-Item|mv|move|cp|copy|Set-Content|Out-File)\b/i.test(a.code))
+
 const WAIT_TELL_MS = 2 * 60 * 1000   // a question or plan left this long is passed on (they are the person's)
 const WORKED_MS = 60 * 1000          // a turn this long, ended, is passed on as finished
 const TICK_MS = 15 * 1000
 
-export function createAssistant({ agents, dataDir, state, decide, sendTo, requestSession, notifyPages, lang, login, conversation }) {
+export function createAssistant({ agents, dataDir, state, decide, sendTo, requestSession, notifyPages, lang, login, conversation, options, saveOptions }) {
+  const opts = () => optionsOf(options?.())
+  async function setOptions(body) {
+    const o = optionsOf(body)
+    const code = await saveOptions(o)
+    if (code === 200) notifyPages()
+    return code
+  }
   // a request the assistant itself is waiting on (its own tool calls): never for it to answer
   const ownRequest = (id) => { const me = agents.assistantState(); return !!me?.sessionId && requestSession(id) === me.sessionId }
   let on = false
@@ -100,6 +133,7 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
     const now = Date.now(), lines = []
     if (loginNow) lines.push('Claude Code login: ' + (loginNow.loggedIn ? 'logged in' + (loginNow.plan ? ' (plan ' + loginNow.plan + ')' : '') : 'NOT LOGGED IN — every agent that tries to work fails'))
     if (lang?.()) lines.push("The person's language: " + lang())
+    lines.push('Answering requests for the person: ' + APPROVE_TEXT[opts().approve])
     for (const p of data.projects || []) {
       lines.push(...(lines.length ? [''] : []), `Project ${p.key}${p.name ? ' "' + p.name + '"' : ''}${p.label ? ' (' + p.label + ')' : ''} — folder ${p.root || '?'}:`)
       for (const s of p.sessions) {
@@ -168,6 +202,11 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
         if (ownRequest(a.id)) return 'You cannot answer your own requests; the person does.'
         if (a.questions || a.plan) return 'Questions and plans are for the person to answer.'
         const decision = args.decision === 'allow' ? 'allow' : 'deny'
+        // how far the person lets it go, held here and not only in what it is told
+        const level = opts().approve
+        if (level === 'off') return 'The person has turned answering off: leave it to them, and tell them what you recommend (notify_user if it waits).'
+        if (decision === 'allow' && neverAllow(a)) return 'This one is never yours to allow (a push or history rewrite, a recursive delete, a publish or deploy, or secrets): leave it to the person with your recommendation.'
+        if (level === 'read' && decision === 'allow' && !readOnly(a)) return 'The person lets you allow only work that changes nothing, and this is not plainly that: leave it to them with your recommendation.'
         const reason = String(args.reason || '').trim().slice(0, 300)
         if (!decide(a.id, decision)) return 'It could not be answered (gone just now?).'
         // the person sees every answer given for them, with why
@@ -203,21 +242,23 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
     if (!on) return
     let data
     try { data = await state() } catch { return }
-    const now = Date.now()
+    const now = Date.now(), o = opts()
+    // each kind of event only if the person has it on
+    const tell = (kind, text) => { if (o[kind]) queue.push(text) }
     // the login: gone, back (the same account or another), or switched
     try {
       const l = await login()
       if (loginNow) {
         if (loginNow.loggedIn && !l.loggedIn) {
-          queue.push('Claude Code was logged out: agents that try to work now fail with "Not logged in" until it is logged in again')
+          tell('login', 'Claude Code was logged out: agents that try to work now fail with "Not logged in" until it is logged in again')
           // the assistant cannot say it itself (it needs the login too): the monitor puts it in the chat, with an alert
-          agents.noteTo('assistant', { kind: 'notice', level: 'warn', alert: true, text: lang?.() === 'Korean'
+          if (o.login) agents.noteTo('assistant', { kind: 'notice', level: 'warn', alert: true, text: lang?.() === 'Korean'
             ? 'Claude Code 로그인이 풀렸습니다. 다시 로그인할 때까지 에이전트가 일을 하지 못합니다 — 메뉴의 계정에서 로그인하거나 터미널에서 claude auth login. 모니터 에이전트는 로그인되면 스스로 이어 갑니다.'
             : 'Claude Code is logged out. Agents cannot work until it is logged in again — log in from Account in the menu, or run claude auth login in a terminal. Monitor agents carry on by themselves once it is back.' })
           notifyPages()
         }
-        else if (!loginNow.loggedIn && l.loggedIn) queue.push('Claude Code is logged in again' + (lastWho && l.who && l.who !== lastWho ? ', as another account than before' : '') + '; monitor agents that were waiting for it carry on by themselves')
-        else if (loginNow.loggedIn && l.loggedIn && loginNow.who && l.who && loginNow.who !== l.who) queue.push('Claude Code is now logged in as another account than before')
+        else if (!loginNow.loggedIn && l.loggedIn) tell('login', 'Claude Code is logged in again' + (lastWho && l.who && l.who !== lastWho ? ', as another account than before' : '') + '; monitor agents that were waiting for it carry on by themselves')
+        else if (loginNow.loggedIn && l.loggedIn && loginNow.who && l.who && loginNow.who !== l.who) tell('login', 'Claude Code is now logged in as another account than before')
       }
       if (l.loggedIn && l.who) lastWho = l.who
       loginNow = l
@@ -230,7 +271,7 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
       if (forPerson && now - a.at < WAIT_TELL_MS) continue
       told.asks.add(a.id)
       const left = a.expiresAt ? Math.round((a.expiresAt - now) / 1000) : 0
-      queue.push(forPerson
+      tell(forPerson ? 'waiting' : 'asks', forPerson
         ? `${a.nickKo || a.nick || a.session} (${a.project}) has waited ${mins(now - a.at)} min for the person: ${a.questions ? 'a question' : 'a plan to approve'} (id ${a.id})`
         : `${a.nickKo || a.nick || a.session} (${a.project}, ${a.managed ? 'monitor agent' : 'VS Code session'}) asks permission: ${a.tool}${a.what ? ' — ' + a.what : ''} (id ${a.id})${!a.managed && left > 0 ? `; it goes back to VS Code in ${left} s` : ''}`)
     }
@@ -238,25 +279,25 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
     const sessions = allSessions(data)
     const held = []
     for (const s of sessions) {
-      if (s.stalledFor && !told.stuck.has(s.name)) { told.stuck.add(s.name); queue.push(`${who(s)} (${s.project}, ${s.managed ? 'monitor agent' : 'VS Code session'}) is working but has shown no sign of activity for ${mins(now - s.stalledFor)} min`) }
+      if (s.stalledFor && !told.stuck.has(s.name)) { told.stuck.add(s.name); tell('stuck', `${who(s)} (${s.project}, ${s.managed ? 'monitor agent' : 'VS Code session'}) is working but has shown no sign of activity for ${mins(now - s.stalledFor)} min`) }
       if (!s.stalledFor) told.stuck.delete(s.name)
       if (s.loginLost && !told.login.has(s.name)) { told.login.add(s.name); held.push(who(s) + ' (' + s.project + ')') }
       if (!s.loginLost) told.login.delete(s.name)
       // a failed turn, once each (the login has its own line)
-      if (s.lastFail && !s.loginLost && told.fail.get(s.name) !== s.lastFail.at) { told.fail.set(s.name, s.lastFail.at); queue.push(`${who(s)} (${s.project}): its last turn failed — ${s.lastFail.text}`) }
+      if (s.lastFail && !s.loginLost && told.fail.get(s.name) !== s.lastFail.at) { told.fail.set(s.name, s.lastFail.at); tell('failed', `${who(s)} (${s.project}): its last turn failed — ${s.lastFail.text}`) }
       // a turn of some length that ended well: what it was on, for the assistant to judge whether the person needs it
       if (s.state === 'working') { if (!workingSince.has(s.name)) workingSince.set(s.name, now) }
       else if (workingSince.has(s.name)) {
         const since = workingSince.get(s.name)
         workingSince.delete(s.name)
-        if (now - since >= WORKED_MS && !s.lastFail && !s.loginLost) queue.push(`${who(s)} (${s.project}, ${s.managed ? 'monitor agent' : 'VS Code session'}) finished a turn after ${mins(now - since)} min${s.title ? ' — on: ' + s.title : ''}`)
+        if (now - since >= WORKED_MS && !s.lastFail && !s.loginLost) tell('finished', `${who(s)} (${s.project}, ${s.managed ? 'monitor agent' : 'VS Code session'}) finished a turn after ${mins(now - since)} min${s.title ? ' — on: ' + s.title : ''}`)
       }
     }
     for (const name of workingSince.keys()) if (!sessions.some((s) => s.name === name)) workingSince.delete(name)
-    if (held.length) queue.push('Stopped and waiting for the Claude Code login (they carry on by themselves once it is back): ' + held.join(', '))
+    if (held.length) tell('login', 'Stopped and waiting for the Claude Code login (they carry on by themselves once it is back): ' + held.join(', '))
     for (const x of data.usage?.limits || []) {
       const level = x.percent >= 95 ? 95 : x.percent >= 80 ? 80 : 0, k = x.kind + (x.model || '')
-      if (level > (told.usage.get(k) || 0)) queue.push(`The plan's ${x.kind}${x.model ? ' ' + x.model : ''} usage is at ${Math.round(x.percent)}%`)
+      if (level > (told.usage.get(k) || 0)) tell('usage', `The plan's ${x.kind}${x.model ? ' ' + x.model : ''} usage is at ${Math.round(x.percent)}%`)
       told.usage.set(k, level)
     }
     // one message for all of it, when the assistant is free (and not for want of a login it cannot work without)
@@ -270,5 +311,5 @@ export function createAssistant({ agents, dataDir, state, decide, sendTo, reques
   const timer = setInterval(() => { watch().catch(() => {}) }, TICK_MS)
   timer.unref?.()
 
-  return { start, tool, info: () => agents.assistantState() }
+  return { start, tool, setOptions, info: () => { const s = agents.assistantState(); return s ? { ...s, options: opts() } : null } }
 }
