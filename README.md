@@ -24,13 +24,13 @@ Downloads for Windows and macOS, and what the monitor does, are at **[crew.elops
 ELOP Crew is made by ELOP Studio and works with Claude Code. It is not affiliated with or endorsed by Anthropic;
 Claude and Claude Code are trademarks of Anthropic.
 
-**☰** at the right of the header opens the menu: the language, the theme, **👤 Account** and **ⓘ About**.
+**☰** at the right of the header opens the menu: the language, the theme, **Account** and **About**.
 
 The page is in English by default. Switch to Korean with **EN / 한국어** in the menu (remembered in the browser) or open
 `http://127.0.0.1:4777/?lang=ko`. The theme is **System** (as the computer is set), **Light** or **Dark**, also remembered;
 in the desktop app its own header, title bar and settings window follow the pick too.
 
-**ⓘ About** in the menu says what the program is, its version, who makes it (ELOP Studio), where the source code
+**About** in the menu says what the program is, its version, who makes it (ELOP Studio), where the source code
 lives, where to report a problem, and its licence (PolyForm Noncommercial, with the full text). Its **Shortcuts** tab
 lists every key the page answers to — approvals and questions, the agent dialog, the project tabs — and, in the desktop
 app, the app's own (show or hide the window, zoom, reload, back and forward).
@@ -49,7 +49,7 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   is pointed at. Emptied, the folder's name is back.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
-- **Processes.** **⚙ Processes** in the header, with a count, opens what the agents have running: each agent
+- **Processes.** **Processes** in the header, with a count, opens what the agents have running: each agent
   itself (the claude process) and every shell, dev server, MCP server and background task it started, grouped by agent
   and heaviest first (CPU or memory), with how long each has been running. An agent's totals and its share of the chart
   count the agent and what it started. Each card shows **⚙ N** too, red when it uses a lot of CPU. **End** stops one (and what it
@@ -206,7 +206,7 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 
 ## Claude account
 
-**👤 Account** in the menu shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
+**Account** in the menu shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
 is used: the current 5-hour session and the week, with when each resets. The numbers come from the same place as
 Claude Code's `/usage`. Anthropic turns callers away when that is asked often, so the monitor asks at most every five
 minutes (Refresh: once a minute), and after a refusal it waits longer each time, up to 30 minutes. Meanwhile — and

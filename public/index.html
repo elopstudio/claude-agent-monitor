@@ -767,12 +767,15 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
 .menuwrap{position:relative}
 .menu-btn{display:grid;place-items:center;padding:5px 9px}
 .menu-btn svg{width:16px;height:16px;display:block}
+#proc-btn{display:inline-flex;align-items:center;gap:5px}
+#proc-btn svg{width:13px;height:13px;flex:none}
 .menu-btn[aria-expanded="true"]{color:var(--text);border-color:var(--text)}
 .hmenu{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:250px;background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.25);padding:6px;display:grid;gap:2px}
 .hmenu[hidden]{display:none}
 .hmenu .mrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px}
 .hmenu .ml{font:700 12px var(--sans);color:var(--muted)}
-.hmenu .mi{appearance:none;border:0;background:none;color:var(--text);text-align:left;font:700 13px var(--sans);padding:8px 10px;border-radius:9px;cursor:pointer}
+.hmenu .mi{appearance:none;border:0;background:none;color:var(--text);text-align:left;font:700 13px var(--sans);padding:8px 10px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.hmenu .mi svg{width:16px;height:16px;flex:none;color:var(--muted)}
 .hmenu .mi:hover,.hmenu .mi:focus-visible{background:var(--surface-2)}
 .hmenu .mrow+.mi{border-top:1px solid var(--line);margin-top:4px;padding-top:10px;border-radius:0 0 9px 9px}
 
@@ -1084,6 +1087,16 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     liveCards.clear();   // the cards are drawn again in the new language
     if (last) render(last);
   }
+  // a menu entry: a line icon like the menu button's, then its name (static shapes only)
+  const MENU_ICONS = {
+    user: '<circle cx="8" cy="5.6" r="2.7"/><path d="M2.8 13.6c.6-2.6 2.7-4.1 5.2-4.1s4.6 1.5 5.2 4.1"/>',
+    cpu: '<rect x="4" y="4" width="8" height="8" rx="1.6"/><rect x="6.4" y="6.4" width="3.2" height="3.2" rx=".5"/><path d="M6.3 2v2M9.7 2v2M6.3 12v2M9.7 12v2M2 6.3h2M2 9.7h2M12 6.3h2M12 9.7h2"/>',
+    info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.3v3.9"/><circle cx="8" cy="4.9" r=".55" fill="currentColor" stroke="none"/>',
+  };
+  function menuItem(b, icon, label) {
+    b.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">' + MENU_ICONS[icon] + '</svg>';
+    b.append(el('span', null, label));
+  }
   function applyStatic() {
     document.documentElement.lang = lang;
     document.title = t('title');
@@ -1094,9 +1107,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     $('tabs').setAttribute('aria-label', t('tabsLabel'));
     $('dock').setAttribute('aria-label', t('dockLabel'));
     if ($('bell')) $('bell').textContent = '🔔 ' + t('notifyOn');
-    $('acct-btn').textContent = '👤 ' + t('acct');
+    menuItem($('acct-btn'), 'user', t('acct'));
     procButton();
-    $('about-btn').textContent = 'ⓘ ' + t('about');
+    menuItem($('about-btn'), 'info', t('about'));
     if (!$('live').classList.contains('on')) $('live-text').textContent = last ? t('offline') : t('connecting');
   }
 
@@ -2683,7 +2696,7 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
     const all = ((data || last)?.projects || []).flatMap((p) => p.sessions);
     const n = all.reduce((a, x) => a + (x.procs?.n || 0), 0), cpu = all.reduce((a, x) => a + (x.procs?.cpu || 0), 0);
     const b = $('proc-btn');
-    b.textContent = '⚙ ' + t('procs') + (n ? ' ' + n : '');
+    menuItem(b, 'cpu', t('procs') + (n ? ' ' + n : ''));
     b.classList.toggle('hot', cpu >= 50);
     b.title = n ? t('procChip', { n, cpu: pct(cpu), mem: bytes(all.reduce((a, x) => a + (x.procs?.mem || 0), 0)) }) : t('procNone');
   }
