@@ -26,6 +26,8 @@ const ACCS = ["ball","twin","phones","sprout","bolt"]
 const avatarOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && ACCS.includes(v.acc) ? { c: v.c, acc: v.acc } : null)
 
 export function createAgents({ root, dataDir, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
+  // what the agent is for, one line written by the user (shown under its name)
+  const descOf = (v) => clip(String(v || '').replace(/[\x00-\x1f<>]/g, ' ').replace(/\s+/g, ' ').trim(), 80)
   const agents = new Map()          // id → agent
 
   // The list outlives the server: .runtime/agents.json holds who each agent is (folder, name, look, mode, model,
@@ -33,7 +35,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   // One that was in the middle of a turn when the monitor went away (quit, crash, an update) carries on by itself, and
   // one whose turn had ended just before is asked whether that turn was waiting for this restart (an install it started).
   const FILE = path.join(dataDir || root, '.runtime', 'agents.json')
-  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'forkFrom', 'forkedFrom']
+  const KEEP = ['id', 'cwd', 'key', 'name', 'nick', 'desc', 'avatar', 'mode', 'model', 'effort', 'fast', 'sessionId', 'newSessionId', 'startedAt', 'midTurn', 'turnEndedAt', 'forkFrom', 'forkedFrom']
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
@@ -318,7 +320,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     const id = crypto.randomBytes(4).toString('hex')
     const a = {
       // a look and a name picked in the new-agent dialog (both optional)
-      fast: !!body.fast, avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
+      fast: !!body.fast, avatar: avatarOf(body.avatar), nick: clip(String(body.nick || '').replace(/[\x00-\x1f<>]/g, ''), 16), desc: descOf(body.desc),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode, model: String(body.model || '').replace(/[^\w.:[\]-]/g, '') || '', effort: effortOf(body.effort),
       newSessionId: crypto.randomUUID(), sessionId: '', proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
@@ -335,12 +337,12 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   }
 
   // a VS Code session's conversation, carried on as a monitor agent in the same folder, under the same name and mode
-  async function fork({ cwd, sessionId, nick, mode }) {
+  async function fork({ cwd, sessionId, nick, desc, mode }) {
     if (!/^[0-9a-f-]{36}$/i.test(String(sessionId || ''))) return [400, {}]
     try { if (!fs.statSync(cwd).isDirectory()) return [400, { error: 'no such folder' }] } catch { return [400, { error: 'no such folder' }] }
     const id = crypto.randomBytes(4).toString('hex')
     const a = {
-      fast: false, avatar: null, nick: clip(String(nick || '').replace(/[\x00-\x1f<>]/g, ''), 16),
+      fast: false, avatar: null, nick: clip(String(nick || '').replace(/[\x00-\x1f<>]/g, ''), 16), desc: descOf(desc),
       id, cwd, key: projectKey(projectRoot(cwd)), name: 'monitor-' + id, mode: MODES.includes(mode) ? mode : 'default', model: '', effort: '',
       newSessionId: crypto.randomUUID(), sessionId: '', forkFrom: sessionId, forkedFrom: sessionId, proc: null, state: 'idle', stateSince: Date.now(), startedAt: Date.now(), lastAt: 0,
       events: [], streams: new Set(), msg: null, activity: null, activityAt: 0, turns: 0, stopping: false,
@@ -382,7 +384,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (typeof body.effort === 'string') a.effort = effortOf(body.effort)
       if (typeof body.nick === 'string') a.nick = clip(body.nick.replace(/[\x00-\x1f<>]/g, ''), 16)
       if (body.avatar !== undefined) a.avatar = avatarOf(body.avatar)
-      if (typeof body.nick === 'string' || body.avatar !== undefined) { save(); notifyPages(); if (!('mode' in body) && !('model' in body) && !('effort' in body)) return [200, {}] }
+      if (typeof body.desc === 'string') a.desc = descOf(body.desc)
+      if (typeof body.nick === 'string' || body.avatar !== undefined || typeof body.desc === 'string') { save(); notifyPages(); if (!('mode' in body) && !('model' in body) && !('effort' in body)) return [200, {}] }
       save()
       const what = 'mode ' + a.mode + (a.model ? ' · model ' + a.model : '') + (a.effort ? ' · effort ' + a.effort : '')
       if (!a.proc) { emit(a, { kind: 'note', text: what + ' — from the next message' }); notifyPages(); return [200, {}] }
@@ -426,7 +429,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   function sessions(now) {
     return [...agents.values()].map((a) => ({
       // forkedFrom: the VS Code session it was taken over from, for good (forkFrom only lasts until its first turn)
-      managed: true, agentId: a.id, pid: a.proc?.pid || 0, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
+      managed: true, agentId: a.id, pid: a.proc?.pid || 0, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
       statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))

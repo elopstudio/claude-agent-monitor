@@ -48,6 +48,12 @@ function lookFor(config, key, name, short) {
   const av = config.projects?.[key]?.avatars || {}
   return lookOf(av[short]) || lookOf(av[name])
 }
+// a line the user wrote about what the agent is for ("infra and CI/CD"): config.json projects.<key>.descs.<short name or name>
+const descOf = (v) => clip(String(v || '').replace(/[\x00-\x1f<>]/g, ' ').replace(/\s+/g, ' ').trim(), 80)
+function descFor(config, key, name, short) {
+  const d = config.projects?.[key]?.descs || {}
+  return descOf(d[short] || d[name])
+}
 // writes the name and look into config.json, keeping everything else in it as it was
 // config.json changes from the page: read it, change it, write it back in one step
 async function editConfig(change) {
@@ -86,6 +92,11 @@ async function saveLook(body) {
     const look = lookOf(body.avatar)
     p.avatars = p.avatars || {}
     if (look) p.avatars[who] = look; else delete p.avatars[who]
+  }
+  if (typeof body.desc === 'string') {
+    const desc = descOf(body.desc)
+    p.descs = p.descs || {}
+    if (desc) p.descs[who] = desc; else delete p.descs[who]
   }
   })
 }
@@ -419,7 +430,7 @@ async function buildState() {
     const short = s.name.toLowerCase().startsWith(key + '-') ? s.name.slice(key.length) : s.name
     if (!boards.has(key)) boards.set(key, await readBoard(key))
     const sess = {
-      id: s.sessionId.slice(0, 8), fullId: s.sessionId, name: s.name, short, nick: '', nickKo: '', avatar: lookFor(config, key, s.name, short), state: displayState(s, now),
+      id: s.sessionId.slice(0, 8), fullId: s.sessionId, name: s.name, short, nick: '', nickKo: '', avatar: lookFor(config, key, s.name, short), desc: descFor(config, key, s.name, short), state: displayState(s, now),
       statusSince: s.statusUpdatedAt, startedAt: s.startedAt, kind: s.kind,
       role: '', title: info?.title || '', activity: info?.activity || null, activityAt: info?.activityAt || 0,
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
@@ -452,7 +463,7 @@ async function buildState() {
     if (!boards.has(m.key)) boards.set(m.key, await readBoard(m.key))
     const info = await transcriptInfo(m.sessionId).catch(() => null)
     const sess = {
-      id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', pinNick: m.nick || '', avatar: m.avatar || null, state: m.state,
+      id: m.sessionId.slice(0, 8), fullId: m.sessionId, name: m.name, short: m.name, nick: '', nickKo: '', pinNick: m.nick || '', avatar: m.avatar || null, desc: m.desc || '', state: m.state,
       statusSince: m.statusSince, startedAt: m.startedAt, kind: 'monitor', managed: true, agentId: m.agentId, running: m.running,
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model, effort: m.effort,
@@ -974,7 +985,7 @@ async function forkSession(body) {
   const shown = (await cachedState()).projects.flatMap((p) => p.sessions).find((x) => x.name === target.name)
   // not in the middle of a turn: the copy would start from a transcript with a tool call still open
   if (shown?.state === 'working') return [409, { error: 'working' }]
-  return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: shown?.nickKo || shown?.nick || '', mode: modes.get(target.sessionId)?.mode || 'default' })
+  return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: shown?.nickKo || shown?.nick || '', desc: shown?.desc || '', mode: modes.get(target.sessionId)?.mode || 'default' })
 }
 
 async function sendMessage(body) {

@@ -258,6 +258,10 @@ on your own Claude Code login. Its dialog's conversation tab is the full chat:
 - **Name** and **Look** in the dialog are optional. Leave the name empty for an automatic one. The look is one of eight
   colours and a headgear (antenna, twin, headphones, sprout, bolt), with a live preview. The crown is not on offer:
   it marks the leader, and a monitor agent that becomes the leader wears it in its own colour;
+- **What it does** is one line of your own on what the agent is for (say, "infrastructure and CI/CD"), up to 80
+  characters. It shows under the agent's name at the top of its dialog. Any agent's line, a VS Code session's too, can
+  be written or changed on the dialog's info tab, next to its name and look, and a VS Code session that is taken
+  over keeps it;
 - replies stream in as they are written; tool calls open to show input and result;
 - permission prompts and questions arrive in the conversation through `hooks/permission-mcp.mjs`
   (`--permission-prompt-tool`) and wait for your answer — there is no VS Code to fall back to;
@@ -270,7 +274,7 @@ on your own Claude Code login. Its dialog's conversation tab is the full chat:
 - attached images go into the message as images; other files by path;
 - **End agent** stops it and removes it from the page; its transcript stays in `~/.claude/projects`.
 
-The list of these agents survives a restart. `.runtime/agents.json` keeps who each one is (folder, name, look,
+The list of these agents survives a restart. `.runtime/agents.json` keeps who each one is (folder, name, what it does, look,
 permission mode, model, session id) and never what was said. When the server starts again they come back stopped,
 their conversation read back from the transcript, and the next message resumes the same session. One that was in the
 middle of a turn when the monitor went away — quit, crash or an app update — carries on by itself: it is told the monitor
