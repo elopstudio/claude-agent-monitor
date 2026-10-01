@@ -30,6 +30,9 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   The selected tab is kept in the URL (`#project-name`) and in the browser. **Drag a tab** to reorder the projects (or
   **Ctrl + Shift + ← / →** on a focused tab); the all-agents view follows the same order, and it is saved as `order` in
   `config.json`.
+- **Counts in the header.** Pointing at (or focusing) a count — projects, sessions, working, waiting, resting —
+  lists what it counts: the projects, or the agents with their project. A click on an agent opens its dialog, and a click on a
+  project opens its tab.
 - **Org chart.** The leader (crowned robot) sits on top; the other agents hang below it.
   Each card shows the session's current action in a speech bubble, how long it has been in its state, and its uptime.
 - **Processes.** **⚙ Processes** in the header, with a count, opens what the agents have running: each agent
