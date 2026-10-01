@@ -24,7 +24,8 @@ Downloads for Windows and macOS, and what the monitor does, are at **[crew.elops
 ELOP Crew is made by ELOP Studio and works with Claude Code. It is not affiliated with or endorsed by Anthropic;
 Claude and Claude Code are trademarks of Anthropic.
 
-**☰** at the right of the header opens the menu: the language, the theme, **Account** and **About**.
+**☰** at the right of the header opens the menu: the language, the theme, **Claude account**, **ELOP Crew Cloud**
+(this PC's link to crew.elopstudio.com, for the phone app) and **About**.
 
 The page is in English by default. Switch to Korean with **EN / 한국어** in the menu (remembered in the browser) or open
 `http://127.0.0.1:4777/?lang=ko`. The theme is **System** (as the computer is set), **Light** or **Dark**, also remembered;
@@ -206,7 +207,7 @@ Add this to `~/.claude/settings.json` (merge with any `hooks` you already have):
 
 ## Claude account
 
-**Account** in the menu shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
+**Claude account** in the menu shows who Claude Code on this PC is signed in as, the plan, and how much of its limits
 is used: the current 5-hour session and the week, with when each resets. The numbers come from the same place as
 Claude Code's `/usage`. Anthropic turns callers away when that is asked often, so the monitor asks at most every five
 minutes (Refresh: once a minute), and after a refusal it waits longer each time, up to 30 minutes. Meanwhile — and
@@ -245,7 +246,7 @@ Both copies work on the same folder, so keep to one of them.
 
 The ELOP Crew app on your phone reaches the monitor on your PCs through [crew.elopstudio.com](https://crew.elopstudio.com/account):
 its agents as contacts, a chat with each, their conversations, and answers to permission requests and questions.
-The account dialog's lower half links this PC to your account there; you sign in with GitHub or Google. The monitor
+**ELOP Crew Cloud** in the menu links this PC to your account there; you sign in with GitHub or Google. The monitor
 is free on any number of PCs; a plan is how many of them the app can reach (Free 1, Pro 3, Team 10).
 
 - **Link this PC** makes a new Ed25519 key pair and shows a code such as `KXQ4-7MTR`, and opens
