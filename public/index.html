@@ -88,9 +88,12 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .pill .g{font-size:10px}
 .pill{position:relative}
 .pill[tabindex]{cursor:default}
-.pill .pillpop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:40;min-width:220px;max-width:320px;max-height:min(420px,70vh);overflow-y:auto;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:4px}
-.pill .pillpop::before{content:"";position:absolute;left:0;right:0;top:-8px;height:8px}   /* the gap below the pill still counts as on it */
-.pill:hover .pillpop,.pill:focus-within .pillpop{display:block}
+/* a pill's list: it stays a moment after the pointer leaves (visibility waits, a list does not vanish on the way to it
+   or on a slip off its edge), and the gap down to it counts as on the pill — a bridge on the pill itself, since the
+   list scrolls and would cut off one of its own */
+.pill .pillpop{display:block;visibility:hidden;opacity:0;transition:opacity .12s,visibility 0s linear .25s;position:absolute;top:calc(100% + 6px);left:0;z-index:40;min-width:220px;max-width:320px;max-height:min(420px,70vh);overflow-y:auto;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:4px}
+.pill[tabindex]::after{content:"";position:absolute;left:0;right:0;top:100%;height:8px}
+.pill:hover .pillpop,.pill:focus-within .pillpop{visibility:visible;opacity:1;transition-delay:0s}
 .totals .pill:nth-last-child(-n+2) .pillpop{left:auto;right:0}   /* the last ones open leftwards, so they stay on a narrow window */
 .pill .pi{appearance:none;display:flex;gap:9px;align-items:center;width:100%;text-align:left;border:0;background:none;color:var(--text);padding:5px 10px;border-radius:8px;cursor:pointer;font:12.5px var(--sans)}
 .pill .pi:hover,.pill .pi:focus-visible{background:var(--accent-soft)}
@@ -3488,7 +3491,18 @@ form.inline .fbtn{font:13px var(--sans);background:var(--surface);border-radius:
     // redrawn only when what it shows changed, so a list open under the pointer stays put between polls
     const pills = [pill('', '◆', t('projects'), data.projects.length, projectRows), pill('', '●', t('sessions'), all.length, agentRows('')), pill('run', '▶', t('working'), n('working'), agentRows('working')), pill('wait', '○', t('waiting'), n('waiting'), agentRows('waiting')), pill('rest', '–', t('resting'), n('resting'), agentRows('resting'))];
     const pillSig = JSON.stringify(pills.map((x) => x.textContent));
-    if (totals.dataset.sig !== pillSig) { totals.dataset.sig = pillSig; totals.replaceChildren(...pills); }
+    // and not while a list is open under the pointer or the keyboard (it would vanish beneath it): then once it leaves
+    const put = () => { totals.dataset.sig = totals.pendingSig; totals.replaceChildren(...totals.pending); totals.pending = null; };
+    if (totals.dataset.sig !== pillSig) {
+      totals.pending = pills; totals.pendingSig = pillSig;
+      if (!totals.matches(':hover, :focus-within')) put();
+    }
+    if (!totals.waitsToRedraw) {
+      totals.waitsToRedraw = true;
+      const later = () => setTimeout(() => { if (totals.pending && !totals.matches(':hover, :focus-within')) put(); }, 300);
+      totals.addEventListener('pointerleave', later);
+      totals.addEventListener('focusout', later);
+    }
 
     if (selected !== ALL && !data.projects.some((p) => p.key === selected)) selected = ALL;
     const tabs = $('tabs');

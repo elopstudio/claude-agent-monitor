@@ -46,7 +46,8 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   `config.json`.
 - **Counts in the header.** Pointing at (or focusing) a count — projects, sessions, working, waiting, resting —
   lists what it counts: the projects, or the agents with their project, each with its robot's face. A click on an agent opens its dialog, and a click on a
-  project opens its tab.
+  project opens its tab. The list stays while the pointer goes down to it (and a moment after it slips off), and is not
+  redrawn under it while it is open.
 - **Project names.** A project is named after its folder. **✎** next to the name at the top of its section gives it another
   name on the page (up to 40 characters), saved as `name` in `config.json`; the folder stays as it is and shows when the name
   is pointed at. Emptied, the folder's name is back.
