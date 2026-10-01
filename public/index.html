@@ -88,8 +88,11 @@ body{background:radial-gradient(1400px 520px at 50% -140px,var(--bg-grad),transp
 .pill .pillpop::before{content:"";position:absolute;left:0;right:0;top:-8px;height:8px}   /* the gap below the pill still counts as on it */
 .pill:hover .pillpop,.pill:focus-within .pillpop{display:block}
 .totals .pill:nth-last-child(-n+2) .pillpop{left:auto;right:0}   /* the last ones open leftwards, so they stay on a narrow window */
-.pill .pi{appearance:none;display:block;width:100%;text-align:left;border:0;background:none;color:var(--text);padding:5px 10px;border-radius:8px;cursor:pointer;font:12.5px var(--sans)}
+.pill .pi{appearance:none;display:flex;gap:9px;align-items:center;width:100%;text-align:left;border:0;background:none;color:var(--text);padding:5px 10px;border-radius:8px;cursor:pointer;font:12.5px var(--sans)}
 .pill .pi:hover,.pill .pi:focus-visible{background:var(--accent-soft)}
+.pill .pi svg{width:28px;height:21px;flex:none}
+.pill .pnobot{width:28px;flex:none}
+.pill .ptx{min-width:0;flex:1}
 .pill .pn{font-weight:800}
 .pill .ps{display:block;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill .pmore{padding:4px 10px;color:var(--faint);font-size:11.5px}
@@ -3112,7 +3115,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
         for (const r of rows.slice(0, 40)) {
           const b = el('button', 'pi');
           b.type = 'button';
-          b.append(el('span', 'pn', r.name), el('span', 'ps', r.sub));
+          const txt = el('span', 'ptx');
+          txt.append(el('span', 'pn', r.name), el('span', 'ps', r.sub));
+          b.append(r.bot ? r.bot() : el('span', 'pnobot'), txt);
           b.addEventListener('click', r.go);
           pop.append(b);
         }
@@ -3122,9 +3127,9 @@ body.docked .detail{bottom:60px;max-height:calc(100vh - 92px)}
       return x;
     };
     const agentRows = (st) => data.projects.flatMap((p) => p.sessions.filter((s) => !st || s.state === st).map((s) => ({
-      name: s.nick ? nickFor(s) : (str(s.short) || str(s.name)), sub: p.key, go: () => showDetail(s),
+      name: s.nick ? nickFor(s) : (str(s.short) || str(s.name)), sub: p.key, bot: () => robotNode(str(s.name), STATE[s.state] ? s.state : 'resting', s.isLeader, true), go: () => showDetail(s),
     })));
-    const projectRows = data.projects.map((p) => ({ name: p.key, sub: t('sessions') + ' ' + p.sessions.length, go: () => { selected = p.key; render(last); } }));
+    const projectRows = data.projects.map((p) => ({ name: p.key, bot: () => { const l = p.sessions.find((x) => x.isLeader); return robotNode(str(l?.name || p.key), 'working', true, true); }, sub: t('sessions') + ' ' + p.sessions.length, go: () => { selected = p.key; render(last); } }));
     procButton(data);
     // redrawn only when what it shows changed, so a list open under the pointer stays put between polls
     const pills = [pill('', '◆', t('projects'), data.projects.length, projectRows), pill('', '●', t('sessions'), all.length, agentRows('')), pill('run', '▶', t('working'), n('working'), agentRows('working')), pill('wait', '○', t('waiting'), n('waiting'), agentRows('waiting')), pill('rest', '–', t('resting'), n('resting'), agentRows('resting'))];
