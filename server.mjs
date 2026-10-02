@@ -17,7 +17,7 @@ import os from 'node:os'
 import crypto from 'node:crypto'
 import { spawn, execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { createAgents } from './agents.mjs'
+import { createAgents, systemNote } from './agents.mjs'
 import { createAccount } from './account.mjs'
 import { createCloud } from './cloud.mjs'
 import { createAssistant } from './assistant.mjs'
@@ -907,6 +907,9 @@ function userEntry(raw, at) {
     .replace(/<(local-command-[a-z]+|bash-std(?:out|err)|command-message|command-args)>[\s\S]*?<\/\1>/g, '')
     .trim()
   if (!text) return null
+  // the monitor's own words to an agent (carry on after a restart…), reminders taken off: a note of what it was
+  const sys = systemNote(text)
+  if (sys) return { role: 'note', sys, text: '', at }
   // "[Request interrupted by user]" and similar stay, as notes
   if (/^\[[^\]]{3,80}\]$/.test(text)) return { role: 'note', text, at }
   // a monitor agent's message keeps its attachments in the transcript as that same list
@@ -1327,7 +1330,7 @@ async function transcriptEvents(sessionId) {
       else if (e.role === 'user' || e.role === 'monitor') out.push({ kind: 'user', text: e.text, files: e.files || [], refs: e.refs || [], at: e.at })
       else if (e.role === 'tool') out.push({ kind: 'tool', id: e.id, name: e.name, action: e.action, input: e.input, at: e.at })
       else if (e.role === 'result') out.push({ kind: 'result', id: e.id, error: e.error, text: e.text, ...(e.images ? { images: e.images } : {}), at: e.at })
-      else if (e.role === 'note') out.push({ kind: 'note', text: e.text, at: e.at })
+      else if (e.role === 'note') out.push({ kind: 'note', text: e.text, ...(e.sys ? { sys: e.sys } : {}), at: e.at })
     }
   }
   return out.slice(-300)

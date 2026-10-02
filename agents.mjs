@@ -25,6 +25,15 @@ const ACCS = ["ball","twin","phones","sprout","bolt"]
 // { c: palette index 0-7, acc: headgear } — anything else means "the usual look from the name"
 const avatarOf = (v) => (v && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 && ACCS.includes(v.acc) ? { c: v.c, acc: v.acc } : null)
 // the assistant may also keep the crown it wears by default (the leader's mark on the cards, where it never appears)
+// What the monitor itself tells an agent (carry on after a restart, a login back, a usage limit reset, a nudge): in the
+// conversation view a one-line note of what it was, not a bubble as if the person had written it
+const SYSTEM_NOTES = [
+  [/^The agent monitor restarted \(an update or a restart of the app\)/, 'restart'],
+  [/^Claude Code was logged out while you were working/, 'login'],
+  [/^Your Claude usage limit was reached while you were working/, 'limit'],
+  [/^It looked like you were stuck, so you were stopped/, 'nudge'],
+]
+export const systemNote = (text) => SYSTEM_NOTES.find(([re]) => re.test(String(text || '')))?.[1] || ''
 const assistantLookOf = (v) => (v && v.acc === 'crown' && Number.isInteger(v.c) && v.c >= 0 && v.c < 8 ? { c: v.c, acc: 'crown' } : avatarOf(v))
 
 export function createAgents({ root, dataDir, mask, clip, clip2, describe, notifyPages, projectRoot, projectKey, askPage, attachedPaths, configPath, historyOf }) {
@@ -121,7 +130,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // asked only if that last turn could have started this restart (it installed, built or restarted the app): any
       // other agent paid a reload of its whole conversation into a cold cache to answer "nothing to do with me" —
       // 14 such checks cost about 10M tokens in a week
-      const turnStart = a.events.map((e) => e.kind).lastIndexOf('user')
+      const turnStart = a.events.map((e) => (e.sys ? 'user' : e.kind)).lastIndexOf('user')   // the monitor's own words begin a turn too
       const restarting = a.events.slice(turnStart + 1).some((e) => (e.kind === 'tool' && RESTARTING.test(String(e.input || ''))) || (e.kind === 'block' && RESTARTING.test(String(e.text || ''))))
       a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS && restarting
       // its conversation ended on the usage limit (a list from before limits were kept, or one kept): carried on after
@@ -130,7 +139,6 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (!a.limitHit && !a.midTurn && lastSaid?.kind === 'block' && LIMIT_HIT.test(lastSaid.text) && Date.now() - (lastSaid.at || 0) < 24 * 3600e3) {
         a.limitHit = { at: lastSaid.at || Date.now(), until: resetOf(lastSaid.text, lastSaid.at || Date.now()) || 0 }
       }
-      a.events.push({ kind: 'note', text: a.midTurn ? 'monitor restarted — carrying on with the turn that was cut short' : a.justAfter ? 'monitor restarted right after the last turn — asked to check on it' : 'monitor restarted — send a message to continue', at: Date.now() })
     }
     for (const a of agents.values()) {
       const why = a.midTurn ? CARRY_ON : a.justAfter ? JUST_AFTER : ''
@@ -456,7 +464,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     const msg = userMessage(text, files)
     try { a.proc.stdin.write(JSON.stringify(msg) + '\n') } catch { return false }
     // the files' names for the chips, and their place in the uploads folder ("<dir>/<stored name>") for the preview
-    emit(a, { kind: 'user', text: mask(clip2(text, 4000)), files: files.map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, '')), refs: files.map((p) => p.split('/').slice(-2).join('/')) })
+    // the monitor's own words to it: a note (the assistant's chat has its own way of showing them)
+    const sys = a.kind === 'assistant' ? '' : systemNote(text)
+    if (sys) emit(a, { kind: 'note', sys, text: '' })
+    else emit(a, { kind: 'user', text: mask(clip2(text, 4000)), files: files.map((p) => p.split('/').pop().replace(/^[0-9a-z]+-/, '')), refs: files.map((p) => p.split('/').slice(-2).join('/')) })
     setState(a, 'working')
     return true
   }
@@ -503,7 +514,6 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (!l || a.loginLost || a.state === 'working') continue
       const due = l.until ? l.until + LIMIT_GRACE_MS : l.at + LIMIT_RETRY_MS * Math.min(4, a.limitTries || 1)
       if (now < due) continue
-      emit(a, { kind: 'note', text: 'the usage limit should have reset — carrying on' })
       send(a, LIMIT_BACK, [])
     }
     const waiting = [...agents.values()].filter((a) => a.loginLost)
@@ -514,7 +524,6 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       if (a.proc || now - a.loginLost < 20000) continue
       if (!(login.at > a.loginLost || !a.loginTriedAt) || now - (a.loginTriedAt || 0) < 60000) continue
       a.loginTriedAt = now
-      emit(a, { kind: 'note', text: 'Claude Code is logged in again — carrying on' })
       send(a, LOGGED_BACK, [])
     }
   }, 15000).unref?.()
