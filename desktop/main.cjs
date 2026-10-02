@@ -464,10 +464,23 @@ function installUpdate() {
 
 /* ── settings window: start at login, close to tray, data folder, hooks, about ── */
 let settingsWin = null
+// centred on the screen the app's window is on (else the pointer's): left to Windows, it opened on the main screen,
+// out of sight of an app window on the other one, so the settings button seemed to do nothing
+function centreOn(width, height) {
+  const ref = win && !win.isDestroyed() && win.isVisible() && !win.isMinimized() ? screen.getDisplayMatching(win.getBounds()) : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const a = ref.workArea
+  return { x: Math.round(a.x + Math.max(0, (a.width - width) / 2)), y: Math.round(a.y + Math.max(0, (a.height - height) / 2)), width, height }
+}
 function showSettings() {
-  if (settingsWin) { settingsWin.show(); settingsWin.focus(); return }
+  if (settingsWin) {
+    // brought to the app's screen if it is on another
+    const [w, h] = settingsWin.getSize(), at = centreOn(w, h)
+    if (screen.getDisplayMatching(settingsWin.getBounds()).id !== screen.getDisplayMatching(at).id) settingsWin.setBounds(at)
+    if (settingsWin.isMinimized()) settingsWin.restore()
+    settingsWin.show(); settingsWin.focus(); return
+  }
   settingsWin = new BrowserWindow({
-    width: 620, height: 800, resizable: false, minimizable: false, maximizable: false, title: t('settingsTitle'), icon: ICON,
+    ...centreOn(620, 800), resizable: false, minimizable: false, maximizable: false, title: t('settingsTitle'), icon: ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1116' : '#f2f3f7', autoHideMenuBar: true,
     ...titleBar(),
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'settings-preload.cjs') },
