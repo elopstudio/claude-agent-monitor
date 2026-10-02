@@ -299,6 +299,10 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
     }
     if (o.type === 'result') {
       a.turns++
+      // how much context its model holds, as claude says, for the meter by the message box (the largest: a small
+      // model's side jobs are listed too)
+      const win = Math.max(0, ...Object.values(o.modelUsage || {}).map((v) => Number(v?.contextWindow) || 0))
+      if (win) a.ctxWindow = win
       // a failed turn says why (an API error, a limit…) instead of ending silently
       emit(a, { kind: 'turn', ok: !o.is_error, subtype: String(o.subtype || ''), ms: o.duration_ms || 0, ...(o.is_error ? { text: mask(clip(String(o.result || (o.errors || []).join('; ') || o.subtype || ''), 400)) } : {}) })
       setState(a, 'idle')
@@ -687,7 +691,7 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
       // forkedFrom: the VS Code session it was taken over from, for good (forkFrom only lasts until its first turn)
       managed: true, agentId: a.id, pid: a.proc?.pid || 0, loginLost: a.loginLost || 0, limitHit: a.limitHit || null, lastFail: a.lastFail || null, forkedFrom: a.forkedFrom || '', sessionId: a.sessionId || a.newSessionId, name: a.name, avatar: a.avatar, nick: a.nick, desc: a.desc || '', cwd: a.cwd, root: projectRoot(a.cwd), key: a.key,
       state: a.state === 'working' ? 'working' : a.state === 'idle' ? 'waiting' : 'resting', running: !!a.proc,
-      statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
+      statusSince: a.stateSince, startedAt: a.startedAt, mode: a.mode, model: a.model, ctxWindow: a.ctxWindow || 0, effort: a.effort || '', activity: a.activity, activityAt: a.activityAt, lastEventAt: a.lastAt,
     }))
   }
   const byAgentSession = (sessionId) => [...agents.values()].find((a) => a.sessionId === sessionId || a.newSessionId === sessionId)

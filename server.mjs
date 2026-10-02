@@ -273,6 +273,7 @@ function applyLine(info, o) {
   // how full the context is: the newest reply's input side (fresh + cache written + cache read)
   const u = o.message?.usage
   if (u) info.context = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
+  if (o.message?.model && o.message.model !== '<synthetic>') info.model = String(o.message.model)
   if (!Array.isArray(o.message?.content)) return
   for (const c of o.message.content) {
     if (c?.type !== 'tool_use') continue
@@ -286,6 +287,12 @@ function applyLine(info, o) {
       if (info.sent.length > 60) info.sent.shift()
     }
   }
+}
+// How much context its model holds, for the meter by the message box: what claude itself said for a monitor agent,
+// else from the model's name (Haiku 200k, the others 1M), and never less than what it already holds
+function windowOf(model, context, told) {
+  const w = told > 0 ? told : /haiku/i.test(model || '') ? 200000 : 1000000
+  return context > w ? 1000000 : w
 }
 function finish(info) {
   info.results = info.recent.length
@@ -492,7 +499,7 @@ async function buildState() {
       lastEventAt: info?.lastEventAt || 0, sentCount: info?.sent.length || 0,
       mode: modes.get(s.sessionId)?.mode || '',
       listening: waiters.has(s.sessionId), queued: (inbox.get(s.sessionId) || []).length,
-      context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
+      context: info?.context || 0, ctxWindow: windowOf(info?.model, info?.context || 0), errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
       // a hook call is a sign of life too, and arrives even while the transcript is quiet
       lastSignAt: Math.max(info?.lastEventAt || 0, modes.get(s.sessionId)?.at || 0),
       subagents: await subagentsOf(s.sessionId).catch(() => []), today: await todayOf(s.sessionId).catch(() => null),
@@ -524,7 +531,7 @@ async function buildState() {
       loginLost: m.loginLost || 0, limitHit: m.limitHit || null, lastFail: m.lastFail || null,
       role: '', title: info?.title || '', activity: m.activity || info?.activity || null, activityAt: m.activityAt || info?.activityAt || 0,
       lastEventAt: m.lastEventAt || info?.lastEventAt || 0, sentCount: info?.sent.length || 0, mode: m.mode, model: m.model, effort: m.effort,
-      listening: false, queued: 0, context: info?.context || 0, errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
+      listening: false, queued: 0, context: info?.context || 0, ctxWindow: windowOf(info?.model || m.model, info?.context || 0, m.ctxWindow), errors: info?.errors || 0, results: info?.results || 0, lastErrorAt: info?.lastErrorAt || 0,
       lastSignAt: m.lastEventAt || 0, subagents: await subagentsOf(m.sessionId).catch(() => []), today: await todayOf(m.sessionId).catch(() => null),
     }
     sess.stalledFor = sess.state === 'working' && sess.lastSignAt && now - sess.lastSignAt > STALL_MS ? now - sess.lastSignAt : 0

@@ -45,6 +45,7 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   **Ctrl + Shift + ← / →** on a focused tab); the all-agents view follows the same order, and it is saved as `order` in
   `config.json`.
 - **Long conversations.** A card's 🧠 (the conversation's size) turns amber from 300k tokens: every step an agent takes reads all of it again, which is most of what agents cost. The agent's dialog says so above the message box; for a monitor agent with **Run /compact**, which shortens it so the next turns cost less, and for a VS Code session it says to type /compact there.
+- **How full the context is.** Beside the send button, as in VS Code, a ring and a percentage show how much of its model's context the conversation fills (1M tokens, or 200k for Haiku; for a monitor agent, what claude itself reports), with the tokens on hover. It turns amber from 300k and red past 80%, and follows the conversation as it grows.
 - **Counts in the header.** Pointing at (or focusing) a count — projects, sessions, working, waiting, resting —
   lists what it counts: the projects, or the agents with their project, each with its robot's face. A click on an agent opens its dialog, and a click on a
   project opens its tab. The list stays while the pointer goes down to it (and a moment after it slips off), and is not
