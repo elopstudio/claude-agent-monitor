@@ -1106,6 +1106,45 @@ async function forkSession(body) {
   return agents.fork({ cwd: target.cwd, sessionId: target.sessionId, nick: { en: shown?.nick || '', ko: shown?.nickKo || '' }, desc: shown?.desc || '', mode: modes.get(target.sessionId)?.mode || 'default' })
 }
 
+/* ── MCP servers and claude.ai connectors, as `claude mcp list` sees them ── */
+// claude checks each one itself (a few seconds), asked in an empty folder: the user's own servers and claude.ai's, not
+// the ones a project folder adds. The answer is kept a minute and read afresh when asked. The page gets
+// a name, where it comes from, a host and a state — never a full address (one may carry a key) or a command line.
+// Signing in to a claude.ai connector happens on claude.ai, in the browser: the page links there.
+let mcpCache = null
+function parseMcp(text) {
+  const out = []
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^(.+?): (\S.*?) - ([✓√✔!✗×✘])\s*(.*)$/.exec(line.trim())
+    if (!m) continue
+    const [, name, target, mark, said] = m
+    const claudeAi = /^claude\.ai /.test(name)
+    const state = '✓√✔'.includes(mark) ? 'ok' : mark === '!' ? (/auth/i.test(said) ? 'auth' : 'warn') : 'failed'
+    let where = ''
+    try { where = /^https?:\/\//.test(target) ? new URL(target).host : path.basename(target.split(/\s+/)[0] || '') } catch {}
+    // why it fails, without the JSON around it: "HTTP 404 — No MCP endpoint was found at the URL provided."
+    const http = /HTTP (\d{3})/.exec(said)?.[1], told = /"message"\s*:\s*"([^"]{3,200})"/.exec(said)?.[1]
+    const why = state === 'ok' ? '' : told ? (http ? 'HTTP ' + http + ' — ' : '') + told : said.replace(/^Failed to connect\s*[—-]?\s*/i, '')
+    out.push({ name: clip(claudeAi ? name.slice(10) : name, 60), claudeAi, where: clip(where, 60), state, why: mask(clip(why, 160)) })
+  }
+  return out
+}
+function connectors(fresh) {
+  if (mcpCache?.promise) return mcpCache.promise
+  if (!fresh && mcpCache && Date.now() - mcpCache.at < 60 * 1000) return Promise.resolve(mcpCache.value)
+  const promise = new Promise((resolve) => {
+    let out = '', child
+    const end = (failed) => { clearTimeout(timer); const list = parseMcp(out); resolve({ at: Date.now(), list, failed: failed && !list.length }) }
+    const timer = setTimeout(() => { try { child.kill() } catch {}; end(true) }, 90 * 1000)
+    try { child = spawn(agents.claudeExecutable(), ['mcp', 'list'], { cwd: os.tmpdir(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }) } catch { end(true); return }
+    child.stdout.on('data', (d) => { if (out.length < 1 << 20) out += d })
+    child.on('error', () => end(true))
+    child.on('close', (code) => end(code !== 0))
+  }).then((value) => { mcpCache = { at: Date.now(), value }; return value })
+  mcpCache = { ...(mcpCache || {}), promise }
+  return promise
+}
+
 /* ── A folder's earlier conversations, to carry one on as a new agent ── */
 
 // Claude Code keeps a folder's transcripts in ~/.claude/projects/<its path, every other character a dash>. Listed: the
@@ -1437,6 +1476,11 @@ const server = http.createServer(async (req, res) => {
       // the account's email is private like the conversations: the token is needed to read it
       if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
       json(200, await account.info(url.searchParams.get('fresh') === '1'))
+      return
+    }
+    if (url.pathname === '/api/connectors') {
+      if (!sameToken(url.searchParams.get('token') || '')) { res.writeHead(403).end(); return }
+      json(200, await connectors(url.searchParams.get('fresh') === '1'))
       return
     }
     if (url.pathname === '/api/assistant') {

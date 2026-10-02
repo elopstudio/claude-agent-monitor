@@ -25,7 +25,14 @@ ELOP Crew is made by ELOP Studio and works with Claude Code. It is not affiliate
 Claude and Claude Code are trademarks of Anthropic.
 
 **☰** at the right of the header opens the menu: the language, the theme, **Claude account**, **ELOP Crew Cloud**
-(this PC's link to crew.elopstudio.com, for the phone app) and **About**.
+(this PC's link to crew.elopstudio.com, for the phone app), **Connectors** and **About**.
+
+**Connectors** lists the MCP servers and claude.ai connectors Claude Code uses, each with its state as claude itself
+checks it (`claude mcp list`): connected, needs signing in, or not working with the reason ("HTTP 404 — No MCP endpoint
+was found at the URL provided."). Signing in to a claude.ai connector is done on claude.ai: **Connect on claude.ai** opens
+its connector settings in the browser, and coming back to the window checks again. A server of this PC's own that needs
+signing in is done with `/mcp` in claude in a terminal. Agents already running get a newly connected one when they next
+start. Only a name, a host and a state reach the page — never a full address or a command line.
 
 The page is in English by default. Switch to Korean with **EN / 한국어** in the menu (remembered in the browser) or open
 `http://127.0.0.1:4777/?lang=ko`. The theme is **System** (as the computer is set), **Light** or **Dark**, also remembered;
