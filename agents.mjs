@@ -44,6 +44,8 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
   const CARRY_ON = 'The agent monitor restarted (an update or a restart of the app) and cut your last turn short. Please carry on where you left off, and keep replying in the language you have been using with the user.'
   const JUST_AFTER = 'The agent monitor restarted (an update or a restart of the app) right after your last turn ended. If that turn started something this restart was part of — installing or updating the app, a restart you asked for — check now that it worked and tell the user what you found. If it had nothing to do with it, just say so in one line.'
   const JUST_AFTER_MS = 2 * 60 * 1000   // how soon after a turn ends a restart counts as "right after"
+  // a turn that may have set off the restart: an installer run, a build or release of the app, a restart spoken of
+  const RESTARTING = /--force-run|Setup[^\n"]*\.exe|am-setup|npm run (dist|release|try)|electron-builder|quitAndInstall|Start-Process[^\n]*(install|setup)|\brestart(s|ed|ing)?\b|reinstall|재시작|재설치|다시 설치/i
   // Claude Code logged out under a running agent (a login that ran out, a switch to another account): its turn fails with
   // "Not logged in". The agent is stopped, since a process that keeps running keeps the login it started with, and once
   // Claude Code is logged in again it is started afresh and carries on with what it was doing
@@ -116,7 +118,12 @@ export function createAgents({ root, dataDir, mask, clip, clip2, describe, notif
         if (!a.sessionId && saved.newSessionId) { try { const h = await historyOf(saved.newSessionId); if (h.length) { a.sessionId = saved.newSessionId; a.events = h } } catch {} }
         else if (a.sessionId && a.sessionId === saved.newSessionId && !a.events.length) a.sessionId = ''
       }
-      a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS
+      // asked only if that last turn could have started this restart (it installed, built or restarted the app): any
+      // other agent paid a reload of its whole conversation into a cold cache to answer "nothing to do with me" —
+      // 14 such checks cost about 10M tokens in a week
+      const turnStart = a.events.map((e) => e.kind).lastIndexOf('user')
+      const restarting = a.events.slice(turnStart + 1).some((e) => (e.kind === 'tool' && RESTARTING.test(String(e.input || ''))) || (e.kind === 'block' && RESTARTING.test(String(e.text || ''))))
+      a.justAfter = !a.midTurn && a.turnEndedAt > 0 && Date.now() - a.turnEndedAt < JUST_AFTER_MS && restarting
       // its conversation ended on the usage limit (a list from before limits were kept, or one kept): carried on after
       // the reset like one that hits it now — at once if that time has passed
       const lastSaid = a.events.filter((e) => e.kind === 'block' || e.kind === 'user').pop()

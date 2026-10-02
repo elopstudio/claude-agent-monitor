@@ -44,6 +44,7 @@ app, the app's own (show or hide the window, zoom, reload, back and forward).
   The selected tab is kept in the URL (`#project-name`) and in the browser. **Drag a tab** to reorder the projects (or
   **Ctrl + Shift + ← / →** on a focused tab); the all-agents view follows the same order, and it is saved as `order` in
   `config.json`.
+- **Long conversations.** A card's 🧠 (the conversation's size) turns amber from 300k tokens: every step an agent takes reads all of it again, which is most of what agents cost. The agent's dialog says so above the message box; for a monitor agent with **Run /compact**, which shortens it so the next turns cost less, and for a VS Code session it says to type /compact there.
 - **Counts in the header.** Pointing at (or focusing) a count — projects, sessions, working, waiting, resting —
   lists what it counts: the projects, or the agents with their project, each with its robot's face. A click on an agent opens its dialog, and a click on a
   project opens its tab. The list stays while the pointer goes down to it (and a moment after it slips off), and is not
@@ -333,8 +334,10 @@ their conversation read back from the transcript, and the next message resumes t
 middle of a turn when the monitor went away — quit, crash or an app update — carries on by itself: it is told the monitor
 restarted and asked to pick up where it left off, in the language it was using with you. One whose turn had ended less
 than 2 minutes before is asked whether that turn was waiting for this restart — say it started the installer of a new
-version and ended its turn — and, if so, to check that it worked and tell you; otherwise it just says so. The list keeps
-when each agent's last turn ended for this.
+version and ended its turn — and, if so, to check that it worked and tell you. Only an agent whose last turn could have
+set the restart off is asked (it ran an installer, built or released the app, or spoke of a restart): any other paid a
+reload of its whole conversation into a cold cache just to say "nothing to do with me". The list keeps when each
+agent's last turn ended for this.
 An agent whose turn fails because Claude Code is not logged in any more (a login that ran out, a switch to another
 account) is stopped, since a claude that keeps running keeps the login it started with, and its conversation says it
 will carry on by itself. Once Claude Code is logged in again, it is started afresh and told to pick up where it left
